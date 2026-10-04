@@ -18,11 +18,19 @@
             <a href="index.php">TestSuViet.com</a>
         </div>
 
-        <nav class="navbar">
+        <!-- Nút 3 gạch -->
+        <button class="menu-toggle" onclick="toggleMenu()">
+            ☰
+        </button>
+
+        <nav class="nav" id="navMenu">
             <a href="index.php">Trang chủ</a>
-            <a href="#">Đề thi</a>
             <a href="#">Giới thiệu</a>
         </nav>
-
     </div>
 </header>
+<script>
+function toggleMenu() {
+    document.getElementById("navMenu").classList.toggle("show");
+}
+</script>

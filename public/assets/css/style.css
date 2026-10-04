@@ -575,50 +575,59 @@ footer p {
     font-size: 26px;
   }
 }
+
 /* =========================
    HEADER
 ========================= */
 
 .header {
-  background-color: #ffffff;
+  background: white;
   border-bottom: 1px solid #e5e7eb;
-  position: sticky;
-  top: 0;
-  z-index: 1000;
 }
 
 .header-container {
+  width: 90%;
+  max-width: 1200px;
   height: 70px;
+  margin: auto;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.logo a {
-  font-size: 24px;
-  font-weight: bold;
-  color: #2563eb;
+.logo {
   text-decoration: none;
+  font-size: 24px;
+  font-weight: 700;
+  color: #2563eb;
 }
 
-.navbar {
+.nav {
   display: flex;
-  align-items: center;
   gap: 30px;
 }
 
-.navbar a {
+.nav a {
+  text-decoration: none;
   color: #374151;
   font-size: 16px;
-  font-weight: 500;
-  text-decoration: none;
-  transition: 0.3s;
 }
 
-.navbar a:hover {
+.nav a:hover {
   color: #2563eb;
 }
 
+/* Nút 3 gạch */
+.menu-toggle {
+  display: none;
+
+  border: none;
+  background: none;
+
+  font-size: 30px;
+  cursor: pointer;
+}
 /* =========================
    HEADER RESPONSIVE
 ========================= */
