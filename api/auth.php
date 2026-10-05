@@ -813,4 +813,74 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 </body>
 </html>
 
+//Cập nhật thông tin
 
+<?php
+require_once "../config/database.php";
+
+if (!isset($_SESSION["user_id"])) {
+    header("Location: login.php");
+    exit;
+}
+
+$user_id = $_SESSION["user_id"];
+
+$stmt = $conn->prepare(
+    "SELECT user_id, username, full_name, email, role
+     FROM Users
+     WHERE user_id = ?"
+);
+
+$stmt->execute([$user_id]);
+$user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$user) {
+    session_destroy();
+    header("Location: login.php");
+    exit;
+}
+?>
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Thông tin cá nhân</title>
+</head>
+<body>
+
+<h2>Thông tin cá nhân</h2>
+
+<form action="update-profile.php" method="POST">
+
+    <label>Tên đăng nhập</label>
+    <input type="text"
+           value="<?= htmlspecialchars($user['username']) ?>"
+           disabled>
+
+    <br><br>
+
+    <label>Họ và tên</label>
+    <input type="text"
+           name="full_name"
+           value="<?= htmlspecialchars($user['full_name']) ?>"
+           required>
+
+    <br><br>
+
+    <label>Email</label>
+    <input type="email"
+           name="email"
+           value="<?= htmlspecialchars($user['email']) ?>"
+           required>
+
+    <br><br>
+
+    <button type="submit">Cập nhật thông tin</button>
+
+</form>
+
+<a href="../index.php">Quay lại trang chủ</a>
+
+</body>
+</html>
