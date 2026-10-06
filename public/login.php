@@ -1,9 +1,9 @@
-```php
+
 <?php
 
 // Kết nối đến file database.php để sử dụng kết nối CSDL ($conn)
 // Đồng thời file này có thể khởi tạo session
-require_once "config/database.php";
+require_once "config.php";
 
 
 // Biến dùng để lưu thông báo lỗi hoặc thông báo cho người dùng
