@@ -1,265 +1,431 @@
-<?php
-// Khởi tạo Session
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
 
-// --------------------------------------------------------------------------
-// 1. KẾT NỐI DATABASE VÀ KIỂM TRA ĐĂNG NHẬP
-// --------------------------------------------------------------------------
+<?php
 require_once __DIR__ . '/../config/database.php';
 
-// Kiểm tra người dùng đã đăng nhập chưa (Nếu chưa thì chuyển hướng về login.php)
+// Không lưu trang cá nhân vào bộ nhớ đệm trình duyệt
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
+// Kiểm tra đăng nhập
 if (!isset($_SESSION['user_id'])) {
-    // Để tiện test khi chưa gắn session, bạn có thể gán mặc định user_id = 1
-    $_SESSION['user_id'] = 1;
+    header('Location: /login.php');
+    exit;
 }
 
-$user_id = $_SESSION['user_id'];
-$message = "";
+$user_id = (int) $_SESSION['user_id'];
+$message = '';
+$user_info = [];
 
-// --------------------------------------------------------------------------
-// 2. XỬ LÝ LƯU CẬP NHẬT THÔNG TIN (KHI SUBMIT FORM)
-// --------------------------------------------------------------------------
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile') {
-    $fullname = trim($_POST['fullname'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $phone = trim($_POST['phone'] ?? '');
-    $current_password = $_POST['current_password'] ?? '';
-    $new_password = $_POST['new_password'] ?? '';
-    $confirm_password = $_POST['confirm_password'] ?? '';
+// Lấy thông tin người dùng hiện tại
+function getUserInfo(PDO $conn, int $userId): array
+{
+    $stmt = $conn->prepare(
+        'SELECT user_id, username, password_hash, full_name,
+                email, role, status
+         FROM users
+         WHERE user_id = ?
+         LIMIT 1'
+    );
 
-    // Xử lý Upload ảnh đại diện Avatar (nếu có)
-    $avatar_filename = null;
-    if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
-        $fileTmpPath = $_FILES['avatar']['tmp_name'];
-        $fileName = $_FILES['avatar']['name'];
-        $fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        if (in_array($fileExtension, $allowedExtensions)) {
-            $uploadDir = __DIR__ . '/uploads/avatars/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0777, true);
-            }
-            $newFileName = 'avatar_user_' . $user_id . '_' . time() . '.' . $fileExtension;
-            $destPath = $uploadDir . $newFileName;
+    if (!$user) {
+        // Tài khoản không còn tồn tại trong CSDL
+        $_SESSION = [];
+        session_destroy();
 
-            if (move_uploaded_file($fileTmpPath, $destPath)) {
-                $avatar_filename = 'uploads/avatars/' . $newFileName;
-            }
-        }
+        header('Location: /login.php?error=account');
+        exit;
     }
 
-    // Tiến hành cập nhật CSDL
-    if (!empty($fullname) && !empty($email)) {
-        try {
-            // Đọc mật khẩu hiện tại từ CSDL để đối soát
-            $stmt_check = $conn->prepare("SELECT password, avatar FROM users WHERE id = :id");
-            $stmt_check->execute(['id' => $user_id]);
-            $user_db = $stmt_check->fetch();
-
-            $update_password_query = "";
-            $params = [
-                'fullname' => $fullname,
-                'email' => $email,
-                'phone' => $phone,
-                'id' => $user_id
-            ];
-
-            // Nếu người dùng có upload avatar mới
-            if ($avatar_filename) {
-                $avatar_query = ", avatar = :avatar";
-                $params['avatar'] = $avatar_filename;
-            } else {
-                $avatar_query = "";
-            }
-
-            // Nếu người dùng nhập đổi mật khẩu
-            if (!empty($new_password)) {
-                if (password_verify($current_password, $user_db['password']) || $current_password === $user_db['password']) {
-                    if ($new_password === $confirm_password) {
-                        $update_password_query = ", password = :new_pass";
-                        $params['new_pass'] = password_hash($new_password, PASSWORD_BCRYPT);
-                    } else {
-                        throw new Exception("Mật khẩu mới và Nhập lại mật khẩu không khớp nhau!");
-                    }
-                } else {
-                    throw new Exception("Mật khẩu hiện tại không chính xác!");
-                }
-            }
-
-            // Thực hiện câu lệnh UPDATE
-            $sql = "UPDATE users SET fullname = :fullname, email = :email, phone = :phone {$avatar_query} {$update_password_query} WHERE id = :id";
-            $stmt = $conn->prepare($sql);
-            $stmt->execute($params);
-
-            // Cập nhật lại thông tin Session
-            $_SESSION['fullname'] = $fullname;
-            if ($avatar_filename) {
-                $_SESSION['avatar'] = $avatar_filename;
-            }
-
-            $message = "<div class='alert alert-success'>✅ Cập nhật thông tin cá nhân thành công!</div>";
-
-        } catch (Exception $e) {
-            $message = "<div class='alert alert-danger'>❌ " . htmlspecialchars($e->getMessage()) . "</div>";
-        }
-    } else {
-        $message = "<div class='alert alert-danger'>❌ Họ tên và Email không được để trống!</div>";
-    }
+    return $user;
 }
 
-// --------------------------------------------------------------------------
-// 3. LẤY THÔNG TIN NGƯỜI DÙNG HIỆN TẠI TỪ CSDL
-// --------------------------------------------------------------------------
 try {
-    $stmt_user = $conn->prepare("SELECT fullname, email, phone, role, avatar, created_at FROM users WHERE id = :id");
-    $stmt_user->execute(['id' => $user_id]);
-    $user_info = $stmt_user->fetch();
+    $user_info = getUserInfo($conn, $user_id);
+
+    // Xử lý cập nhật hồ sơ
+    if (
+        $_SERVER['REQUEST_METHOD'] === 'POST'
+        && ($_POST['action'] ?? '') === 'update_profile'
+    ) {
+        $fullName = trim($_POST['full_name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['current_password'] ?? '';
+        $newPassword = $_POST['new_password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+
+        if ($fullName === '' || $email === '') {
+            throw new Exception('Họ tên và email không được để trống.');
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new Exception('Địa chỉ email không hợp lệ.');
+        }
+
+        // Kiểm tra email có thuộc tài khoản khác không
+        $stmt = $conn->prepare(
+            'SELECT user_id FROM users
+             WHERE email = ? AND user_id <> ?
+             LIMIT 1'
+        );
+        $stmt->execute([$email, $user_id]);
+
+        if ($stmt->fetch()) {
+            throw new Exception('Email này đã được tài khoản khác sử dụng.');
+        }
+
+        // Chỉ cập nhật mật khẩu khi người dùng nhập mật khẩu mới
+        $changePassword = $newPassword !== '';
+
+        if ($changePassword) {
+            if (!password_verify($password, $user_info['password_hash'])) {
+                throw new Exception('Mật khẩu hiện tại không chính xác.');
+            }
+
+            if (strlen($newPassword) < 8) {
+                throw new Exception('Mật khẩu mới phải có ít nhất 8 ký tự.');
+            }
+
+            if ($newPassword !== $confirmPassword) {
+                throw new Exception('Mật khẩu xác nhận không khớp.');
+            }
+        }
+
+        // Cập nhật thông tin
+        if ($changePassword) {
+            $stmt = $conn->prepare(
+                'UPDATE users
+                 SET full_name = ?, email = ?, password_hash = ?
+                 WHERE user_id = ?'
+            );
+
+            $stmt->execute([
+                $fullName,
+                $email,
+                password_hash($newPassword, PASSWORD_DEFAULT),
+                $user_id
+            ]);
+        } else {
+            $stmt = $conn->prepare(
+                'UPDATE users
+                 SET full_name = ?, email = ?
+                 WHERE user_id = ?'
+            );
+
+            $stmt->execute([$fullName, $email, $user_id]);
+        }
+
+        // Đồng bộ thông tin với session đăng nhập
+        $_SESSION['full_name'] = $fullName;
+        $_SESSION['username'] = $user_info['username'];
+        $_SESSION['email'] = $email;
+
+        // Lấy lại thông tin mới nhất từ CSDL
+        $user_info = getUserInfo($conn, $user_id);
+
+        $message = 'Cập nhật thông tin cá nhân thành công.';
+    }
 } catch (PDOException $e) {
-    // Dữ liệu Mock Data khi chưa có bảng CSDL
-    $user_info = [
-        'fullname' => $_SESSION['fullname'] ?? 'Nguyễn Văn Học Viên',
-        'email' => 'hocvien@gmail.com',
-        'phone' => '0987654321',
-        'role' => $_SESSION['role'] ?? 'student',
-        'avatar' => 'image/anh1.jpg',
-        'created_at' => '2026-01-15 10:00:00'
-    ];
+    error_log($e->getMessage());
+    $message = 'Không thể cập nhật thông tin. Vui lòng kiểm tra cấu trúc CSDL.';
+} catch (Exception $e) {
+    $message = $e->getMessage();
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cập Nhật Thông Tin Cá Nhân</title>
+    <title>Thông tin cá nhân - TestSuViet</title>
+
     <style>
-        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; }
-        body { background: #f4f6f9; color: #333; padding-bottom: 50px; }
-        
-        header { background: #2c3e50; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .page-title { font-size: 1.3rem; font-weight: bold; }
-        .btn-home { background-color: #3498db; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; font-weight: bold; transition: 0.2s; }
-        .btn-home:hover { background-color: #2980b9; }
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+        }
 
-        .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
-        
-        .profile-grid { display: grid; grid-template-columns: 280px 1fr; gap: 25px; }
-        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        
-        /* Cột trái - Xem Avatar & Thông tin chung */
-        .avatar-box { text-align: center; }
-        .avatar-img { width: 130px; height: 130px; border-radius: 50%; object-fit: cover; border: 4px solid #3498db; margin-bottom: 15px; }
-        .role-badge { display: inline-block; background: #e1f5fe; color: #0288d1; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.85rem; margin-top: 5px; }
-        
-        /* Form cài đặt */
-        h2 { color: #2c3e50; font-size: 1.3rem; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
-        .form-group { margin-bottom: 18px; }
-        label { display: block; font-weight: bold; margin-bottom: 6px; color: #34495e; font-size: 0.95rem; }
-        input[type="text"], input[type="email"], input[type="password"], input[type="file"] { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; }
-        
-        .section-divider { margin: 25px 0 15px 0; font-size: 1.1rem; color: #e67e22; border-bottom: 1px dashed #ddd; padding-bottom: 8px; }
-        
-        .btn-submit { background: #27ae60; color: white; border: none; padding: 12px 30px; font-size: 1rem; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.3s; }
-        .btn-submit:hover { background: #219150; }
+        body {
+            margin: 0;
+            padding: 30px 16px;
+            background: #f4f6f9;
+            color: #333;
+        }
 
-        .alert { padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
-        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .container {
+            max-width: 850px;
+            margin: auto;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 25px;
+            color: #2c3e50;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 16px;
+            border: 0;
+            border-radius: 6px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .profile {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 22px;
+        }
+
+        .card {
+            padding: 24px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px #0000000d;
+        }
+
+        .summary {
+            text-align: center;
+        }
+
+        .avatar {
+            width: 110px;
+            height: 110px;
+            display: grid;
+            place-items: center;
+            margin: 0 auto 16px;
+            border-radius: 50%;
+            background: #e1f5fe;
+            color: #0288d1;
+            font-size: 42px;
+        }
+
+        .username {
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .role {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: #e1f5fe;
+            color: #0277bd;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+
+        .form-group {
+            margin-bottom: 17px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 7px;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #ccd2d8;
+            border-radius: 6px;
+        }
+
+        .notice {
+            margin-bottom: 20px;
+            padding: 12px;
+            border-radius: 6px;
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .section-title {
+            margin: 26px 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        @media (max-width: 650px) {
+            .profile {
+                grid-template-columns: 1fr;
+            }
+
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
+
 <body>
+<div class="container">
 
-    <header>
-        <div class="page-title">👤 Thông Tin Cá Nhân</div>
-        <a href="index.php" class="btn-home">🏠 Trang Chủ</a>
-    </header>
-
-    <div class="container">
-        
-        <?= $message ?>
-
-        <div class="profile-grid">
-            
-            <!-- CỘT 1: AVATAR & THÔNG TIN CHUNG -->
-            <div class="card avatar-box">
-                <img src="<?= htmlspecialchars($user_info['avatar'] ?? 'image/anh1.jpg') ?>" alt="Avatar" class="avatar-img" id="preview-avatar">
-                <h3 style="color: #2c3e50;"><?= htmlspecialchars($user_info['fullname']) ?></h3>
-                <span class="role-badge"><?= strtoupper($user_info['role'] ?? 'STUDENT') ?></span>
-                <p style="font-size: 0.85rem; color: #7f8c8d; margin-top: 15px;">
-                    📅 Ngày tham gia:<br>
-                    <strong><?= date('d/m/Y', strtotime($user_info['created_at'] ?? 'now')) ?></strong>
-                </p>
-            </div>
-
-            <!-- CỘT 2: FORM CẬP NHẬT THÔNG TIN -->
-            <div class="card">
-                <h2>✍️ Cập nhật Hồ sơ</h2>
-                
-                <form method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="action" value="update_profile">
-
-                    <div class="form-group">
-                        <label>Đổi Ảnh đại diện (Avatar):</label>
-                        <input type="file" name="avatar" accept="image/*" onchange="previewImage(event)">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Họ và Tên:</label>
-                        <input type="text" name="fullname" value="<?= htmlspecialchars($user_info['fullname']) ?>" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Địa chỉ Email:</label>
-                        <input type="email" name="email" value="<?= htmlspecialchars($user_info['email']) ?>" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Số điện thoại:</label>
-                        <input type="text" name="phone" value="<?= htmlspecialchars($user_info['phone'] ?? '') ?>" placeholder="Nhập số điện thoại...">
-                    </div>
-
-                    <!-- PHẦN ĐỔI MẬT KHẨU (KHÔNG BẮT BUỘC) -->
-                    <div class="section-divider">🔑 Đổi mật khẩu (Để trống nếu không đổi)</div>
-
-                    <div class="form-group">
-                        <label>Mật khẩu hiện tại:</label>
-                        <input type="password" name="current_password" placeholder="Nhập mật khẩu hiện tại...">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Mật khẩu mới:</label>
-                        <input type="password" name="new_password" placeholder="Mật khẩu mới (tối thiểu 6 ký tự)...">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Xác nhận Mật khẩu mới:</label>
-                        <input type="password" name="confirm_password" placeholder="Nhập lại mật khẩu mới...">
-                    </div>
-
-                    <br>
-                    <button type="submit" class="btn-submit">💾 Lưu Cập Nhật</button>
-                </form>
-            </div>
-
-        </div>
-
+    <div class="topbar">
+        <h1>👤 Thông tin cá nhân</h1>
+        <a class="btn" href="/public/index.php">🏠 Trang chủ</a>
     </div>
 
-    <script>
-        // Preview ảnh đại diện ngay khi chọn file
-        function previewImage(event) {
-            const reader = new FileReader();
-            reader.onload = function(){
-                const output = document.getElementById('preview-avatar');
-                output.src = reader.result;
-            };
-            reader.readAsDataURL(event.target.files[0]);
-        }
-    </script>
+    <?php if ($message !== ''): ?>
+        <div class="notice <?= (
+            str_contains($message, 'thành công')
+        ) ? '' : 'error' ?>">
+            <?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?>
+        </div>
+    <?php endif; ?>
 
+    <div class="profile">
+        <div class="card summary">
+            <div class="avatar">👤</div>
+
+            <h2>
+                <?= htmlspecialchars(
+                    $user_info['full_name'] ?? '',
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>
+            </h2>
+
+            <p class="username">
+                @<?= htmlspecialchars(
+                    $user_info['username'],
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>
+            </p>
+
+            <span class="role">
+                <?= htmlspecialchars(
+                    $user_info['role'] ?? 'STUDENT',
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>
+            </span>
+
+            <p>
+                <?= htmlspecialchars(
+                    $user_info['email'] ?? '',
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>
+            </p>
+        </div>
+
+        <div class="card">
+            <h2>Cập nhật hồ sơ</h2>
+
+            <form method="POST">
+                <input type="hidden" name="action" value="update_profile">
+
+                <div class="form-group">
+                    <label for="username">Tên tài khoản</label>
+                    <input
+                        id="username"
+                        type="text"
+                        value="<?= htmlspecialchars(
+                            $user_info['username'],
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>"
+                        disabled
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="full_name">Họ và tên</label>
+                    <input
+                        id="full_name"
+                        type="text"
+                        name="full_name"
+                        value="<?= htmlspecialchars(
+                            $user_info['full_name'] ?? '',
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input
+                        id="email"
+                        type="email"
+                        name="email"
+                        value="<?= htmlspecialchars(
+                            $user_info['email'] ?? '',
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ) ?>"
+                        required
+                    >
+                </div>
+
+                <h3 class="section-title">
+                    🔑 Đổi mật khẩu (không bắt buộc)
+                </h3>
+
+                <div class="form-group">
+                    <label for="current_password">Mật khẩu hiện tại</label>
+                    <input
+                        id="current_password"
+                        type="password"
+                        name="current_password"
+                        autocomplete="current-password"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="new_password">Mật khẩu mới</label>
+                    <input
+                        id="new_password"
+                        type="password"
+                        name="new_password"
+                        minlength="8"
+                        autocomplete="new-password"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password">Xác nhận mật khẩu mới</label>
+                    <input
+                        id="confirm_password"
+                        type="password"
+                        name="confirm_password"
+                        minlength="8"
+                        autocomplete="new-password"
+                    >
+                </div>
+
+                <button class="btn" type="submit">
+                    💾 Lưu cập nhật
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
 </body>
 </html>

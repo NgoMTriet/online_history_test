@@ -57,7 +57,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <p class="message" style="color:red;"><?= htmlspecialchars($message) ?></p>
 
     <!-- Để method="POST" không có action để form gửi trực tiếp tới chính nó -->
-    <form method="POST">
+    <form method="POST" action="../api/auth.php?action=register">
         <input type="text" name="username" placeholder="Tên đăng nhập" required>
         <input type="email" name="email" placeholder="Email" required>
         <input type="text" name="full_name" placeholder="Họ và tên" required>

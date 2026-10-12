@@ -46,7 +46,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <h2>ĐẶT LẠI MẬT KHẨU</h2>
     <p class="message" style="color:red;"><?= htmlspecialchars($message) ?></p>
 
-    <form method="POST">
+    <form method ="POST" action="../api/auth.php?action=reset">
         <input type="password" name="password" placeholder="Mật khẩu mới" required>
         <input type="password" name="confirm" placeholder="Xác nhận mật khẩu mới" required>
         <button type="submit">Đổi mật khẩu</button>

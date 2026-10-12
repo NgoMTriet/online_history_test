@@ -1,63 +1,136 @@
+
 <?php
 require_once __DIR__ . '/../config/database.php';
-$message = "";
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $account = trim($_POST["account"] ?? "");
-    $password = $_POST["password"] ?? "";
+// Không lưu trang đăng nhập vào bộ nhớ đệm
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
 
-    // Lấy thông tin user bằng CSDL mới
-    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? OR email = ? LIMIT 1");
-    $stmt->execute([$account, $account]);
-    $user = $stmt->fetch();
+$message = '';
+$error = $_GET['error'] ?? '';
 
-    if ($user && password_verify($password, $user["password_hash"])) {
-        if ($user["status"] === "LOCKED") {
-            $message = "Tài khoản của bạn đã bị khóa!";
-        } else {
-            session_regenerate_id(true);
-            $_SESSION["user_id"] = $user["user_id"];
-            $_SESSION["username"] = $user["username"];
-            $_SESSION["full_name"] = $user["full_name"];
-            $_SESSION["role"] = $user["role"];
+// Hiển thị thông báo theo kết quả xử lý từ auth.php
+switch ($error) {
+    case 'invalid':
+        $message = 'Tên đăng nhập hoặc mật khẩu không đúng!';
+        break;
+    case 'locked':
+        $message = 'Tài khoản của bạn đã bị khóa!';
+        break;
+    case 'pending':
+        $message = 'Tài khoản giáo viên đang chờ Admin duyệt.';
+        break;
+    case 'account':
+        $message = 'Tài khoản không còn tồn tại.';
+        break;
+    case 'action':
+        $message = 'Thao tác không hợp lệ.';
+        break;
+}
 
-            // SỬA TẠI ĐÂY: Chuyển hướng theo vai trò (Role)
-            if ($user["role"] === "ADMIN" || $user["role"] === "TEACHER") {
-                header("Location: admin.dashboard.php"); // Nếu là Admin / Giáo viên
-            } else {
-                header("Location: index.php"); // Nếu là Học viên
-            }
-            exit;
-        }
-    } else {
-        $message = "Tên đăng nhập hoặc mật khẩu không đúng!";
-    }
+if (isset($_GET['logout'])) {
+    $message = 'Bạn đã đăng xuất thành công.';
+}
+
+if (isset($_GET['registered'])) {
+    $successMessage = 'Đăng ký thành công! Vui lòng đăng nhập.';
+} else {
+    $successMessage = '';
+}
+
+if (isset($_GET['reset']) && $_GET['reset'] === 'success') {
+    $successMessage = 'Đổi mật khẩu thành công! Vui lòng đăng nhập.';
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="vi">
-    <head>
-        <meta charset="UTF-8">
-        <title>Đăng nhập</title>
-        <link rel="stylesheet" href="assets/css/style.css?v=3">
-    </head>
-    <body class="login-page">
-        <div class="container">
-            <h2>ĐĂNG NHẬP</h2>
-            <?php if (isset($_GET["registered"])): ?>
-                <p class="success" style="color:green;">Đăng ký thành công! Vui lòng đăng nhập.</p>
-            <?php endif; ?>
-            <p class="message" style="color:red;"><?= htmlspecialchars($message) ?></p>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - TestSuViet</title>
+    <link rel="stylesheet" href="assets/css/style.css?v=4">
 
-            <form method="POST">
-                <input type="text" name="account" placeholder="Username hoặc Email" required>
-                <input type="password" name="password" placeholder="Mật khẩu" required>
-                <button type="submit">Đăng nhập</button>
-            </form>
+    <style>
+        .home-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 16px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+        }
 
-            <p><a href="forgot-password.php">Quên mật khẩu?</a></p>
-            <p>Chưa có tài khoản? <a href="register.php">Đăng ký</a></p>
-        </div>
-    </body>
+        .home-link:hover {
+            background: #217dbb;
+        }
+
+        .message {
+            margin: 12px 0;
+            color: #dc3545;
+        }
+
+        .success {
+            margin: 12px 0;
+            color: #198754;
+        }
+    </style>
+</head>
+
+<body class="login-page">
+    <div class="container">
+
+        
+<a href="index.php" class="back-home">
+    <span class="back-icon">←</span>
+    <span>Trang chủ</span>
+</a>
+
+
+        <h2>ĐĂNG NHẬP</h2>
+
+        <?php if ($successMessage !== ''): ?>
+            <p class="success">
+                <?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?>
+            </p>
+        <?php endif; ?>
+
+        <?php if ($message !== ''): ?>
+            <p class="message">
+                <?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?>
+            </p>
+        <?php endif; ?>
+
+        <form method="POST" action="../api/auth.php?action=login">
+            <input
+                type="text"
+                name="account"
+                placeholder="Username hoặc Email"
+                autocomplete="username"
+                required
+            >
+
+            <input
+                type="password"
+                name="password"
+                placeholder="Mật khẩu"
+                autocomplete="current-password"
+                required
+            >
+
+            <button type="submit">Đăng nhập</button>
+        </form>
+
+        <p>
+            <a href="forgot-password.php">Quên mật khẩu?</a>
+        </p>
+
+        <p>
+            Chưa có tài khoản?
+            <a href="register.php">Đăng ký</a>
+        </p>
+
+    </div>
+</body>
 </html>
