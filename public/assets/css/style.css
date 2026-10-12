@@ -193,33 +193,29 @@ a {
 
 .slide-content {
   position: absolute;
-
   z-index: 2;
-
   left: 70px;
   top: 50%;
-
   transform: translateY(-50%);
-
   color: white;
-
-  max-width: 550px;
+  max-width: none;
+  width: max-content;
 }
 
 .slide-content h2 {
   font-size: 42px;
-
   margin-bottom: 15px;
-
   font-weight: 700;
 }
 
 .slide-content p {
   font-size: 18px;
-
   margin-bottom: 25px;
-
   color: #f3f4f6;
+
+  white-space: nowrap;
+  width: max-content;
+  max-width: none;
 }
 
 /* =========================
@@ -1142,7 +1138,312 @@ tr:hover {
     align-items: stretch;
   }
 }
+/* ==========================================
+   CSS PHẦN TÌM KIẾM & LỌC ĐỀ THI
+   ========================================== */
+.exam-search {
+  background-color: #ffffff;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  margin: 30px 0;
+}
+
+.exam-search h2 {
+  font-size: 1.5rem;
+  color: #333333;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.exam-search-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Khung nhập từ khóa & Nút tìm kiếm */
+.exam-search-input {
+  display: flex;
+  flex: 1;
+  min-width: 280px;
+  max-width: 500px;
+}
+
+.exam-search-input input {
+  width: 100%;
+  padding: 10px 15px;
+  font-size: 1rem;
+  border: 1px solid #cccccc;
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.exam-search-input input:focus {
+  border-color: #007bff;
+}
+
+.exam-search-input button {
+  padding: 10px 20px;
+  font-size: 1rem;
+  background-color: #007bff;
+  color: #ffffff;
+  border: 1px solid #007bff;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.3s;
+}
+
+.exam-search-input button:hover {
+  background-color: #0056b3;
+}
+
+/* Lọc theo khối lớp */
+.exam-grade-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.exam-grade-filter label {
+  font-weight: 600;
+  color: #555555;
+  white-space: nowrap;
+}
+
+.exam-grade-filter select {
+  padding: 10px 15px;
+  font-size: 1rem;
+  border: 1px solid #cccccc;
+  border-radius: 6px;
+  background-color: #ffffff;
+  outline: none;
+  cursor: pointer;
+}
+
+.exam-grade-filter select:focus {
+  border-color: #007bff;
+}
+
+/* CSS cho khu vực hiển thị danh sách / kết quả đề thi */
+.exam-results {
+  margin: 30px 0;
+}
+
+.exam-results h2 {
+  font-size: 1.5rem;
+  margin-bottom: 15px;
+}
+
+#examList {
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px dashed #cccccc;
+  color: #666666;
+}
+
+/* Responsive cho màn hình điện thoại */
+@media (max-width: 576px) {
+  .exam-search-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .exam-search-input {
+    max-width: 100%;
+  }
+
+  .exam-grade-filter {
+    justify-content: space-between;
+  }
+
+  .exam-grade-filter select {
+    flex: 1;
+  }
+}
 
 /* =========================
    kết thúc css phần teacher_question, teacher_exam, admin_dasboard
 ========================= */
+
+/* ===== GIAO DIỆN TRANG ĐĂNG NHẬP ===== */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: #eef3f9;
+}
+
+.login-page .container {
+  width: 100%;
+  max-width: 420px;
+  padding: 35px;
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.login-page h2 {
+  margin: 0 0 25px;
+  text-align: center;
+  color: #183b66;
+  font-size: 28px;
+}
+
+.login-page form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.login-page input {
+  width: 100%;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.login-page input:focus {
+  outline: none;
+  border-color: #245a91;
+  box-shadow: 0 0 0 3px rgba(36, 90, 145, 0.12);
+}
+
+.login-page button {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #245a91;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.login-page button:hover {
+  background: #183b66;
+}
+
+.login-page p {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.login-page a {
+  color: #245a91;
+  text-decoration: none;
+}
+
+.login-page a:hover {
+  text-decoration: underline;
+}
+
+.login-page .message:empty {
+  display: none;
+}
+
+/* ===== GIAO DIỆN ĐĂNG KÝ ===== */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 30px 16px;
+  background: linear-gradient(135deg, #eaf2ff, #f8fafc);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.auth-page .container {
+  width: 100%;
+  max-width: 480px;
+  margin: 0;
+  padding: 35px;
+  background: #fff;
+  border: 1px solid #e5eaf2;
+  border-radius: 18px;
+  box-shadow: 0 12px 35px rgba(25, 55, 95, 0.12);
+}
+
+.auth-page h2 {
+  margin: 0 0 25px;
+  color: #183b66;
+  font-size: 28px;
+  text-align: center;
+}
+
+.auth-page form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-page input,
+.auth-page select {
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 14px;
+  border: 1px solid #d1d9e6;
+  border-radius: 9px;
+  background: #fff;
+  font-size: 15px;
+  box-sizing: border-box;
+}
+
+.auth-page input:focus,
+.auth-page select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.auth-page button {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 8px;
+  border: none;
+  border-radius: 9px;
+  background: #245a91;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-page button:hover {
+  background: #183b66;
+}
+
+.auth-page p {
+  margin-top: 18px;
+  color: #475569;
+  font-size: 15px;
+  text-align: center;
+}
+
+.auth-page a {
+  color: #245a91;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-page a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 500px) {
+  .auth-page .container {
+    padding: 24px 18px;
+  }
+}
