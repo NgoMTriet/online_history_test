@@ -286,7 +286,7 @@ try {
 
     <div class="topbar">
         <h1>👤 Thông tin cá nhân</h1>
-        <a class="btn" href="/public/index.php">🏠 Trang chủ</a>
+        <a class="btn" href="/index.php">🏠 Trang chủ</a>
     </div>
 
     <?php if ($message !== ''): ?>

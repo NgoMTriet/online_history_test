@@ -17,7 +17,7 @@ function redirectTo(string $url): never
 
 function loginUrl(string $query = ''): string
 {
-    return '/public/login.php' . ($query !== '' ? '?' . $query : '');
+    return '/login.php' . ($query !== '' ? '?' . $query : '');
 }
 try {
     switch ($action) {
@@ -136,12 +136,8 @@ try {
             $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $user['role'];
 
-            if ($user['role'] === 'ADMIN' || $user['role'] === 'TEACHER') {
-                redirectTo('/admin.dashboard.php');
-            }
-
-            redirectTo('/public/index.php');
-            break;
+        // Tất cả vai trò đều về trang chủ sau khi đăng nhập
+redirectTo('/index.php');
 
         // =========================
         // ĐĂNG XUẤT
@@ -163,9 +159,9 @@ try {
                 );
             }
 
-            session_destroy();
+        session_destroy();
 
-redirectTo('/public/login.php?logout=success');            break;
+        redirectTo('/login.php?logout=success');
 
         // =========================
         // GỬI LIÊN KẾT ĐẶT LẠI MẬT KHẨU

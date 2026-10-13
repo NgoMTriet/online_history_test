@@ -1,6 +1,37 @@
 <?php include __DIR__ . '/../includes/header.php'; ?>
 <?php require_once __DIR__ . '/../config/database.php'; ?>
 
+<?php
+$isTeacher = (
+    isset($_SESSION['user_id'], $_SESSION['role'])
+    && strtoupper($_SESSION['role']) === 'TEACHER'
+);
+?>
+
+
+<?php if ($isTeacher): ?>
+    <section class="teacher-dashboard">
+        <h2>Khu vực giáo viên</h2>
+        <p>Quản lý câu hỏi và xây dựng đề thi Lịch sử.</p>
+
+        <div class="teacher-function-list">
+            <a href="question-bank.php" class="teacher-function-card">
+                <span class="teacher-icon">📚</span>
+                <h3>Ngân hàng câu hỏi</h3>
+                <p>Thêm, xem và quản lý câu hỏi trắc nghiệm.</p>
+                <span class="teacher-action">Quản lý câu hỏi →</span>
+            </a>
+
+            <a href="teacher_exam.php" class="teacher-function-card">
+                <span class="teacher-icon">📝</span>
+                <h3>Tạo đề thi</h3>
+                <p>Chọn câu hỏi và thiết lập đề thi.</p>
+                <span class="teacher-action">Tạo đề thi →</span>
+            </a>
+        </div>
+    </section>
+<?php endif; ?>
+
 <main class="container">
 
     <section class="hero">

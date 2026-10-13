@@ -1,46 +1,36 @@
+```php
 <?php
-// Sửa đường dẫn kết nối database bằng __DIR__ để tránh lỗi Not Found / Stream
+// Kết nối database và khởi tạo session nếu cần
 require_once __DIR__ . '/../config/database.php';
-$message = "";
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $username = trim($_POST["username"] ?? "");
-    $email = trim($_POST["email"] ?? "");
-    $full_name = trim($_POST["full_name"] ?? "");
-    $password = $_POST["password"] ?? "";
-    $confirm = $_POST["confirm"] ?? "";
-    $role = strtoupper($_POST["role"] ?? "STUDENT"); // Khớp Enum CSDL: STUDENT, TEACHER, ADMIN
+// Lấy mã lỗi trả về từ api/auth.php
+$error = $_GET['error'] ?? '';
+$message = '';
 
-    if ($username === "" || $email === "" || $full_name === "" || $password === "" || $confirm === "") {
-        $message = "Vui lòng nhập đầy đủ thông tin!";
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $message = "Email không hợp lệ!";
-    } elseif (strlen($password) < 8) {
-        $message = "Mật khẩu phải có ít nhất 8 ký tự!";
-    } elseif ($password !== $confirm) {
-        $message = "Mật khẩu xác nhận không khớp!";
-    } else {
-        // Kiểm tra username/email đã tồn tại trong CSDL chưa
-        $check = $conn->prepare("SELECT user_id FROM users WHERE username = ? OR email = ?");
-        $check->execute([$username, $email]);
+switch ($error) {
+    case 'missing':
+        $message = 'Vui lòng nhập đầy đủ tất cả thông tin.';
+        break;
 
-        if ($check->fetch()) {
-            $message = "Username hoặc email đã tồn tại!";
-        } else {
-            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+    case 'email':
+        $message = 'Địa chỉ email không đúng định dạng. Vui lòng kiểm tra lại.';
+        break;
 
-            // Lưu dữ liệu vào bảng users
-            $stmt = $conn->prepare(
-                "INSERT INTO users (username, password_hash, full_name, email, role, status)
-                 VALUES (?, ?, ?, ?, ?, 'ACTIVE')"
-            );
-            $stmt->execute([$username, $hashedPassword, $full_name, $email, $role]);
+    case 'password':
+        $message = 'Mật khẩu phải có ít nhất 8 ký tự.';
+        break;
 
-            // Chuyển hướng về login.php
-            header("Location: login.php?registered=1");
-            exit;
-        }
-    }
+    case 'confirm':
+        $message = 'Mật khẩu xác nhận không khớp với mật khẩu đã nhập.';
+        break;
+
+    case 'exists':
+        $message = 'Tên đăng nhập hoặc email đã tồn tại. Vui lòng sử dụng thông tin khác.';
+        break;
+
+    default:
+        $message = '';
+        break;
 }
 ?>
 
@@ -48,30 +38,73 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng ký</title>
     <link rel="stylesheet" href="assets/css/style.css?v=3">
 </head>
+
 <body class="auth-page">
-<div class="container">
-    <h2>ĐĂNG KÝ</h2>
-    <p class="message" style="color:red;"><?= htmlspecialchars($message) ?></p>
+    <div class="container">
+        <h2>ĐĂNG KÝ</h2>
 
-    <!-- Để method="POST" không có action để form gửi trực tiếp tới chính nó -->
-    <form method="POST" action="../api/auth.php?action=register">
-        <input type="text" name="username" placeholder="Tên đăng nhập" required>
-        <input type="email" name="email" placeholder="Email" required>
-        <input type="text" name="full_name" placeholder="Họ và tên" required>
-        <input type="password" name="password" placeholder="Mật khẩu (ít nhất 8 ký tự)" required>
-        <input type="password" name="confirm" placeholder="Nhập lại mật khẩu" required>
-        
-        <select name="role" style="width: 100%; padding: 12px; margin-bottom: 15px;">
-            <option value="STUDENT">Học viên</option>
-            <option value="TEACHER">Giáo viên</option>
-        </select>
+        <?php if ($message !== ''): ?>
+            <p class="message" style="color: red;">
+                <?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?>
+            </p>
+        <?php endif; ?>
 
-        <button type="submit">Đăng ký</button>
-    </form>
-    <p>Đã có tài khoản? <a href="login.php">Đăng nhập</a></p>
-</div>
+        <form method="POST" action="../api/auth.php?action=register">
+            <input
+                type="text"
+                name="username"
+                placeholder="Tên đăng nhập"
+                required
+            >
+
+            <input
+                type="email"
+                name="email"
+                placeholder="Email"
+                required
+            >
+
+            <input
+                type="text"
+                name="full_name"
+                placeholder="Họ và tên"
+                required
+            >
+
+            <input
+                type="password"
+                name="password"
+                placeholder="Mật khẩu (ít nhất 8 ký tự)"
+                required
+            >
+
+            <input
+                type="password"
+                name="confirm_password"
+                placeholder="Nhập lại mật khẩu"
+                required
+            >
+
+            <select
+                name="role"
+                style="width: 100%; padding: 12px; margin-bottom: 15px;"
+            >
+                <option value="STUDENT">Học viên</option>
+                <option value="TEACHER">Giáo viên</option>
+            </select>
+
+            <button type="submit">Đăng ký</button>
+        </form>
+
+        <p>
+            Đã có tài khoản?
+            <a href="login.php">Đăng nhập</a>
+        </p>
+    </div>
 </body>
 </html>
+```
