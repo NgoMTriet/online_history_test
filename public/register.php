@@ -1,4 +1,3 @@
-```php
 <?php
 // Kết nối database và khởi tạo session nếu cần
 require_once __DIR__ . '/../config/database.php';
@@ -107,4 +106,3 @@ switch ($error) {
     </div>
 </body>
 </html>
-```

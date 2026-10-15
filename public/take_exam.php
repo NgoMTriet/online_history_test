@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . '/database.php';
+require_once __DIR__ . '/../config/database.php';
 
 $exam_id = isset($_GET['exam_id']) ? (int)$_GET['exam_id'] : 1;
 
@@ -23,21 +23,34 @@ $stmt_q =$conn->prepare("
 $stmt_q->execute(['exam_id' =>$exam_id]);
 $raw_questions =$stmt_q->fetchAll();
 
+// Đã sửa $pdo thành $conn
+$stmt_ans =$conn->prepare("SELECT * FROM answers WHERE question_id = :q_id");
+
 $questions_for_client = [];
-$stmt_ans =$conn->prepare("SELECT answer_id, content FROM answers WHERE question_id = :q_id");
 
 foreach ($raw_questions as$q) {
     $stmt_ans->execute(['q_id' =>$q['question_id']]);
     $answers =$stmt_ans->fetchAll();
 
+    if (empty($answers)) {
+    echo '<p style="color:red;">'
+        . 'Chưa có đáp án cho câu hỏi ID: '
+        . (int)$q['question_id']
+        . '</p>';
+}
+
     $options = [];$labels = ['A', 'B', 'C', 'D'];
-    foreach ($answers as$idx => $a) {$options[$a['answer_id']] =$a['content'];
+    
+    foreach ($answers as$idx => $a) {$options[] = [
+            'id'      => $a['answer_id'],
+            'label'   => $labels[$idx] ?? ($idx + 1), 'content' =>$a['content']
+        ];
     }
 
     $questions_for_client[] = [
-        'id' => $q['question_id'],
+        'id'       => $q['question_id'],
         'question' => $q['content'],
-        'options' => $options
+        'options'  => $options
     ];
 }
 ?>
@@ -83,10 +96,10 @@ foreach ($raw_questions as$q) {
                         Câu <?php echo ($index + 1); ?>: <?php echo htmlspecialchars($q['question']); ?>
                     </div>
                     <div class="options-list">
-                        <?php foreach ($q['options'] as $ans_id =>$value): ?>
+                        <?php foreach ($q['options'] as$option): ?>
                             <label class="option-item">
-                                <input type="radio" name="answers[<?php echo $q['id']; ?>]" value="<?php echo $ans_id; ?>" style="margin-right: 10px;">
-                                <?php echo htmlspecialchars($value); ?>
+                                <input type="radio" name="answers[<?php echo $q['id']; ?>]" value="<?php echo $option['id']; ?>" style="margin-right: 10px;">
+                                <strong><?php echo $option['label']; ?>.</strong>&nbsp;<?php echo htmlspecialchars($option['content']); ?>
                             </label>
                         <?php endforeach; ?>
                     </div>

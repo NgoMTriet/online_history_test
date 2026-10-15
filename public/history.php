@@ -2,7 +2,7 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-require_once __DIR__ . '/database.php';
+require_once __DIR__ . '/../config/database.php';
 
 $user_id = $_SESSION['user_id'] ?? 1; 
 $detail_attempt_id = isset($_GET['attempt_id']) ? (int)$_GET['attempt_id'] : null;
@@ -12,7 +12,7 @@ $stmt = $conn->prepare("
     SELECT r.result_id AS attempt_id, e.title AS exam_title, r.submitted_at, 
            CONCAT(FLOOR(r.completion_time / 60), ' phút ', MOD(r.completion_time, 60), ' giây') AS completion_time, 
            r.score, (r.status = 'PASSED') AS passed
-    FROM exam_result r
+    FROM exam_results r
     JOIN exam e ON r.exam_id = e.exam_id
     WHERE r.user_id = :user_id
     ORDER BY r.submitted_at DESC
@@ -26,7 +26,7 @@ if ($detail_attempt_id) {
     $stmt_info = $conn->prepare("
         SELECT r.result_id AS attempt_id, e.title AS exam_title, r.score, r.submitted_at,
                CONCAT(FLOOR(r.completion_time / 60), ' phút ', MOD(r.completion_time, 60), ' giây') AS completion_time
-        FROM exam_result r
+        FROM exam_results r
         JOIN exam e ON r.exam_id = e.exam_id
         WHERE r.result_id = :r_id AND r.user_id = :u_id
     ");

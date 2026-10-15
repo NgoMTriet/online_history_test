@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
             // 3. Lưu 4 đáp án vào answers
             $opts = ['A' => $option_a, 'B' => $option_b, 'C' => $option_c, 'D' => $option_d];
-            $stmt_a = $conn->prepare("INSERT INTO answers (question_id, content, is_correct, is_fixed) VALUES (:q_id, :content, :is_corr, 0)");
+            $stmt_a = $conn->prepare("INSERT INTO answer (question_id, content, is_correct, is_fixed) VALUES (:q_id, :content, :is_corr, 0)");
 
             foreach ($opts as $key => $val) {
                 if (!empty($val)) {

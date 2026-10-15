@@ -1,15 +1,26 @@
 <?php
 session_start();
-require_once __DIR__ . '/database.php';
+require_once __DIR__ . '/../config/database.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['action']) || $_POST['action'] !== 'submit_exam') {
     header("Location: take_exam.php");
     exit();
 }
 
-$user_id = $_SESSION['user_id'] ?? 1;
-$exam_id = (int)$_POST['exam_id'];
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+$user_id = (int) $_SESSION['user_id'];
+$exam_id = (int) ($_POST['exam_id'] ?? 0);
 $user_answers = $_POST['answers'] ?? [];
+
+if ($exam_id <= 0) {
+    exit("Mã đề thi không hợp lệ.");
+}
+
 
 // Lấy thông tin đề thi
 $stmt_exam = $conn->prepare("SELECT title FROM exam WHERE exam_id = :id");
@@ -30,6 +41,7 @@ $correct_count = 0;
 $total_questions = count($questions);
 $result_details = [];
 
+// SỬA LỖI: Đổi 'answers' thành 'answer' (bỏ 's')
 $stmt_ans = $conn->prepare("SELECT answer_id, content, is_correct FROM answers WHERE question_id = :q_id");
 
 foreach ($questions as $q) {
@@ -62,7 +74,7 @@ $status = ($score >= 5.0) ? 'PASSED' : 'FAILED';
 
 // LƯU VÀO CSDL THỰC TẾ
 $stmt_res = $conn->prepare("
-    INSERT INTO exam_result (user_id, exam_id, score, correct_answers_count, total_questions, completion_time, status)
+    INSERT INTO exam_results (user_id, exam_id, score, correct_answers_count, total_questions, completion_time, status)
     VALUES (:u_id, :e_id, :score, :c_count, :total_q, :c_time, :status)
 ");
 $stmt_res->execute([

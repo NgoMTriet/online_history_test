@@ -9,29 +9,6 @@ $isTeacher = (
 ?>
 
 
-<?php if ($isTeacher): ?>
-    <section class="teacher-dashboard">
-        <h2>Khu vực giáo viên</h2>
-        <p>Quản lý câu hỏi và xây dựng đề thi Lịch sử.</p>
-
-        <div class="teacher-function-list">
-            <a href="question-bank.php" class="teacher-function-card">
-                <span class="teacher-icon">📚</span>
-                <h3>Ngân hàng câu hỏi</h3>
-                <p>Thêm, xem và quản lý câu hỏi trắc nghiệm.</p>
-                <span class="teacher-action">Quản lý câu hỏi →</span>
-            </a>
-
-            <a href="teacher_exam.php" class="teacher-function-card">
-                <span class="teacher-icon">📝</span>
-                <h3>Tạo đề thi</h3>
-                <p>Chọn câu hỏi và thiết lập đề thi.</p>
-                <span class="teacher-action">Tạo đề thi →</span>
-            </a>
-        </div>
-    </section>
-<?php endif; ?>
-
 <main class="container">
 
     <section class="hero">
@@ -61,8 +38,8 @@ $isTeacher = (
                             <a href="take_exam.php" class="slider-btn">
                                 Bắt đầu thi
                             </a>
-                            <a href="history.php" class="slider-btn" style="background-color: #3498db;">
-                                📜 Lịch sử làm bài
+                            <a href="history.php" class="slider-btn" >
+                                 Lịch sử làm bài
                             </a>
                         </div>
 
@@ -91,10 +68,10 @@ $isTeacher = (
 
                         <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 15px;">
                             <a href="take_exam.php" class="slider-btn">
-                                Xem bài thi
+                                Bắt đầu thi
                             </a>
-                            <a href="history.php" class="slider-btn" style="background-color: #3498db;">
-                                📜 Lịch sử làm bài
+                            <a href="history.php" class="slider-btn"">
+                                 Lịch sử làm bài
                             </a>
                         </div>
 
@@ -123,10 +100,10 @@ $isTeacher = (
 
                         <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 15px;">
                             <a href="take_exam.php" class="slider-btn">
-                                Bắt đầu học
+                                Bắt đầu thi
                             </a>
-                            <a href="history.php" class="slider-btn" style="background-color: #3498db;">
-                                📜 Lịch sử làm bài
+                            <a href="history.php" class="slider-btn"">
+                                 Lịch sử làm bài
                             </a>
                         </div>
 
@@ -307,7 +284,7 @@ $isTeacher = (
                         <div>
                             <span style="background: #e1f5fe; color: #0288d1; font-size: 0.8rem; font-weight: bold; padding: 3px 8px; border-radius: 4px;">Lớp <?= $exam['grade'] ?></span>
                             <h3 style="font-size: 1.1rem; margin: 10px 0; color: #2c3e50;"><?= htmlspecialchars($exam['title']) ?></h3>
-                            <p style="font-size: 0.9rem; color: #666; margin-bottom: 15px;">⏱️ Thời gian: <?= $exam['duration'] ?> phút \vert{} 📝 <?= $exam['total_questions'] ?> câu</p>
+                            <p style="font-size: 0.9rem; color: #666; margin-bottom: 15px;">⏱️ Thời gian: <?= $exam['duration'] ?> phút 📝 <?= $exam['total_questions'] ?> câu</p>
                         </div>
                         <a href="take_exam.php?exam_id=<?= $exam['exam_id'] ?>" class="slider-btn" style="text-align: center; display: block; text-decoration: none;">Vào làm bài</a>
                     </div>
@@ -391,5 +368,49 @@ $isTeacher = (
     </section>
 
 </main>
+</section>
+
+</main>
+
+<!-- ĐẶT CODE JAVASCRIPT SLIDER VÀO ĐÂY -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    let currentSlide = 0;
+    const slides = document.querySelectorAll(".slide");
+    const dots = document.querySelectorAll(".dot");
+
+    if (slides.length === 0) return; // Nếu không có slide thì dừng
+
+    function showSlide(index) {
+        if (index >= slides.length) {
+            currentSlide = 0;
+        } else if (index < 0) {
+            currentSlide = slides.length - 1;
+        } else {
+            currentSlide = index;
+        }
+
+        slides.forEach(slide => slide.classList.remove("active"));
+        dots.forEach(dot => dot.classList.remove("active"));
+
+        if (slides[currentSlide]) slides[currentSlide].classList.add("active");
+        if (dots[currentSlide]) dots[currentSlide].classList.add("active");
+    }
+
+    // Đưa hàm ra window để các thuộc tính onclick="..." trong HTML gọi được
+    window.changeSlide = function(direction) {
+        showSlide(currentSlide + direction);
+    };
+
+    window.showSlide = function(index) {
+        showSlide(index);
+    };
+
+    // Tự động chuyển ảnh mỗi 5s
+    setInterval(() => {
+        window.changeSlide(1);
+    }, 5000);
+});
+</script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
