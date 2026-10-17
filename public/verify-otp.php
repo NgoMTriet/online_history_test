@@ -2,7 +2,7 @@
 require_once "config/database.php";
 
 if (!isset($_SESSION["reset_user_id"])) {
-    header("Location: forgot-password.php");
+    header("Location: forgot_password.php");
     exit;
 }
 

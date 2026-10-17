@@ -1,36 +1,12 @@
+
 <?php
-require_once "config/database.php";
+require_once __DIR__ . '/../config/database.php';
 
-if (!isset($_SESSION["reset_user_id"]) || !isset($_SESSION["otp_verified"]) || $_SESSION["otp_verified"] !== true) {
-    header("Location: forgot-password.php");
-    exit;
-}
+$token = trim($_GET['token'] ?? '');
+$message = '';
 
-$message = "";
-
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $password = $_POST["password"] ?? "";
-    $confirm = $_POST["confirm"] ?? "";
-
-    if (strlen($password) < 8) {
-        $message = "Mật khẩu phải có ít nhất 8 ký tự!";
-    } elseif ($password !== $confirm) {
-        $message = "Mật khẩu xác nhận không khớp!";
-    } else {
-        $hashed = password_hash($password, PASSWORD_DEFAULT);
-
-        // Cập nhật trường password_hash mới
-        $stmt = $conn->prepare(
-            "UPDATE users
-             SET password_hash = ?, reset_otp = NULL, otp_expires = NULL
-             WHERE user_id = ?"
-        );
-        $stmt->execute([$hashed, $_SESSION["reset_user_id"]]);
-
-        unset($_SESSION["reset_user_id"], $_SESSION["otp_verified"]);
-        header("Location: login.php?reset=success");
-        exit;
-    }
+if ($token === '' || !preg_match('/^[a-f0-9]{64}$/', $token)) {
+    $message = 'Đường link đặt lại mật khẩu không hợp lệ!';
 }
 ?>
 
@@ -38,19 +14,48 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đặt lại mật khẩu</title>
-    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
 </head>
 <body>
 <div class="container">
     <h2>ĐẶT LẠI MẬT KHẨU</h2>
-    <p class="message" style="color:red;"><?= htmlspecialchars($message) ?></p>
 
-    <form method ="POST" action="../api/auth.php?action=reset">
-        <input type="password" name="password" placeholder="Mật khẩu mới" required>
-        <input type="password" name="confirm" placeholder="Xác nhận mật khẩu mới" required>
-        <button type="submit">Đổi mật khẩu</button>
-    </form>
+    <?php if ($message !== ''): ?>
+        <p style="color:red;">
+            <?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?>
+        </p>
+        <a href="forgot_password.php">Yêu cầu đường link mới</a>
+    <?php else: ?>
+        <p>Vui lòng nhập mật khẩu mới của bạn.</p>
+
+        <form method="POST" action="../api/auth.php?action=reset">
+            <input
+                type="hidden"
+                name="token"
+                value="<?= htmlspecialchars($token, ENT_QUOTES, 'UTF-8') ?>"
+            >
+
+            <input
+                type="password"
+                name="password"
+                placeholder="Mật khẩu mới (ít nhất 8 ký tự)"
+                minlength="8"
+                required
+            >
+
+            <input
+                type="password"
+                name="confirm_password"
+                placeholder="Xác nhận mật khẩu mới"
+                minlength="8"
+                required
+            >
+
+            <button type="submit">Đổi mật khẩu</button>
+        </form>
+    <?php endif; ?>
 </div>
 </body>
 </html>

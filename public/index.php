@@ -70,7 +70,7 @@ $isTeacher = (
                             <a href="take_exam.php" class="slider-btn">
                                 Bắt đầu thi
                             </a>
-                            <a href="history.php" class="slider-btn"">
+                            <a href="history.php" class="slider-btn">
                                  Lịch sử làm bài
                             </a>
                         </div>
@@ -102,7 +102,7 @@ $isTeacher = (
                             <a href="take_exam.php" class="slider-btn">
                                 Bắt đầu thi
                             </a>
-                            <a href="history.php" class="slider-btn"">
+                            <a href="history.php" class="slider-btn">
                                  Lịch sử làm bài
                             </a>
                         </div>
@@ -254,7 +254,7 @@ $isTeacher = (
     $params = [];
 
     if (!empty($keyword)) {$sql .= " AND title LIKE :keyword";
-        $params['keyword'] = '\%' .$keyword . '%';
+        $params['keyword'] = '%' .$keyword . '%';
     }
 
     if (!empty($grade)) {$sql .= " AND grade = :grade";
@@ -366,9 +366,6 @@ $isTeacher = (
         </div>
 
     </section>
-
-</main>
-</section>
 
 </main>
 

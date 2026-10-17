@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
@@ -166,65 +167,131 @@ redirectTo('/index.php');
         // =========================
         // GỬI LIÊN KẾT ĐẶT LẠI MẬT KHẨU
         // =========================
-        case 'forgot':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                redirectTo('/forgot-password.php');
-            }
+        
+case 'forgot':
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirectTo('/forgot_password.php');
+    }
 
-            $email = trim($_POST['email'] ?? '');
+    $email = trim($_POST['email'] ?? '');
 
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                redirectTo('/forgot-password.php?error=email');
-            }
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        redirectTo('/forgot_password.php?error=mail');
+    }
 
-            $stmt = $conn->prepare(
-                'SELECT user_id FROM users WHERE email = ? LIMIT 1'
+    $stmt = $conn->prepare(
+        'SELECT user_id FROM users WHERE email = ? LIMIT 1'
+    );
+    $stmt->execute([$email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // Không tiết lộ email có đăng ký tài khoản hay không.
+    if ($user) {
+        $token = bin2hex(random_bytes(32));
+        $tokenHash = hash('sha256', $token);
+        $expiresAt = date('Y-m-d H:i:s', time() + 3600);
+
+        // Vô hiệu hóa các liên kết cũ chưa sử dụng.
+        $stmt = $conn->prepare(
+            'UPDATE password_resets
+             SET used_at = NOW()
+             WHERE user_id = ? AND used_at IS NULL'
+        );
+        $stmt->execute([$user['user_id']]);
+
+        // Lưu bản băm của token, không lưu token gốc.
+        $stmt = $conn->prepare(
+            'INSERT INTO password_resets
+             (user_id, token_hash, expires_at, used_at)
+             VALUES (?, ?, ?, NULL)'
+        );
+        $stmt->execute([
+            $user['user_id'],
+            $tokenHash,
+            $expiresAt
+        ]);
+
+        $resetUrl = 'http://' . $_SERVER['HTTP_HOST']
+            . '/reset-password.php?token='
+            . urlencode($token);
+            
+        $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+
+        try {
+            $mail->isSMTP();
+            $mail->Host = 'smtp.gmail.com';
+            $mail->SMTPAuth = true;
+
+            $mailConfig = require __DIR__ . '/../config/mail.php';
+
+            $mail->Username = $mailConfig['username'];
+            $mail->Password = $mailConfig['password'];
+
+            $mail->SMTPSecure =
+                \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+
+            $mail->Port = 587;
+            $mail->CharSet = 'UTF-8';
+
+            $mail->setFrom(
+                $mailConfig['username'],
+                'TestSuViet.com'
             );
-            $stmt->execute([$email]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            // Không tiết lộ email có đăng ký hay không.
-            if ($user) {
-                $token = bin2hex(random_bytes(32));
-                $tokenHash = hash('sha256', $token);
-                $expiresAt = date('Y-m-d H:i:s', time() + 3600);
+            $mail->addAddress($email);
 
-                $conn->prepare(
-                    'UPDATE password_resets
-                     SET used_at = NOW()
-                     WHERE user_id = ? AND used_at IS NULL'
-                )->execute([$user['user_id']]);
+            $mail->isHTML(true);
+            $mail->Subject = 'Dat lai mat khau TestSuViet.com';
 
-                $stmt = $conn->prepare(
-                    'INSERT INTO password_resets
-                     (user_id, token_hash, expires_at, used_at)
-                     VALUES (?, ?, ?, NULL)'
-                );
-                $stmt->execute([
-                    $user['user_id'],
-                    $tokenHash,
-                    $expiresAt
-                ]);
+            $safeUrl = htmlspecialchars(
+                $resetUrl,
+                ENT_QUOTES,
+                'UTF-8'
+            );
 
-                $resetUrl = 'http://' . $_SERVER['HTTP_HOST']
-                    . '/reset-password.php?token=' . urlencode($token);
+            $mail->Body = '
+                <h2>Yêu cầu đặt lại mật khẩu</h2>
+                <p>Nhấn vào nút bên dưới để tạo mật khẩu mới.</p>
+                <p>
+                    <a href="' . $safeUrl . '"
+                       style="display:inline-block;padding:12px 20px;
+                       background:#2563eb;color:white;
+                       text-decoration:none;border-radius:6px">
+                       Đặt lại mật khẩu
+                    </a>
+                </p>
+                <p>Liên kết có hiệu lực trong 1 giờ và chỉ dùng một lần.</p>
+                <p>Nếu bạn không yêu cầu, hãy bỏ qua email này.</p>
+            ';
 
-                $subject = 'Dat lai mat khau TestSuViet';
-                $body = "Xin chào,\n\n"
-                    . "Mở liên kết sau để đặt lại mật khẩu "
-                    . "(liên kết hết hạn sau 1 giờ):\n"
-                    . $resetUrl
-                    . "\n\nNếu bạn không yêu cầu, hãy bỏ qua email này.";
+            $mail->AltBody =
+                "Dat lai mat khau tai: " . $resetUrl
+                . "\nLien ket het han sau 1 gio.";
 
-                $headers = "Content-Type: text/plain; charset=UTF-8\r\n";
+            $mail->send();
+        } catch (\PHPMailer\PHPMailer\Exception $e) {
+    error_log('[MAIL ERROR] ' . $e->getMessage());
+    error_log('[MAIL DEBUG] ' . $mail->ErrorInfo);
 
-                if (!mail($email, $subject, $body, $headers)) {
-                    redirectTo('/forgot-password.php?error=mail');
-                }
-            }
+    redirectTo('/forgot_password.php?error=mail');
+            // Không giữ token chưa gửi được email.
+            $stmt = $conn->prepare(
+                'UPDATE password_resets
+                 SET used_at = NOW()
+                 WHERE user_id = ? AND token_hash = ?'
+            );
+            $stmt->execute([$user['user_id'], $tokenHash]);
 
-            redirectTo('/forgot-password.php?sent=1');
-            break;
+            redirectTo(
+                '/forgot_password.php?error=mail'
+            );
+        }
+    }
+
+    redirectTo(
+        '/forgot_password.php?sent=1'
+    );
+    break;
 
         // =========================
         // ĐẶT LẠI MẬT KHẨU BẰNG TOKEN
@@ -249,39 +316,96 @@ redirectTo('/index.php');
                 );
             }
 
-            $tokenHash = hash('sha256', $token);
+           
+$tokenHash = hash('sha256', $token);
 
-            $stmt = $conn->prepare(
-                'SELECT id, user_id FROM password_resets
-                 WHERE token_hash = ?
-                   AND used_at IS NULL
-                   AND expires_at > NOW()
-                 LIMIT 1'
-            );
-            $stmt->execute([$tokenHash]);
-            $reset = $stmt->fetch(PDO::FETCH_ASSOC);
+$stmt = $conn->prepare(
+    'SELECT id, user_id, used_at, expires_at
+     FROM password_resets
+     WHERE token_hash = ?
+     LIMIT 1'
+);
 
-            if (!$reset) {
-                redirectTo('/forgot-password.php?error=token');
-            }
+$stmt->execute([$tokenHash]);
+$reset = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$reset) {
+    error_log('[RESET CHECK] Không tìm thấy token_hash trong password_resets.');
+    redirectTo('/forgot_password.php?error=token');
+}
+
+if ($reset['used_at'] !== null) {
+    error_log('[RESET CHECK] Token đã được sử dụng.');
+    redirectTo('/forgot_password.php?error=token');
+}
+
+if (strtotime($reset['expires_at']) <= time()) {
+    error_log('[RESET CHECK] Token đã hết hạn.');
+    redirectTo('/forgot_password.php?error=token');
+}
+
 
             $newHash = password_hash($password, PASSWORD_DEFAULT);
 
+        if ($newHash === false) {
+            redirectTo('/reset-password.php?error=hash');
+        }
+
+        try {
             $conn->beginTransaction();
 
             $stmt = $conn->prepare(
-                'UPDATE users SET password_hash = ? WHERE user_id = ?'
+                'UPDATE users
+                SET password_hash = ?
+                WHERE user_id = ?'
             );
-            $stmt->execute([$newHash, $reset['user_id']]);
 
-            $stmt = $conn->prepare(
-                'UPDATE password_resets SET used_at = NOW() WHERE id = ?'
+    $stmt->execute([$newHash, $reset['user_id']]);
+    
+    error_log(
+    '[RESET CHECK] user_id=' . $reset['user_id']
+    . ', hash_length=' . strlen($newHash)
+    . ', password_verify='
+    . (password_verify($password, $newHash) ? 'OK' : 'FAIL')
+    );
+
+    // Xác nhận tài khoản có tồn tại.
+    if ($stmt->rowCount() === 0) {
+        $check = $conn->prepare(
+            'SELECT user_id
+             FROM users
+             WHERE user_id = ?
+             LIMIT 1'
+        );
+        $check->execute([$reset['user_id']]);
+
+        if (!$check->fetch(PDO::FETCH_ASSOC)) {
+            throw new RuntimeException(
+                'Không tìm thấy tài khoản cần cập nhật.'
             );
-            $stmt->execute([$reset['id']]);
+        }
+    }
 
-            $conn->commit();
+    $stmt = $conn->prepare(
+        'UPDATE password_resets
+         SET used_at = NOW()
+         WHERE id = ?'
+    );
+    $stmt->execute([$reset['id']]);
 
-            redirectTo(loginUrl('reset=success'));
+    $conn->commit();
+
+} catch (Throwable $e) {
+    if ($conn->inTransaction()) {
+        $conn->rollBack();
+    }
+
+    error_log('[RESET PASSWORD ERROR] ' . $e->getMessage());
+    redirectTo('/reset-password.php?error=update');
+}
+
+redirectTo(loginUrl('reset=success'));
+break;
             break;
 
         default:
@@ -293,7 +417,15 @@ redirectTo('/index.php');
         $conn->rollBack();
     }
 
-    error_log($e->getMessage());
+    error_log('[PASSWORD_RESET] ' . $e);
+
     http_response_code(500);
-    echo 'Đã xảy ra lỗi hệ thống. Vui lòng kiểm tra cấu hình và nhật ký PHP.';
+    echo '<pre>';
+    echo htmlspecialchars(
+        (string) $e,
+        ENT_QUOTES,
+        'UTF-8'
+    );
+    echo '</pre>';
 }
+

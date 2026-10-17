@@ -1,4 +1,3 @@
-
 <?php
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
@@ -20,82 +19,183 @@ $isTeacher = $isLoggedIn
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TestSuViet.com</title>
     <link rel="stylesheet" href="assets/css/style.css?v=2.2">
+    <style>
+        /* CSS cho Menu ẩn (Dropdown Navigation) */
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+
+        .user-nav-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .menu-toggle-btn {
+            background: #34495e;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .menu-toggle-btn:hover {
+            background: #2c3e50;
+        }
+
+        /* Nav Menu xổ xuống */
+        .nav-dropdown {
+            display: none;
+            position: absolute;
+            top: 120%;
+            right: 0;
+            background-color: white;
+            min-width: 220px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 1000;
+            border: 1px solid #e2e8f0;
+        }
+
+        .nav-dropdown.show {
+            display: block;
+            animation: fadeIn 0.2s ease-in-out;
+        }
+
+        .nav-dropdown a {
+            color: #2d3748;
+            padding: 12px 18px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            border-bottom: 1px solid #f7fafc;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .nav-dropdown a:last-child {
+            border-bottom: none;
+        }
+
+        .nav-dropdown a:hover {
+            background-color: #f8fafc;
+            color: #3182ce;
+        }
+
+        .nav-dropdown a.logout-link {
+            color: #e53e3e;
+        }
+
+        .nav-dropdown a.logout-link:hover {
+            background-color: #fff5f5;
+            color: #c53030;
+        }
+
+        .user-greeting-badge {
+            background: #edf2f7;
+            padding: 10px 18px;
+            font-weight: bold;
+            color: #2b6cb0;
+            border-bottom: 2px solid #e2e8f0;
+            font-size: 0.9rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </head>
 <body>
 
 <header class="header">
     <div class="container header-container">
 
+        <!-- LOGO -->
         <div class="logo">
-            <a href="index.php">TestSuViet.com</a>
+            <a href="index.php" style="font-weight: bold; font-size: 1.4rem; color: #2c3e50; text-decoration: none;">
+                🇻🇳 TestSuViet.com
+            </a>
         </div>
 
-        <button class="menu-toggle"
-                type="button"
-                onclick="toggleMenu()"
-                aria-label="Mở menu">
-            ☰
-        </button>
+        <!-- KHU VỰC MENU NÚT BẤM -->
+        <div class="user-nav-wrapper">
+            <button class="menu-toggle-btn" type="button" onclick="toggleMenu(event)" aria-label="Mở menu">
+                <span>☰</span>
+                <?php if ($isLoggedIn): ?>
+                    <span style="font-size: 0.9rem;"><?= htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') ?></span>
+                <?php else: ?>
+                    <span style="font-size: 0.9rem;">Menu</span>
+                <?php endif; ?>
+            </button>
 
-        <nav class="nav" id="navMenu">
-            <a href="index.php">Trang chủ</a>
-            <a href="about.php">Giới thiệu</a>
+            <!-- MENU XỔ XUỐNG (MENU ẨN) -->
+            <nav class="nav-dropdown" id="navMenu">
+                <?php if ($isLoggedIn): ?>
+                    <div class="user-greeting-badge">
+                        👤 <?= htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') ?>
+                    </div>
+                <?php endif; ?>
 
-            <?php if ($isLoggedIn): ?>
-                <a href="profile.php">
-                    Xin chào,
-                    <?= htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') ?>
-                </a>
-                <a href="../api/auth.php?action=logout">Đăng xuất</a>
-            <?php else: ?>
-                <a href="login.php">Đăng nhập</a>
-                <a href="register.php">Đăng ký</a>
-            <?php endif; ?>
-        </nav>
+                <a href="index.php">🏠 Trang chủ</a>
+                <a href="about.php">ℹ️ Giới thiệu</a>
+
+                <?php if ($isTeacher): ?>
+                    <a href="teacher_question.php">📚 Ngân hàng câu hỏi</a>
+                    <a href="teacher_exam.php">📝 Tạo đề thi</a>
+                <?php endif; ?>
+
+                <?php if ($isLoggedIn): ?>
+                    <a href="history.php">📜 Lịch sử làm bài</a>
+                    <a href="profile.php">⚙️ Trang cá nhân</a>
+                    <a href="../api/auth.php?action=logout" class="logout-link">🚪 Đăng xuất</a>
+                <?php else: ?>
+                    <a href="login.php">🔑 Đăng nhập</a>
+                    <a href="register.php">📝 Đăng ký</a>
+                <?php endif; ?>
+            </nav>
+        </div>
+
     </div>
 </header>
 
-<?php if ($isTeacher): ?>
- <aside id="teacherSidebar" class="teacher-sidebar">
-    <a href="index.php" class="sidebar-item" title="Trang chủ">
-        <span>🏠</span>
-        <span class="sidebar-text">Trang chủ</span>
-    </a>
-
-    <a href="teacher_question.php"
-       class="sidebar-item"
-       title="Ngân hàng câu hỏi">
-        <span>📚</span>
-        <span class="sidebar-text">Ngân hàng câu hỏi</span>
-    </a>
-
-    <a href="teacher_exam.php"
-       class="sidebar-item"
-       title="Tạo đề thi">
-        <span>📝</span>
-        <span class="sidebar-text">Tạo đề thi</span>
-    </a>
-</aside>
-    <button
-        type="button"
-        class="teacher-sidebar-toggle"
-        onclick="toggleTeacherSidebar()"
-        aria-controls="teacherSidebar"
-        aria-expanded="true">
-        ☰
-    </button>
-<?php endif; ?>
 
 <script>
-
-function toggleMenu() {
+// Bật/tắt Menu ẩn (Dropdown)
+function toggleMenu(event) {
+    if (event) event.stopPropagation();
     const nav = document.getElementById("navMenu");
-
     if (nav) {
         nav.classList.toggle("show");
     }
 }
 
+// Tự động đóng Menu ẩn khi người dùng nhấn chuột ra ngoài
+document.addEventListener("click", function (e) {
+    const nav = document.getElementById("navMenu");
+    const button = document.querySelector(".menu-toggle-btn");
+    
+    if (nav && nav.classList.contains("show")) {
+        if (!nav.contains(e.target) && !button.contains(e.target)) {
+            nav.classList.remove("show");
+        }
+    }
+});
+
+// Bật/tắt Sidebar Giáo viên
 function toggleTeacherSidebar() {
     const sidebar = document.getElementById("teacherSidebar");
     const button = document.querySelector(".teacher-sidebar-toggle");
@@ -112,7 +212,7 @@ function toggleTeacherSidebar() {
     }
 }
 
-// Luôn thu gọn thanh bên khi tải lại trang
+// Thu gọn sidebar giáo viên khi load trang
 document.addEventListener("DOMContentLoaded", function () {
     const sidebar = document.getElementById("teacherSidebar");
     const button = document.querySelector(".teacher-sidebar-toggle");
@@ -126,7 +226,6 @@ document.addEventListener("DOMContentLoaded", function () {
         button.setAttribute("aria-expanded", "false");
     }
 });
-
 </script>
 </body>
 </html>

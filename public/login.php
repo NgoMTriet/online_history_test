@@ -123,7 +123,7 @@ if (isset($_GET['reset']) && $_GET['reset'] === 'success') {
         </form>
 
         <p>
-            <a href="forgot-password.php">Quên mật khẩu?</a>
+            <a href="forgot_password.php">Quên mật khẩu?</a>
         </p>
 
         <p>
