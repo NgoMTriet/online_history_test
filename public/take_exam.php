@@ -37,16 +37,18 @@ if (!$exam) {
     die("Đề thi không tồn tại!");
 }
 
-/*
-|--------------------------------------------------------------------------
-| 🎯 1. KIỂM TRA GIỚI HẠN SỐ LẦN LÀM BÀI (MAX ATTEMPTS)
-|--------------------------------------------------------------------------
-*/
 $max_attempts = (int)($exam['max_attempts'] ?? 0);
 
-if ($max_attempts > 0 &&$user_id > 0) {
+/*
+|--------------------------------------------------------------------------
+| 🎯 1. KIỂM TRA ĐÃ NỘP BÀI HOẶC HẾT LƯỢT LÀM BÀI
+|--------------------------------------------------------------------------
+*/
+$max_attempts = (int)($exam['max_attempts'] ?? 1); // Mặc định là 1 lần nếu không cấu hình
+
+if ($user_id > 0) {
     // Đếm số lần thí sinh này đã nộp bài thi
-    $stmt_check =$conn->prepare("
+    $stmt_check = $conn->prepare("
         SELECT COUNT(*) 
         FROM exam_results 
         WHERE user_id = :user_id AND exam_id = :exam_id
@@ -57,6 +59,41 @@ if ($max_attempts > 0 &&$user_id > 0) {
     ]);
     $user_attempts = (int)$stmt_check->fetchColumn();
 
+    // Nếu đã làm bài và đạt/vượt số lượt cho phép -> Chặn ngay
+    if ($user_attempts >= $max_attempts) {
+        // Hủy session mật khẩu làm bài của đề thi này (nếu có)
+        unset($_SESSION['exam_auth_' . $exam_id]);
+
+        ?>
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+            <meta charset="UTF-8">
+            <title>Hết lượt làm bài</title>
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+                .card-error { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: center; max-width: 480px; width: 90%; }
+                .card-error h2 { color: #e74c3c; margin-bottom: 15px; }
+                .card-error p { color: #555; line-height: 1.6; margin-bottom: 25px; }
+                .btn-home { display: inline-block; background: #3498db; color: white; text-decoration: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; }
+                .btn-home:hover { background: #2980b9; }
+            </style>
+        </head>
+        <body>
+            <div class="card-error">
+                <h2>🚫 Bạn đã hoàn thành bài thi này!</h2>
+                <p>
+                    Đề thi <strong>"<?php echo htmlspecialchars($exam['title']); ?>"</strong> cho phép làm tối đa <strong><?php echo $max_attempts; ?></strong> lần.<br>
+                    Bạn đã thực hiện <strong><?php echo $user_attempts; ?>/<?php echo $max_attempts; ?></strong> lượt.
+                </p>
+                <a href="index.php" class="btn-home">Quay lại trang chủ</a>
+            </div>
+        </body>
+        </html>
+        <?php
+        exit;
+    }
+}
     // Nếu số lần làm đã vượt quá giới hạn -> Chặn làm bài
     if ($user_attempts >=$max_attempts) {
         ?>
@@ -88,7 +125,7 @@ if ($max_attempts > 0 &&$user_id > 0) {
         <?php
         exit;
     }
-}
+
 
 /*
 |--------------------------------------------------------------------------
@@ -274,6 +311,12 @@ foreach ($raw_questions as$q) {
         const completionTimeInput = document.getElementById('completion_time_input');
 
         const startTime = Date.now();
+        // 🚫 Bắt buộc tải lại trang từ Server khi học sinh bấm Back/Forward trên trình duyệt
+window.addEventListener('pageshow', function (event) {
+    if (event.persisted || (performance && performance.navigation.type === 2)) {
+        window.location.reload();
+    }
+});
 
         function calculateTimeSpent() {
             const endTime = Date.now();

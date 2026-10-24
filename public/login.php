@@ -102,7 +102,7 @@ if (isset($_GET['reset']) && $_GET['reset'] === 'success') {
             </p>
         <?php endif; ?>
 
-        <form method="POST" action="/api/auth.php?action=login">
+        <form method="POST" action="../api/auth.php?action=login">
             <input
                 type="text"
                 name="account"

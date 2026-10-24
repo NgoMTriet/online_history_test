@@ -154,6 +154,7 @@ $isTeacher = $isLoggedIn
                 <a href="about.php">ℹ️ Giới thiệu</a>
 
                 <?php if ($isTeacher): ?>
+                    <a href ="teacher_dashboard.php">Trang chủ giáo viên</a>
                     <a href="teacher_question.php">📚 Ngân hàng câu hỏi</a>
                     <a href="teacher_exam.php">📝 Tạo đề thi</a>
                 <?php endif; ?>
