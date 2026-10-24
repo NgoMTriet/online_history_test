@@ -4,36 +4,91 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 require_once __DIR__ . '/../config/database.php';
 
-$user_id = $_SESSION['user_id'] ?? 1; 
+// Yêu cầu đăng nhập để xem lịch sử của đúng tài khoản.
+if (empty($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
+$user_id = (int) $_SESSION['user_id'];
+$is_teacher = strtoupper((string)($_SESSION['role'] ?? '')) === 'TEACHER';
 $detail_attempt_id = isset($_GET['attempt_id']) ? (int)$_GET['attempt_id'] : null;
 
-// Lấy danh sách lịch sử thi của học viên từ CSDL
-$stmt = $conn->prepare("
-    SELECT r.result_id AS attempt_id, e.title AS exam_title, r.submitted_at, 
-           CONCAT(FLOOR(r.completion_time / 60), ' phút ', MOD(r.completion_time, 60), ' giây') AS completion_time, 
+$user_columns = $conn->query('SHOW COLUMNS FROM `users`')->fetchAll(PDO::FETCH_COLUMN);
+$name_candidates = ['full_name', 'fullname', 'name', 'username', 'user_name', 'ho_ten', 'hoten'];
+$name_column = null;
+foreach ($name_candidates as $candidate) {
+    if (in_array($candidate, $user_columns, true)) {
+        $name_column = $candidate;
+        break;
+    }
+}
+if ($name_column === null) {
+    $name_expression = "CONCAT('Học viên #', r.user_id)";
+} else {
+    $safe_name_column = '`' . str_replace('`', '``', $name_column) . '`';
+    $name_expression = "COALESCE(NULLIF(u.$safe_name_column, ''), CONCAT('Học viên #', r.user_id))";
+}
+
+$student_name = '';
+if ($name_column !== null) {
+    $name_stmt = $conn->prepare("SELECT `$name_column` FROM `users` WHERE `user_id` = :user_id LIMIT 1");
+    $name_stmt->execute(['user_id' => $user_id]);
+    $student_name = (string)($name_stmt->fetchColumn() ?: '');
+}
+if ($student_name === '') {
+    $student_name = $_SESSION['full_name'] ?? $_SESSION['name'] ?? $_SESSION['username'] ?? 'Người dùng';
+}
+
+$sql_history = "
+    SELECT r.result_id AS attempt_id, r.user_id AS student_id,
+           $name_expression AS student_name,
+           e.title AS exam_title, r.submitted_at,
+           CONCAT(FLOOR(r.completion_time / 60), ' phút ', MOD(r.completion_time, 60), ' giây') AS completion_time,
            r.score, (r.status = 'PASSED') AS passed
     FROM exam_results r
     JOIN exam e ON r.exam_id = e.exam_id
-    WHERE r.user_id = :user_id
-    ORDER BY r.submitted_at DESC
-");
-$stmt->execute(['user_id' => $user_id]);
+    LEFT JOIN `users` u ON u.user_id = r.user_id
+";
+if (!$is_teacher) {
+    $sql_history .= " WHERE r.user_id = :user_id";
+}
+$sql_history .= " ORDER BY r.submitted_at DESC";
+$stmt = $conn->prepare($sql_history);
+if (!$is_teacher) {
+    $stmt->execute(['user_id' => $user_id]);
+} else {
+    $stmt->execute();
+}
 $history_list = $stmt->fetchAll();
 
 // Chi tiết lượt thi khi chọn
 $attempt_detail = null;
 if ($detail_attempt_id) {
     $stmt_info = $conn->prepare("
-        SELECT r.result_id AS attempt_id, e.title AS exam_title, r.score, r.submitted_at,
+        SELECT r.result_id AS attempt_id, r.user_id AS student_id,
+               e.title AS exam_title, r.score, r.submitted_at,
                CONCAT(FLOOR(r.completion_time / 60), ' phút ', MOD(r.completion_time, 60), ' giây') AS completion_time
         FROM exam_results r
         JOIN exam e ON r.exam_id = e.exam_id
-        WHERE r.result_id = :r_id AND r.user_id = :u_id
+        WHERE r.result_id = :r_id
+          AND (:is_teacher = 1 OR r.user_id = :u_id)
     ");
-    $stmt_info->execute(['r_id' => $detail_attempt_id, 'u_id' => $user_id]);
+    $stmt_info->execute([
+        'r_id' => $detail_attempt_id,
+        'is_teacher' => $is_teacher ? 1 : 0,
+        'u_id' => $user_id
+    ]);
     $info = $stmt_info->fetch();
 
     if ($info) {
+        $detail_student_name = $student_name;
+        if ($is_teacher && $name_column !== null) {
+            $detail_name_stmt = $conn->prepare("SELECT `$name_column` FROM `users` WHERE `user_id` = :uid LIMIT 1");
+            $detail_name_stmt->execute(['uid' => (int)$info['student_id']]);
+            $detail_student_name = (string)($detail_name_stmt->fetchColumn() ?: ('Học viên #' . $info['student_id']));
+        } elseif ($is_teacher) {
+            $detail_student_name = 'Học viên #' . $info['student_id'];
+        }
         $stmt_qs = $conn->prepare("
             SELECT q.question_id, q.content AS question, q.explanation, sa.selected_answer_id
             FROM student_answers sa
@@ -74,6 +129,8 @@ if ($detail_attempt_id) {
 
         $attempt_detail = [
             'attempt_id' => $info['attempt_id'],
+            'student_id' => $info['student_id'],
+            'student_name' => $detail_student_name,
             'exam_title' => $info['exam_title'],
             'score' => $info['score'],
             'submitted_at' => $info['submitted_at'],
@@ -98,6 +155,7 @@ if ($detail_attempt_id) {
         .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
         .history-card { background: white; border-radius: 8px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .history-card h2 { margin-bottom: 20px; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
+        .student-name { margin-bottom: 18px; padding: 12px 16px; background: #eaf4ff; border-left: 4px solid #3498db; border-radius: 6px; color: #2c3e50; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
         th { background-color: #f8f9fa; color: #2c3e50; }
@@ -132,6 +190,9 @@ if ($detail_attempt_id) {
             <div class="detail-header-card">
                 <div>
                     <h2><?php echo htmlspecialchars($attempt_detail['exam_title']); ?></h2>
+                    <?php if ($is_teacher): ?>
+                        <p style="margin-top:8px;">👤 Học sinh: <strong><?php echo htmlspecialchars((string)$attempt_detail['student_name'], ENT_QUOTES, 'UTF-8'); ?></strong></p>
+                    <?php endif; ?>
                     <p style="color: #666; margin-top: 5px;">
                         🕒 Ngày nộp: <?php echo date('d/m/Y H:i', strtotime($attempt_detail['submitted_at'])); ?> 
                         | ⏱️ Thời gian: <?php echo $attempt_detail['completion_time']; ?>
@@ -188,6 +249,7 @@ if ($detail_attempt_id) {
 
         <?php else: ?>
             <div class="history-card">
+                <div class="student-name"><?php if ($is_teacher): ?>👩‍🏫 Chế độ giáo viên: danh sách bài thi của tất cả học sinh<?php else: ?>👤 Người thi: <strong><?php echo htmlspecialchars((string)$student_name, ENT_QUOTES, 'UTF-8'); ?></strong><?php endif; ?></div>
                 <h2>Danh sách các bài đã thi</h2>
                 <?php if (empty($history_list)): ?>
                     <p style="text-align: center; color: #7f8c8d; padding: 20px;">Bạn chưa thực hiện bài thi nào.</p>
@@ -196,6 +258,7 @@ if ($detail_attempt_id) {
                         <thead>
                             <tr>
                                 <th>STT</th>
+                                <?php if ($is_teacher): ?><th>Học sinh</th><?php endif; ?>
                                 <th>Tên đề thi</th>
                                 <th>Ngày làm</th>
                                 <th>Thời gian làm</th>
@@ -208,6 +271,7 @@ if ($detail_attempt_id) {
                             <?php foreach ($history_list as $index => $item): ?>
                                 <tr>
                                     <td><strong><?php echo $index + 1; ?></strong></td>
+                                    <?php if ($is_teacher): ?><td><?php echo htmlspecialchars((string)$item['student_name'], ENT_QUOTES, 'UTF-8'); ?></td><?php endif; ?>
                                     <td><strong><?php echo htmlspecialchars($item['exam_title']); ?></strong></td>
                                     <td><?php echo date('d/m/Y H:i', strtotime($item['submitted_at'])); ?></td>
                                     <td><?php echo htmlspecialchars($item['completion_time']); ?></td>

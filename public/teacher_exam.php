@@ -16,6 +16,8 @@ if (
     $title = trim($_POST['title'] ?? '');
     $grade = (int)($_POST['grade'] ?? 9);
     $duration = (int)($_POST['duration'] ?? 15);
+    $maxAttempts = (int)($_POST['max_attempts'] ?? 0); // 0 = Không giới hạn
+    $examPassword = trim($_POST['exam_password'] ?? ''); // Mật khẩu bài thi
     $mode = $_POST['create_mode'] ?? 'manual';
 
     if ($title === '') {
@@ -26,6 +28,9 @@ if (
         $messageType = 'danger';
     } elseif ($duration < 1 || $duration > 300) {
         $message = 'Thời gian làm bài phải từ 1 đến 300 phút.';
+        $messageType = 'danger';
+    } elseif ($maxAttempts < 0) {
+        $message = 'Số lần làm bài không hợp lệ.';
         $messageType = 'danger';
     } elseif (!in_array($mode, ['manual', 'auto'], true)) {
         $message = 'Phương thức chọn câu hỏi không hợp lệ.';
@@ -51,7 +56,6 @@ if (
                 );
 
                 if (count($selectedQuestionIds) > 0) {
-                    // Chỉ chấp nhận câu hỏi thuộc khối lớp đang chọn.
                     $placeholders = implode(
                         ',',
                         array_fill(0, count($selectedQuestionIds), '?')
@@ -79,71 +83,82 @@ if (
                     );
                 }
             } else {
-                $autoCount = (int)($_POST['auto_count'] ?? 10);
+                // Chế độ Bốc ngẫu nhiên theo Chủ đề & 3 Mức độ
+                $topicId = (int)($_POST['auto_topic_id'] ?? 0);
+                $countEasy = max(0, (int)($_POST['count_easy'] ?? 0));
+                $countMedium = max(0, (int)($_POST['count_medium'] ?? 0));
+                $countHard = max(0, (int)($_POST['count_hard'] ?? 0));
 
-                if ($autoCount < 1 || $autoCount > 100) {
-                    throw new Exception(
-                        'Số lượng câu hỏi tự động phải từ 1 đến 100.'
-                    );
+                if ($countEasy + $countMedium + $countHard === 0) {
+                    throw new Exception('Vui lòng nhập số lượng cho ít nhất 1 mức độ câu hỏi.');
                 }
 
-                $stmtRandom = $conn->prepare(
-                    "SELECT q.question_id
-                     FROM questions q
-                     JOIN topics t ON q.topic_id = t.topic_id
-                     WHERE t.grade = :grade
-                     ORDER BY RAND()
-                     LIMIT :limit"
-                );
+                $levelsMap = [
+                    'EASY' => $countEasy,
+                    'MEDIUM' => $countMedium,
+                    'HARD' => $countHard
+                ];
 
-                $stmtRandom->bindValue(
-                    ':grade',
-                    $grade,
-                    PDO::PARAM_INT
-                );
+                foreach ($levelsMap as $level => $count) {
+                    if ($count <= 0) continue;
 
-                $stmtRandom->bindValue(
-                    ':limit',
-                    $autoCount,
-                    PDO::PARAM_INT
-                );
+                    $sql = "SELECT q.question_id
+                            FROM questions q
+                            JOIN topics t ON q.topic_id = t.topic_id
+                            WHERE t.grade = :grade AND q.difficulty = :level";
 
-                $stmtRandom->execute();
+                    if ($topicId > 0) {
+                        $sql .= " AND q.topic_id = :topic_id";
+                    }
 
-                $selectedQuestionIds = array_map(
-                    'intval',
-                    $stmtRandom->fetchAll(PDO::FETCH_COLUMN)
-                );
+                    $sql .= " ORDER BY RAND() LIMIT :limit";
+
+                    $stmtRandom = $conn->prepare($sql);
+                    $stmtRandom->bindValue(':grade', $grade, PDO::PARAM_INT);
+                    $stmtRandom->bindValue(':level', $level, PDO::PARAM_STR);
+                    $stmtRandom->bindValue(':limit', $count, PDO::PARAM_INT);
+
+                    if ($topicId > 0) {
+                        $stmtRandom->bindValue(':topic_id', $topicId, PDO::PARAM_INT);
+                    }
+
+                    $stmtRandom->execute();
+                    $fetchedIds = array_map('intval', $stmtRandom->fetchAll(PDO::FETCH_COLUMN));
+                    
+                    $selectedQuestionIds = array_merge($selectedQuestionIds, $fetchedIds);
+                }
             }
 
             $totalQuestions = count($selectedQuestionIds);
 
             if ($totalQuestions === 0) {
                 throw new Exception(
-                    'Không có câu hỏi phù hợp. Hãy chọn câu hỏi hoặc kiểm tra ngân hàng câu hỏi của khối lớp này.'
+                    'Không tìm thấy câu hỏi phù hợp với cấu hình. Vui lòng kiểm tra lại Ngân hàng câu hỏi.'
                 );
             }
 
             $conn->beginTransaction();
 
-            // Lưu thông tin đề thi.
+            // Lưu thông tin đề thi (có lưu exam_password)
             $stmtExam = $conn->prepare(
                 "INSERT INTO exam
-                 (title, grade, duration, total_questions, is_randomized)
-                 VALUES (:title, :grade, :duration, :total_questions, :is_randomized)"
+                 (title, grade, duration, max_attempts, exam_password, total_questions, is_randomized)
+                 VALUES (:title, :grade, :duration, :max_attempts, :exam_password, :total_questions, :is_randomized)"
             );
 
             $stmtExam->execute([
                 'title' => $title,
                 'grade' => $grade,
                 'duration' => $duration,
+                'max_attempts' => $maxAttempts,
+                'exam_password' => $examPassword !== '' ? $examPassword : null,
                 'total_questions' => $totalQuestions,
                 'is_randomized' => ($mode === 'auto') ? 1 : 0
             ]);
 
             $examId = (int)$conn->lastInsertId();
 
-            // Lưu danh sách câu hỏi của đề thi.
+            // Lưu danh sách câu hỏi
             $stmtLink = $conn->prepare(
                 "INSERT INTO exam_questions (exam_id, question_id)
                  VALUES (:exam_id, :question_id)"
@@ -158,7 +173,7 @@ if (
 
             $conn->commit();
 
-            $message = "Tạo đề thi thành công! Đề có {$totalQuestions} câu hỏi.";
+            $message = "Tạo đề thi thành công! Đề thi gồm {$totalQuestions} câu hỏi.";
             $messageType = 'success';
 
         } catch (Throwable $e) {
@@ -166,10 +181,7 @@ if (
                 $conn->rollBack();
             }
 
-            $message = $e instanceof Exception
-                ? $e->getMessage()
-                : 'Không thể tạo đề thi. Vui lòng kiểm tra lại cấu trúc cơ sở dữ liệu.';
-
+            $message = $e->getMessage();
             $messageType = 'danger';
         }
     }
@@ -177,25 +189,26 @@ if (
 
 /*
 |--------------------------------------------------------------------------
-| LẤY NGÂN HÀNG CÂU HỎI
+| LẤY NGÂN HÀNG CÂU HỎI VÀ TẤT CẢ CHỦ ĐỀ
 |--------------------------------------------------------------------------
 */
+$stmtTopics = $conn->query("SELECT topic_id, topic_name, grade FROM topics ORDER BY grade ASC, topic_name ASC");
+$allTopics = $stmtTopics->fetchAll(PDO::FETCH_ASSOC);
+
 $stmtQuestions = $conn->query(
-    "SELECT q.question_id, q.content, t.grade, t.topic_name
+    "SELECT q.question_id, q.content, q.difficulty, t.grade, t.topic_name, t.topic_id
      FROM questions q
      JOIN topics t ON q.topic_id = t.topic_id
      ORDER BY t.grade ASC, q.question_id DESC"
 );
 
 $questionsBank = $stmtQuestions->fetchAll(PDO::FETCH_ASSOC);
-
 $questionCounts = [6 => 0, 7 => 0, 8 => 0, 9 => 0];
 
 foreach ($questionsBank as $question) {
-    $questionGrade = (int)$question['grade'];
-
-    if (isset($questionCounts[$questionGrade])) {
-        $questionCounts[$questionGrade]++;
+    $g = (int)$question['grade'];
+    if (isset($questionCounts[$g])) {
+        $questionCounts[$g]++;
     }
 }
 ?>
@@ -205,7 +218,6 @@ foreach ($questionsBank as $question) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Tạo đề thi | TestSuViet</title>
 
     <style>
@@ -220,9 +232,7 @@ foreach ($questionsBank as $question) {
             --white: #ffffff;
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
@@ -233,9 +243,7 @@ foreach ($questionsBank as $question) {
             line-height: 1.6;
         }
 
-        input, select, button {
-            font: inherit;
-        }
+        input, select, button { font: inherit; }
 
         .container {
             max-width: 1100px;
@@ -271,11 +279,10 @@ foreach ($questionsBank as $question) {
             margin: 0;
             color: #0f172a;
             font-size: clamp(23px, 3vw, 30px);
-            line-height: 1.3;
         }
 
         .page-description {
-            margin: 6px 0 0;
+            margin: 4px 0 0;
             color: var(--muted);
             font-size: 14px;
         }
@@ -308,21 +315,10 @@ foreach ($questionsBank as $question) {
             border-radius: 12px;
         }
 
-        h2 {
-            margin: 0;
-            color: #0f172a;
-            font-size: 19px;
-        }
+        h2 { margin: 0; font-size: 19px; color: #0f172a; }
+        .section-description { color: var(--muted); font-size: 13px; margin-top: 4px; }
 
-        .section-description {
-            color: var(--muted);
-            font-size: 13px;
-            margin: 4px 0 0;
-        }
-
-        .form-group {
-            margin-bottom: 19px;
-        }
+        .form-group { margin-bottom: 19px; }
 
         label {
             display: block;
@@ -332,9 +328,7 @@ foreach ($questionsBank as $question) {
             font-weight: 700;
         }
 
-        input[type="text"],
-        input[type="number"],
-        select {
+        input[type="text"], input[type="password"], input[type="number"], select {
             width: 100%;
             min-height: 45px;
             padding: 11px 13px;
@@ -343,7 +337,7 @@ foreach ($questionsBank as $question) {
             outline: none;
             background: #fff;
             color: var(--text);
-            transition: border-color .2s, box-shadow .2s;
+            transition: border-color .2s;
         }
 
         input:focus, select:focus {
@@ -351,10 +345,16 @@ foreach ($questionsBank as $question) {
             box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
         }
 
-        .two-columns {
+        .form-grid-4 {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .three-columns {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
         }
 
         .mode-box {
@@ -373,7 +373,6 @@ foreach ($questionsBank as $question) {
             border: 1px solid var(--border);
             border-radius: 13px;
             cursor: pointer;
-            transition: background .2s, border-color .2s;
         }
 
         .mode-option:has(input:checked) {
@@ -381,43 +380,16 @@ foreach ($questionsBank as $question) {
             border-color: var(--primary);
         }
 
-        .mode-option input {
-            margin-top: 5px;
-            accent-color: var(--primary);
-        }
-
-        .mode-option label {
-            margin: 0;
-            cursor: pointer;
-        }
-
-        .mode-option strong {
-            display: block;
-            font-size: 14px;
-        }
-
-        .mode-option small {
-            display: block;
-            margin-top: 4px;
-            color: var(--muted);
-            font-size: 12px;
-            font-weight: 400;
-        }
-
         .question-toolbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
             gap: 12px;
             margin-bottom: 14px;
         }
 
         .question-count {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 7px 11px;
+            padding: 6px 12px;
             background: #dbeafe;
             color: #1d4ed8;
             border-radius: 9px;
@@ -425,13 +397,8 @@ foreach ($questionsBank as $question) {
             font-weight: 700;
         }
 
-        .search-box {
-            width: 100%;
-            max-width: 320px;
-        }
-
         .q-list {
-            max-height: 390px;
+            max-height: 380px;
             overflow-y: auto;
             padding: 8px;
             border: 1px solid var(--border);
@@ -448,183 +415,60 @@ foreach ($questionsBank as $question) {
             border: 1px solid #edf0f5;
             border-radius: 10px;
             background: #fff;
-            transition: border-color .2s, background .2s;
         }
 
-        .q-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .q-item:hover {
-            border-color: #93c5fd;
-            background: #f8fbff;
-        }
-
-        .q-item input {
-            margin-top: 5px;
-            width: 17px;
-            height: 17px;
-            flex-shrink: 0;
-            accent-color: var(--primary);
-            cursor: pointer;
-        }
-
-        .q-item label {
-            flex: 1;
-            margin: 0;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
-            overflow-wrap: anywhere;
-        }
-
-        .q-grade {
-            display: inline-block;
-            margin-right: 7px;
+        .q-badge {
             padding: 3px 7px;
             border-radius: 6px;
-            background: #dcfce7;
-            color: #166534;
             font-size: 11px;
             font-weight: 800;
-            white-space: nowrap;
         }
 
+        .badge-easy { background: #dcfce7; color: #166534; }
+        .badge-medium { background: #fef3c7; color: #92400e; }
+        .badge-hard { background: #fee2e2; color: #991b1b; }
+
         .auto-panel {
-            padding: 20px;
+            padding: 22px;
             border: 1px solid #bfdbfe;
             border-radius: 13px;
             background: #eff6ff;
-        }
-
-        .auto-panel p {
-            margin: 0 0 15px;
-            color: #475569;
-            font-size: 13px;
-        }
-
-        .auto-count-input {
-            max-width: 230px;
         }
 
         .btn {
             display: inline-flex;
             justify-content: center;
             align-items: center;
-            gap: 8px;
             padding: 11px 18px;
             border: 0;
             border-radius: 10px;
             color: #fff;
             font-weight: 700;
-            font-size: 14px;
-            text-decoration: none;
             cursor: pointer;
-            transition: transform .15s, box-shadow .15s, background .15s;
+            text-decoration: none;
         }
 
-        .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 5px 12px rgba(15, 23, 42, .12);
-        }
-
-        .btn-primary {
-            background: var(--primary);
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-dark);
-        }
-
-        .btn-secondary {
-            background: #475569;
-        }
-
-        .btn-secondary:hover {
-            background: #334155;
-        }
-
-        .submit-row {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 24px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-        }
-
-        .btn-submit {
-            min-width: 180px;
-            padding: 13px 22px;
-            background: var(--success);
-            font-size: 15px;
-        }
-
-        .btn-submit:hover {
-            background: #15803d;
-        }
+        .btn-primary { background: var(--primary); }
+        .btn-secondary { background: #475569; }
+        .btn-submit { background: var(--success); min-width: 180px; padding: 13px 22px; }
 
         .alert {
             padding: 15px 18px;
             margin-bottom: 22px;
-            border: 1px solid transparent;
             border-radius: 12px;
             font-size: 14px;
         }
+        .alert-success { color: #166534; background: #dcfce7; }
+        .alert-danger { color: #991b1b; background: #fee2e2; }
 
-        .alert-success {
-            color: #166534;
-            background: #dcfce7;
-            border-color: #bbf7d0;
+        [hidden] { display: none !important; }
+
+        @media (max-width: 900px) {
+            .form-grid-4 { grid-template-columns: repeat(2, 1fr); }
         }
 
-        .alert-danger {
-            color: #991b1b;
-            background: #fee2e2;
-            border-color: #fecaca;
-        }
-
-        .empty-state {
-            padding: 25px 15px;
-            text-align: center;
-            color: var(--muted);
-            font-size: 14px;
-        }
-
-        [hidden] {
-            display: none !important;
-        }
-
-        @media (max-width: 700px) {
-            body {
-                padding: 18px 12px;
-            }
-
-            .card {
-                padding: 19px;
-                border-radius: 14px;
-            }
-
-            .two-columns,
-            .mode-box {
-                grid-template-columns: 1fr;
-                gap: 0;
-            }
-
-            .mode-box {
-                gap: 10px;
-            }
-
-            .page-header > .btn {
-                width: 100%;
-            }
-
-            .submit-row .btn {
-                width: 100%;
-            }
-
-            .search-box {
-                max-width: none;
-            }
+        @media (max-width: 768px) {
+            .form-grid-4, .three-columns, .mode-box { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -638,14 +482,12 @@ foreach ($questionsBank as $question) {
             <div>
                 <h1>Tạo đề thi mới</h1>
                 <p class="page-description">
-                    Thiết lập đề thi và lựa chọn câu hỏi môn Lịch sử THCS.
+                    Thiết lập đề thi, giới hạn số lần làm, mật khẩu bảo vệ và cấu trúc câu hỏi.
                 </p>
             </div>
         </div>
 
-        <a href="../index.php" class="btn btn-secondary">
-            🏠 Trang chủ
-        </a>
+        <a href="../index.php" class="btn btn-secondary">🏠 Trang chủ</a>
     </header>
 
     <?php if ($message !== ''): ?>
@@ -663,50 +505,47 @@ foreach ($questionsBank as $question) {
                 <div class="step-number">01</div>
                 <div>
                     <h2>Thông tin chung</h2>
-                    <p class="section-description">
-                        Đặt tên đề thi, chọn khối lớp và thời gian làm bài.
-                    </p>
+                    <p class="section-description">Tên đề thi, khối lớp, thời gian, lượt làm bài và mật khẩu truy cập.</p>
                 </div>
             </div>
 
             <div class="form-group">
                 <label for="title">Tên đề thi</label>
-                <input
-                    type="text"
-                    id="title"
-                    name="title"
-                    placeholder="Ví dụ: Đề thi giữa kỳ I - Lịch sử 9"
-                    maxlength="255"
-                    required
-                >
+                <input type="text" id="title" name="title" placeholder="Ví dụ: Đề thi Ôn tập Chương 1 - Lịch sử 9" required>
             </div>
 
-            <div class="two-columns">
+            <div class="form-grid-4">
                 <div class="form-group">
                     <label for="gradeSelect">Khối lớp</label>
                     <select name="grade" id="gradeSelect">
                         <?php for ($g = 6; $g <= 9; $g++): ?>
-                            <option
-                                value="<?= $g ?>"
-                                <?= $g === 9 ? 'selected' : '' ?>
-                            >
-                                Lớp <?= $g ?> — <?= $questionCounts[$g] ?> câu hỏi
+                            <option value="<?= $g ?>" <?= $g === 9 ? 'selected' : '' ?>>
+                                Lớp <?= $g ?> — <?= $questionCounts[$g] ?> câu
                             </option>
                         <?php endfor; ?>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="duration">Thời gian làm bài (phút)</label>
-                    <input
-                        type="number"
-                        id="duration"
-                        name="duration"
-                        value="15"
-                        min="1"
-                        max="300"
-                        required
-                    >
+                    <label for="duration">Thời gian (phút)</label>
+                    <input type="number" id="duration" name="duration" value="15" min="1" max="300" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="maxAttempts">Số lần làm tối đa</label>
+                    <select name="max_attempts" id="maxAttempts">
+                        <option value="0">Không giới hạn</option>
+                        <option value="1">1 lần</option>
+                        <option value="2">2 lần</option>
+                        <option value="3">3 lần</option>
+                        <option value="5">5 lần</option>
+                    </select>
+                </div>
+
+                <!-- Ô NHẬP MẬT KHẨU ĐỀ THI -->
+                <div class="form-group">
+                    <label for="examPassword">🔑 Mật khẩu đề thi</label>
+                    <input type="text" id="examPassword" name="exam_password" placeholder="Để trống nếu tự do" maxlength="50">
                 </div>
             </div>
         </section>
@@ -717,240 +556,167 @@ foreach ($questionsBank as $question) {
                 <div class="step-number">02</div>
                 <div>
                     <h2>Phương thức chọn câu hỏi</h2>
-                    <p class="section-description">
-                        Chọn câu hỏi cụ thể hoặc để hệ thống bốc ngẫu nhiên.
-                    </p>
+                    <p class="section-description">Chọn thủ công từng câu hoặc cấu hình bốc ngẫu nhiên theo chủ đề & mức độ.</p>
                 </div>
             </div>
 
             <div class="mode-box">
                 <div class="mode-option">
-                    <input
-                        type="radio"
-                        id="modeManual"
-                        name="create_mode"
-                        value="manual"
-                        checked
-                    >
+                    <input type="radio" id="modeManual" name="create_mode" value="manual" checked>
                     <label for="modeManual">
                         <strong>✍️ Chọn thủ công</strong>
-                        <small>Tự chọn từng câu hỏi muốn đưa vào đề thi.</small>
+                        <small>Tự chọn từng câu hỏi đưa vào đề thi.</small>
                     </label>
                 </div>
 
                 <div class="mode-option">
-                    <input
-                        type="radio"
-                        id="modeAuto"
-                        name="create_mode"
-                        value="auto"
-                    >
+                    <input type="radio" id="modeAuto" name="create_mode" value="auto">
                     <label for="modeAuto">
                         <strong>⚡ Bốc câu hỏi ngẫu nhiên</strong>
-                        <small>Hệ thống tự chọn câu hỏi theo khối lớp.</small>
+                        <small>Bốc theo chủ đề và cấu hình 3 mức độ.</small>
                     </label>
                 </div>
             </div>
 
-            <!-- CHỌN THỦ CÔNG -->
+            <!-- 1. CHỌN THỦ CÔNG -->
             <div id="manualSection">
                 <div class="question-toolbar">
-                    <div>
-                        <label style="margin-bottom: 5px;">
-                            Ngân hàng câu hỏi
-                        </label>
-                        <span class="question-count">
-                            Đã chọn <span id="selectedCount">0</span> câu
-                        </span>
-                    </div>
-
-                    <input
-                        type="text"
-                        id="questionSearch"
-                        class="search-box"
-                        placeholder="🔎 Tìm nội dung câu hỏi..."
-                    >
+                    <span class="question-count">Đã chọn <span id="selectedCount">0</span> câu</span>
+                    <input type="text" id="questionSearch" style="max-width: 300px;" placeholder="🔎 Tìm nội dung câu hỏi...">
                 </div>
 
-                <div class="q-list" id="questionList">
-                    <?php if (!empty($questionsBank)): ?>
-
-                        <?php foreach ($questionsBank as $q): ?>
-                            <div
-                                class="q-item question-row"
-                                data-grade="<?= (int)$q['grade'] ?>"
-                                data-search="<?= htmlspecialchars(
-                                    mb_strtolower(
-                                        $q['content'] . ' ' . $q['topic_name'],
-                                        'UTF-8'
-                                    ),
-                                    ENT_QUOTES,
-                                    'UTF-8'
-                                ) ?>"
-                            >
-                                <input
-                                    type="checkbox"
-                                    name="question_ids[]"
-                                    value="<?= (int)$q['question_id'] ?>"
-                                    id="q_<?= (int)$q['question_id'] ?>"
-                                    class="question-checkbox"
-                                >
-
-                                <label for="q_<?= (int)$q['question_id'] ?>">
-                                    <span class="q-grade">
-                                        Lớp <?= (int)$q['grade'] ?>
-                                    </span>
-
-                                    <strong>
-                                        <?= htmlspecialchars(
-                                            $q['topic_name'],
-                                            ENT_QUOTES,
-                                            'UTF-8'
-                                        ) ?>
-                                    </strong>
-
-                                    <br>
-
-                                    <?= htmlspecialchars(
-                                        $q['content'],
-                                        ENT_QUOTES,
-                                        'UTF-8'
-                                    ) ?>
-                                </label>
-                            </div>
-                        <?php endforeach; ?>
-
-                    <?php else: ?>
-
-                        <div class="empty-state">
-                            Chưa có câu hỏi trong ngân hàng.
-                            Hãy thêm câu hỏi trước khi tạo đề thi.
+                <div class="q-list">
+                    <?php foreach ($questionsBank as $q): ?>
+                        <?php
+                            $diffClass = 'badge-easy';
+                            $diffText = 'Nhận biết';
+                            $diffUpper = strtoupper($q['difficulty'] ?? 'EASY');
+                            if ($diffUpper === 'MEDIUM') { $diffClass = 'badge-medium'; $diffText = 'Thông hiểu'; }
+                            if ($diffUpper === 'HARD') { $diffClass = 'badge-hard'; $diffText = 'Vận dụng'; }
+                        ?>
+                        <div class="q-item question-row" data-grade="<?= (int)$q['grade'] ?>" data-search="<?= htmlspecialchars(mb_strtolower($q['content'] . ' ' . $q['topic_name'], 'UTF-8')) ?>">
+                            <input type="checkbox" name="question_ids[]" value="<?= (int)$q['question_id'] ?>" id="q_<?= (int)$q['question_id'] ?>" class="question-checkbox">
+                            <label for="q_<?= (int)$q['question_id'] ?>">
+                                <span class="q-badge <?= $diffClass ?>"><?= $diffText ?></span>
+                                <strong>[<?= htmlspecialchars($q['topic_name']) ?>]</strong>
+                                <?= htmlspecialchars($q['content']) ?>
+                            </label>
                         </div>
-
-                    <?php endif; ?>
+                    <?php endforeach; ?>
                 </div>
-
-                <p class="section-description" style="margin-top: 12px;">
-                    Chỉ những câu hỏi thuộc khối lớp đã chọn mới được hiển thị.
-                </p>
             </div>
 
-            <!-- BỐC NGẪU NHIÊN -->
+            <!-- 2. BỐC NGẪU NHIÊN CHỦ ĐỀ & 3 MỨC ĐỘ -->
             <div id="autoSection" hidden>
                 <div class="auto-panel">
-                    <label for="autoCount">
-                        Số lượng câu hỏi muốn tạo
-                    </label>
+                    <div class="form-group">
+                        <label for="autoTopic">Chọn Chủ đề bài học</label>
+                        <select name="auto_topic_id" id="autoTopic" disabled>
+                            <option value="0">-- Tất cả các chủ đề (Toàn bộ chương trình lớp) --</option>
+                            <?php foreach ($allTopics as $t): ?>
+                                <option value="<?= (int)$t['topic_id'] ?>" data-grade="<?= (int)$t['grade'] ?>">
+                                    Lớp <?= (int)$t['grade'] ?> - <?= htmlspecialchars($t['topic_name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
 
-                    <p>
-                        Hệ thống sẽ lấy ngẫu nhiên các câu hỏi trong ngân hàng
-                        của khối lớp đã chọn. Số lượng thực tế không vượt quá
-                        số câu hỏi hiện có.
-                    </p>
-
-                    <input
-                        class="auto-count-input"
-                        type="number"
-                        id="autoCount"
-                        name="auto_count"
-                        value="10"
-                        min="1"
-                        max="100"
-                        disabled
-                    >
+                    <label style="margin-top: 15px;">Cấu hình số lượng câu hỏi theo 3 mức độ:</label>
+                    <div class="three-columns" style="margin-top: 10px;">
+                        <div class="form-group">
+                            <label style="font-weight: 500; color: #166534;">🟢 Nhận biết (EASY)</label>
+                            <input type="number" class="auto-input" name="count_easy" value="5" min="0" max="50" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-weight: 500; color: #92400e;">🟡 Thông hiểu (MEDIUM)</label>
+                            <input type="number" class="auto-input" name="count_medium" value="3" min="0" max="50" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-weight: 500; color: #991b1b;">🔴 Vận dụng (HARD)</label>
+                            <input type="number" class="auto-input" name="count_hard" value="2" min="0" max="50" disabled>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="submit-row">
-                <button type="submit" class="btn btn-submit">
-                    💾 Lưu đề thi
-                </button>
+            <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+                <button type="submit" class="btn btn-submit">💾 Lưu đề thi</button>
             </div>
         </section>
     </form>
-
 </div>
 
 <script>
     const gradeSelect = document.getElementById('gradeSelect');
     const modeManual = document.getElementById('modeManual');
     const modeAuto = document.getElementById('modeAuto');
-
     const manualSection = document.getElementById('manualSection');
     const autoSection = document.getElementById('autoSection');
-
-    const autoCount = document.getElementById('autoCount');
+    const autoTopic = document.getElementById('autoTopic');
+    const autoInputs = document.querySelectorAll('.auto-input');
     const questionSearch = document.getElementById('questionSearch');
     const selectedCount = document.getElementById('selectedCount');
 
     function toggleMode() {
         const isManual = modeManual.checked;
-
         manualSection.hidden = !isManual;
         autoSection.hidden = isManual;
 
-        // Tránh gửi danh sách checkbox khi chọn chế độ tự động.
-        document.querySelectorAll('.question-checkbox').forEach(checkbox => {
-            checkbox.disabled = !isManual;
-        });
-
-        autoCount.disabled = isManual;
+        document.querySelectorAll('.question-checkbox').forEach(cb => cb.disabled = !isManual);
+        autoTopic.disabled = isManual;
+        autoInputs.forEach(input => input.disabled = isManual);
 
         updateQuestionList();
+        updateTopicOptions();
         updateSelectedCount();
     }
 
     function updateQuestionList() {
-        const selectedGrade = gradeSelect.value;
-        const keyword = questionSearch.value.trim().toLocaleLowerCase('vi');
+        const grade = gradeSelect.value;
+        const kw = questionSearch.value.trim().toLowerCase();
 
         document.querySelectorAll('.question-row').forEach(row => {
-            const sameGrade = row.dataset.grade === selectedGrade;
-            const content = row.dataset.search || '';
-            const matchesSearch = content.includes(keyword);
-
-            row.hidden = !(sameGrade && matchesSearch);
+            const sameGrade = row.dataset.grade === grade;
+            const matchSearch = row.dataset.search.includes(kw);
+            row.hidden = !(sameGrade && matchSearch);
         });
     }
 
-    function updateSelectedCount() {
-        const count = document.querySelectorAll(
-            '.question-checkbox:checked:not(:disabled)'
-        ).length;
+    function updateTopicOptions() {
+        const grade = gradeSelect.value;
+        Array.from(autoTopic.options).forEach(opt => {
+            if (opt.value === "0") return;
+            opt.hidden = opt.dataset.grade !== grade;
+        });
+        autoTopic.value = "0";
+    }
 
+    function updateSelectedCount() {
+        const count = document.querySelectorAll('.question-checkbox:checked:not(:disabled)').length;
         selectedCount.textContent = count;
     }
 
-    gradeSelect.addEventListener('change', updateQuestionList);
-    questionSearch.addEventListener('input', updateQuestionList);
+    gradeSelect.addEventListener('change', () => {
+        updateQuestionList();
+        updateTopicOptions();
+    });
 
+    questionSearch.addEventListener('input', updateQuestionList);
     modeManual.addEventListener('change', toggleMode);
     modeAuto.addEventListener('change', toggleMode);
 
-    document.querySelectorAll('.question-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', updateSelectedCount);
+    document.querySelectorAll('.question-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
     });
 
-    document.getElementById('examForm').addEventListener('submit', function(event) {
+    document.getElementById('examForm').addEventListener('submit', function(e) {
         if (modeManual.checked && selectedCount.textContent === '0') {
-            event.preventDefault();
-            alert('Vui lòng chọn ít nhất một câu hỏi để tạo đề thi.');
-            return;
-        }
-
-        if (modeAuto.checked) {
-            const count = Number(autoCount.value);
-
-            if (!Number.isInteger(count) || count < 1 || count > 100) {
-                event.preventDefault();
-                alert('Số lượng câu hỏi phải từ 1 đến 100.');
-            }
+            e.preventDefault();
+            alert('Vui lòng chọn ít nhất 1 câu hỏi.');
         }
     });
 
     toggleMode();
 </script>
-
 </body>
 </html>
-

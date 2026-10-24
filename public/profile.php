@@ -1,5 +1,5 @@
-
 <?php
+session_start();
 require_once __DIR__ . '/../config/database.php';
 
 // Không lưu trang cá nhân vào bộ nhớ đệm trình duyệt
@@ -17,12 +17,12 @@ $user_id = (int) $_SESSION['user_id'];
 $message = '';
 $user_info = [];
 
-// Lấy thông tin người dùng hiện tại
+// Lấy thông tin người dùng hiện tại (Đã thêm class_name và dob)
 function getUserInfo(PDO $conn, int $userId): array
 {
     $stmt = $conn->prepare(
         'SELECT user_id, username, password_hash, full_name,
-                email, role, status
+                email, class_name, dob, role, status
          FROM users
          WHERE user_id = ?
          LIMIT 1'
@@ -53,6 +53,8 @@ try {
     ) {
         $fullName = trim($_POST['full_name'] ?? '');
         $email = trim($_POST['email'] ?? '');
+        $className = trim($_POST['class_name'] ?? '');
+        $dob = trim($_POST['dob'] ?? '');
         $password = $_POST['current_password'] ?? '';
         $newPassword = $_POST['new_password'] ?? '';
         $confirmPassword = $_POST['confirm_password'] ?? '';
@@ -94,28 +96,33 @@ try {
             }
         }
 
-        // Cập nhật thông tin
+        // Chuẩn hóa dữ liệu ngày sinh (nếu rỗng thì để NULL)
+        $dobValue = $dob !== '' ? $dob : null;
+
+        // Cập nhật thông tin vào CSDL
         if ($changePassword) {
             $stmt = $conn->prepare(
                 'UPDATE users
-                 SET full_name = ?, email = ?, password_hash = ?
+                 SET full_name = ?, email = ?, class_name = ?, dob = ?, password_hash = ?
                  WHERE user_id = ?'
             );
 
             $stmt->execute([
                 $fullName,
                 $email,
+                $className,
+                $dobValue,
                 password_hash($newPassword, PASSWORD_DEFAULT),
                 $user_id
             ]);
         } else {
             $stmt = $conn->prepare(
                 'UPDATE users
-                 SET full_name = ?, email = ?
+                 SET full_name = ?, email = ?, class_name = ?, dob = ?
                  WHERE user_id = ?'
             );
 
-            $stmt->execute([$fullName, $email, $user_id]);
+            $stmt->execute([$fullName, $email, $className, $dobValue, $user_id]);
         }
 
         // Đồng bộ thông tin với session đăng nhập
@@ -182,6 +189,11 @@ try {
             color: white;
             text-decoration: none;
             cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            background: #2980b9;
         }
 
         .profile {
@@ -225,6 +237,21 @@ try {
             border-radius: 20px;
             background: #e1f5fe;
             color: #0277bd;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .extra-info {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            text-align: left;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .extra-info p {
+            margin: 6px 0;
         }
 
         h2 {
@@ -234,6 +261,12 @@ try {
 
         .form-group {
             margin-bottom: 17px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
         }
 
         label {
@@ -247,6 +280,12 @@ try {
             padding: 11px;
             border: 1px solid #ccd2d8;
             border-radius: 6px;
+            font-size: 14px;
+        }
+
+        input:focus {
+            border-color: #3498db;
+            outline: none;
         }
 
         .notice {
@@ -273,6 +312,10 @@ try {
                 grid-template-columns: 1fr;
             }
 
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
             .topbar {
                 align-items: flex-start;
                 flex-direction: column;
@@ -290,50 +333,36 @@ try {
     </div>
 
     <?php if ($message !== ''): ?>
-        <div class="notice <?= (
-            str_contains($message, 'thành công')
-        ) ? '' : 'error' ?>">
+        <div class="notice <?= (str_contains($message, 'thành công')) ? '' : 'error' ?>">
             <?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?>
         </div>
     <?php endif; ?>
 
     <div class="profile">
+        <!-- KHỐI BÊN TRÁI: TỔNG QUAN -->
         <div class="card summary">
             <div class="avatar">👤</div>
 
             <h2>
-                <?= htmlspecialchars(
-                    $user_info['full_name'] ?? '',
-                    ENT_QUOTES,
-                    'UTF-8'
-                ) ?>
+                <?= htmlspecialchars($user_info['full_name'] ?? '', ENT_QUOTES, 'UTF-8') ?>
             </h2>
 
             <p class="username">
-                @<?= htmlspecialchars(
-                    $user_info['username'],
-                    ENT_QUOTES,
-                    'UTF-8'
-                ) ?>
+                @<?= htmlspecialchars($user_info['username'], ENT_QUOTES, 'UTF-8') ?>
             </p>
 
             <span class="role">
-                <?= htmlspecialchars(
-                    $user_info['role'] ?? 'STUDENT',
-                    ENT_QUOTES,
-                    'UTF-8'
-                ) ?>
+                <?= htmlspecialchars($user_info['role'] ?? 'STUDENT', ENT_QUOTES, 'UTF-8') ?>
             </span>
 
-            <p>
-                <?= htmlspecialchars(
-                    $user_info['email'] ?? '',
-                    ENT_QUOTES,
-                    'UTF-8'
-                ) ?>
-            </p>
+            <div class="extra-info">
+                <p><strong>📧 Email:</strong> <?= htmlspecialchars($user_info['email'] ?? '', ENT_QUOTES, 'UTF-8') ?></p>
+                <p><strong>🏫 Lớp:</strong> <?= htmlspecialchars($user_info['class_name'] ?? 'Chưa cập nhật', ENT_QUOTES, 'UTF-8') ?></p>
+                <p><strong>🎂 Ngày sinh:</strong> <?= !empty($user_info['dob']) ? date('d/m/Y', strtotime($user_info['dob'])) : 'Chưa cập nhật' ?></p>
+            </div>
         </div>
 
+        <!-- KHỐI BÊN PHẢI: FORM CẬP NHẬT -->
         <div class="card">
             <h2>Cập nhật hồ sơ</h2>
 
@@ -345,11 +374,7 @@ try {
                     <input
                         id="username"
                         type="text"
-                        value="<?= htmlspecialchars(
-                            $user_info['username'],
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>"
+                        value="<?= htmlspecialchars($user_info['username'], ENT_QUOTES, 'UTF-8') ?>"
                         disabled
                     >
                 </div>
@@ -360,11 +385,7 @@ try {
                         id="full_name"
                         type="text"
                         name="full_name"
-                        value="<?= htmlspecialchars(
-                            $user_info['full_name'] ?? '',
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>"
+                        value="<?= htmlspecialchars($user_info['full_name'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
                         required
                     >
                 </div>
@@ -375,13 +396,33 @@ try {
                         id="email"
                         type="email"
                         name="email"
-                        value="<?= htmlspecialchars(
-                            $user_info['email'] ?? '',
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>"
+                        value="<?= htmlspecialchars($user_info['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
                         required
                     >
+                </div>
+
+                <!-- BỔ SUNG: CỘT LỚP HỌC VÀ NGÀY SINH -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="class_name">Lớp học</label>
+                        <input
+                            id="class_name"
+                            type="text"
+                            name="class_name"
+                            placeholder="Ví dụ: 9A1"
+                            value="<?= htmlspecialchars($user_info['class_name'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="dob">Ngày sinh</label>
+                        <input
+                            id="dob"
+                            type="date"
+                            name="dob"
+                            value="<?= htmlspecialchars($user_info['dob'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                        >
+                    </div>
                 </div>
 
                 <h3 class="section-title">

@@ -1,192 +1,186 @@
 <?php
-session_start();
+// FILE: public/result.php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once __DIR__ . '/../config/database.php';
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['action']) || $_POST['action'] !== 'submit_exam') {
-    header("Location: take_exam.php");
-    exit();
-}
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit();
+if (empty($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
 }
 
 $user_id = (int) $_SESSION['user_id'];
-$exam_id = (int) ($_POST['exam_id'] ?? 0);
-$user_answers = $_POST['answers'] ?? [];
+$is_post_submit = $_SERVER['REQUEST_METHOD'] === 'POST'
+    && (($_POST['action'] ?? '') === 'submit_exam');
 
-// 🎯 Lấy thời gian làm bài thực tế (tính bằng giây) từ POST do take_exam.php gửi sang
-$completion_time = (int) ($_POST['completion_time'] ?? 0);
-
-if ($exam_id <= 0) {
-    exit("Mã đề thi không hợp lệ.");
-}
-
-// 1. Lấy thông tin đề thi
-$stmt_exam = $conn->prepare("SELECT title FROM exam WHERE exam_id = :id");
-$stmt_exam->execute(['id' => $exam_id]);
-$exam_title = $stmt_exam->fetchColumn() ?: "Kết Quả Bài Thi";
-
-// 2. Lấy tất cả câu hỏi thuộc đề thi
-$stmt_qs = $conn->prepare("
-    SELECT q.question_id, q.content AS question, q.explanation
-    FROM questions q
-    JOIN exam_questions eq ON q.question_id = eq.question_id
-    WHERE eq.exam_id = :exam_id
-");
-$stmt_qs->execute(['exam_id' => $exam_id]);
-$questions = $stmt_qs->fetchAll();
-
-$correct_count = 0;
-$total_questions = count($questions);
-$result_details = [];
-
-// 3. Lấy đáp án từ bảng 'answers'
-$stmt_ans = $conn->prepare("SELECT answer_id, content, is_correct FROM answers WHERE question_id = :q_id");
-
-foreach ($questions as $q) {
-    $q_id = $q['question_id'];
-    $stmt_ans->execute(['q_id' => $q_id]);
-    
-    $answers = $stmt_ans->fetchAll();
-
-    $selected_ans_id = $user_answers[$q_id] ?? null;
-    $is_correct = false;
-
-    foreach ($answers as $a) {
-        if ($a['is_correct'] && $a['answer_id'] == $selected_ans_id) {
-            $is_correct = true;
-        }
+if ($is_post_submit) {
+    $exam_id = (int) ($_POST['exam_id'] ?? 0);
+    $user_answers = $_POST['answers'] ?? [];
+    $completion_time = max(0, (int) ($_POST['completion_time'] ?? 0));
+    if ($exam_id <= 0 || !is_array($user_answers)) {
+        exit('Thông tin bài thi không hợp lệ.');
     }
 
-    if ($is_correct) $correct_count++;
+    try {
+        // Nếu bài này đã được nộp trước đó, không lưu lần hai; hiển thị kết quả đã lưu.
+        $existing = $conn->prepare('SELECT result_id FROM exam_results WHERE user_id = :uid AND exam_id = :eid ORDER BY result_id DESC LIMIT 1');
+        $existing->execute(['uid' => $user_id, 'eid' => $exam_id]);
+        $result_id = (int) ($existing->fetchColumn() ?: 0);
 
-    $result_details[$q_id] = [
-        'question' => $q['question'],
-        'explanation' => $q['explanation'],
-        'answers' => $answers,
-        'selected_id' => $selected_ans_id,
-        'is_correct' => $is_correct
-    ];
+        if ($result_id === 0) {
+            $stmt_exam = $conn->prepare('SELECT title FROM exam WHERE exam_id = :eid LIMIT 1');
+            $stmt_exam->execute(['eid' => $exam_id]);
+            $exam_title = $stmt_exam->fetchColumn();
+            if ($exam_title === false) exit('Không tìm thấy đề thi.');
+
+            $stmt_qs = $conn->prepare('SELECT q.question_id, q.content AS question, q.explanation FROM questions q INNER JOIN exam_questions eq ON q.question_id = eq.question_id WHERE eq.exam_id = :eid');
+            $stmt_qs->execute(['eid' => $exam_id]);
+            $questions = $stmt_qs->fetchAll(PDO::FETCH_ASSOC);
+            $total_questions = count($questions);
+            if ($total_questions === 0) exit('Đề thi chưa có câu hỏi.');
+
+            $correct_count = 0;
+            $answer_rows = [];
+            $stmt_ans = $conn->prepare('SELECT answer_id, is_correct FROM answers WHERE question_id = :qid');
+            foreach ($questions as $q) {
+                $qid = (int) $q['question_id'];
+                $stmt_ans->execute(['qid' => $qid]);
+                $answers = $stmt_ans->fetchAll(PDO::FETCH_ASSOC);
+                $selected = $user_answers[$qid] ?? null;
+                if ($selected === null || $selected === '') {
+                    $selected = null;
+                } else {
+                    $selected = filter_var($selected, FILTER_VALIDATE_INT);
+                    if ($selected === false) $selected = null;
+                }
+                $valid = false;
+                $correct = false;
+                foreach ($answers as $a) {
+                    if ($selected !== null && (int)$a['answer_id'] === (int)$selected) {
+                        $valid = true;
+                        $correct = (int)$a['is_correct'] === 1;
+                        break;
+                    }
+                }
+                if (!$valid) $selected = null;
+                if ($correct) $correct_count++;
+                $answer_rows[] = ['question_id'=>$qid, 'selected_answer_id'=>$selected, 'is_correct'=>$correct ? 1 : 0];
+            }
+            $score = round(($correct_count / $total_questions) * 10, 2);
+            $status = $score >= 5 ? 'PASSED' : 'FAILED';
+
+            $conn->beginTransaction();
+            // Kiểm tra lần nữa trong transaction để hạn chế nộp trùng.
+            $existing2 = $conn->prepare('SELECT result_id FROM exam_results WHERE user_id = :uid AND exam_id = :eid ORDER BY result_id DESC LIMIT 1 FOR UPDATE');
+            $existing2->execute(['uid'=>$user_id, 'eid'=>$exam_id]);
+            $result_id = (int) ($existing2->fetchColumn() ?: 0);
+            if ($result_id === 0) {
+                $insert = $conn->prepare('INSERT INTO exam_results (user_id, exam_id, score, correct_answers_count, total_questions, completion_time, status) VALUES (:uid, :eid, :score, :correct_count, :total_count, :completion_time, :status)');
+                $insert->execute(['uid'=>$user_id, 'eid'=>$exam_id, 'score'=>$score, 'correct_count'=>$correct_count, 'total_count'=>$total_questions, 'completion_time'=>$completion_time, 'status'=>$status]);
+                $result_id = (int)$conn->lastInsertId();
+                $insertAnswer = $conn->prepare('INSERT INTO student_answers (result_id, question_id, selected_answer_id, is_correct) VALUES (:rid, :qid, :aid, :correct)');
+                foreach ($answer_rows as $r) {
+                    $insertAnswer->execute(['rid'=>$result_id, 'qid'=>$r['question_id'], 'aid'=>$r['selected_answer_id'], 'correct'=>$r['is_correct']]);
+                }
+            }
+            $conn->commit();
+        }
+    } catch (Throwable $e) {
+        if ($conn->inTransaction()) $conn->rollBack();
+        error_log('Lỗi nộp bài thi: ' . $e->getMessage());
+        http_response_code(500);
+        exit('Không thể lưu kết quả bài thi. Vui lòng kiểm tra nhật ký lỗi PHP/MySQL.');
+    }
+} else {
+    // Khi mở trực tiếp trang kết quả, chỉ hiển thị kết quả đã lưu của người dùng.
+    $result_id = (int) ($_GET['result_id'] ?? 0);
+    if ($result_id <= 0) {
+        header('Location: index.php');
+        exit;
+    }
 }
 
-$score = round(($correct_count / max($total_questions, 1)) * 10, 2);
-$status = ($score >= 5.0) ? 'PASSED' : 'FAILED';
-
-// 4. Lưu kết quả thi vào bảng exam_results (Đã sửa c_time lấy theo biến $completion_time)
-$stmt_res = $conn->prepare("
-    INSERT INTO exam_results (user_id, exam_id, score, correct_answers_count, total_questions, completion_time, status)
-    VALUES (:u_id, :e_id, :score, :c_count, :total_q, :c_time, :status)
-");
-$stmt_res->execute([
-    'u_id' => $user_id,
-    'e_id' => $exam_id,
-    'score' => $score,
-    'c_count' => $correct_count,
-    'total_q' => $total_questions,
-    'c_time' => $completion_time, // 🎯 Đã thay 900 bằng thời gian làm bài thực tế!
-    'status' => $status
-]);
-$result_id = $conn->lastInsertId();
-
-// 5. Lưu lựa chọn học viên vào bảng student_answers
-$stmt_sa = $conn->prepare("
-    INSERT INTO student_answers (result_id, question_id, selected_answer_id, is_correct)
-    VALUES (:r_id, :q_id, :s_id, :is_corr)
-");
-foreach ($result_details as $q_id => $det) {
-    $stmt_sa->execute([
-        'r_id' => $result_id,
-        'q_id' => $q_id,
-        's_id' => $det['selected_id'],
-        'is_corr' => $det['is_correct'] ? 1 : 0
-    ]);
+// Đọc kết quả đã lưu và chỉ cho chính chủ xem.
+$stmt_result = $conn->prepare('SELECT er.*, e.title AS exam_title FROM exam_results er INNER JOIN exam e ON e.exam_id = er.exam_id WHERE er.result_id = :rid AND er.user_id = :uid LIMIT 1');
+$stmt_result->execute(['rid'=>$result_id, 'uid'=>$user_id]);
+$result = $stmt_result->fetch(PDO::FETCH_ASSOC);
+if (!$result) {
+    header('Location: index.php');
+    exit;
 }
+$exam_id = (int)$result['exam_id'];
+$correct_count = (int)$result['correct_answers_count'];
+$total_questions = (int)$result['total_questions'];
+$score = (float)$result['score'];
+$completion_time = (int)$result['completion_time'];
+
+// Chi tiết câu hỏi, đáp án đã chọn và đáp án đúng.
+$stmt_details = $conn->prepare('SELECT q.question_id, q.content AS question, q.explanation, sa.selected_answer_id, sa.is_correct AS student_is_correct, a.answer_id, a.content AS answer_content, a.is_correct AS answer_is_correct FROM questions q INNER JOIN exam_questions eq ON eq.question_id = q.question_id LEFT JOIN student_answers sa ON sa.question_id = q.question_id AND sa.result_id = :rid LEFT JOIN answers a ON a.question_id = q.question_id WHERE eq.exam_id = :eid ORDER BY q.question_id');
+$stmt_details->execute(['rid'=>$result_id, 'eid'=>$exam_id]);
+$rows = $stmt_details->fetchAll(PDO::FETCH_ASSOC);
+$details = [];
+foreach ($rows as $row) {
+    $qid = (int)$row['question_id'];
+    if (!isset($details[$qid])) {
+        $details[$qid] = ['question'=>$row['question'], 'explanation'=>$row['explanation'], 'selected'=>(int)($row['selected_answer_id'] ?? 0), 'is_correct'=>(int)($row['student_is_correct'] ?? 0), 'answers'=>[]];
+    }
+    if ($row['answer_id'] !== null) {
+        $details[$qid]['answers'][] = ['id'=>(int)$row['answer_id'], 'content'=>$row['answer_content'], 'correct'=>(int)$row['answer_is_correct'] === 1];
+    }
+}
+function h($value): string { return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'); }
+$minutes = intdiv($completion_time, 60);
+$seconds = $completion_time % 60;
 ?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <title><?php echo htmlspecialchars($exam_title); ?></title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        body { background-color: #f4f6f9; color: #333; padding-bottom: 80px; }
-        header { background: #2c3e50; color: white; padding: 15px 30px; text-align: center; }
-        .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
-        .result-card { background: white; border-radius: 8px; padding: 30px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 30px; }
-        .score-display { font-size: 3.5rem; font-weight: bold; color: #27ae60; margin: 15px 0; }
-        .time-display { font-size: 1rem; color: #555; margin-bottom: 10px; }
-        .question-card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .question-title { font-weight: 600; font-size: 1.1rem; margin-bottom: 15px; }
-        .options-list { display: flex; flex-direction: column; gap: 10px; }
-        .option-item { padding: 12px 15px; border: 1px solid #ddd; border-radius: 6px; }
-        .badge-correct { background-color: #d4edda; color: #155724; padding: 3px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; }
-        .badge-wrong { background-color: #f8d7da; color: #721c24; padding: 3px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; }
-        .explanation-box { margin-top: 10px; padding: 12px; background-color: #eef7fc; border-left: 4px solid #3498db; border-radius: 4px; }
-        .btn-submit { background-color: #27ae60; color: white; padding: 12px 35px; border-radius: 6px; text-decoration: none; font-weight: bold; }
-        .btn-home { background-color: #3498db; color: white; padding: 12px 35px; border-radius: 6px; text-decoration: none; font-weight: bold; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kết quả bài thi - <?= h($result['exam_title']) ?></title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f6fb;color:#1f2937;font-family:Arial,Helvetica,sans-serif;line-height:1.6}.wrap{max-width:950px;margin:35px auto;padding:0 16px}.panel{background:#fff;border-radius:16px;padding:28px;margin-bottom:22px;box-shadow:0 6px 22px rgba(15,23,42,.07)}h1,h2{margin-top:0;color:#17345c}.summary{text-align:center}.score{font-size:52px;font-weight:800;color:#16794b;line-height:1.2}.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:22px}.stat{background:#f4f7fb;padding:16px;border-radius:10px}.stat strong{display:block;font-size:22px;color:#17345c}.actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:22px}.btn{display:inline-block;padding:11px 20px;border-radius:8px;text-decoration:none;font-weight:700}.home{background:#2563eb;color:white}.history{background:#e8eef8;color:#17345c}.question{border:1px solid #e5e7eb;border-radius:12px;padding:18px;margin:16px 0}.answer{padding:9px 12px;border-radius:7px;margin:7px 0;background:#f8fafc}.answer.correct{background:#dcfce7;color:#166534;border:1px solid #86efac}.answer.chosen-wrong{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}.tag{font-size:13px;font-weight:700;margin-left:6px}.explanation{background:#eff6ff;padding:12px;border-radius:8px;margin-top:10px}.passed{color:#15803d}.failed{color:#dc2626}@media(max-width:600px){.panel{padding:18px}.stats{grid-template-columns:1fr}.score{font-size:42px}}
+</style>
 </head>
 <body>
-
-    <header>
-        <div style="font-size: 1.3rem; font-weight: bold;"><?php echo htmlspecialchars($exam_title); ?></div>
-    </header>
-
-    <div class="container">
-        <div class="result-card">
-            <h2>KẾT QUẢ BÀI THI</h2>
-            <div class="score-display"><?php echo $score; ?> / 10</div>
-            <p class="time-display">⏱️ Thời gian hoàn thành: <strong><?php echo floor($completion_time / 60); ?> phút <?php echo ($completion_time % 60); ?> giây</strong></p>
-            <p>Số câu đúng: <strong><?php echo $correct_count; ?>/<?php echo $total_questions; ?></strong> câu</p>
-        </div>
-
-        <h3>Chi tiết đáp án & Lời giải:</h3><br>
-
-        <?php foreach ($result_details as $q_id => $res): ?>
-            <div class="question-card">
-                <div class="question-title">
-                    <?php echo htmlspecialchars($res['question']); ?>
-                    <?php if ($res['is_correct']): ?>
-                        <span class="badge-correct">Đúng</span>
-                    <?php else: ?>
-                        <span class="badge-wrong">Sai</span>
-                    <?php endif; ?>
-                </div>
-
-                <div class="options-list">
-                    <?php foreach ($res['answers'] as $a): 
-                        $style = "";
-                        if ($a['is_correct']) {
-                            $style = "background-color: #d4edda; border-color: #28a745; font-weight: bold;";
-                        } elseif ($a['answer_id'] == $res['selected_id'] && !$res['is_correct']) {
-                            $style = "background-color: #f8d7da; border-color: #dc3545;";
-                        }
-                    ?>
-                        <div class="option-item" style="<?php echo $style; ?>">
-                            <?php echo htmlspecialchars($a['content']); ?>
-                            <?php if ($a['answer_id'] == $res['selected_id']): ?>
-                                <em>&nbsp;(Lựa chọn của bạn)</em>
-                            <?php endif; ?>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-
-                <?php if (!empty($res['explanation'])): ?>
-                    <div class="explanation-box">
-                        <strong>💡 Lời giải:</strong> <?php echo htmlspecialchars($res['explanation']); ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-        <?php endforeach; ?>
-
-        <div style="text-align: center; margin-top: 30px; display: flex; justify-content: center; gap: 15px;">
-            <a href="take_exam.php?exam_id=<?php echo $exam_id; ?>" class="btn-submit">Làm lại bài thi</a>
-            <a href="index.php" class="btn-home">Về trang chủ</a>
-        </div>
+<div class="wrap">
+  <section class="panel summary">
+    <h1>Kết quả bài thi</h1>
+    <p><strong><?= h($result['exam_title']) ?></strong></p>
+    <div class="score"><?= number_format($score, 2) ?>/10</div>
+    <p class="<?= $score >= 5 ? 'passed' : 'failed' ?>"><strong><?= $score >= 5 ? 'ĐẠT' : 'CHƯA ĐẠT' ?></strong></p>
+    <div class="stats">
+      <div class="stat">Số câu đúng<strong><?= $correct_count ?>/<?= $total_questions ?></strong></div>
+      <div class="stat">Số câu sai/chưa chọn<strong><?= max(0, $total_questions - $correct_count) ?></strong></div>
+      <div class="stat">Thời gian làm bài<strong><?= sprintf('%02d:%02d', $minutes, $seconds) ?></strong></div>
     </div>
-
+    <div class="actions"><a class="btn home" href="index.php">Về trang chủ</a><a class="btn history" href="history.php">Lịch sử làm bài</a></div>
+  </section>
+  <section class="panel">
+    <h2>Chi tiết đáp án</h2>
+    <?php if (!$details): ?><p>Không tìm thấy chi tiết câu hỏi của bài thi này.</p><?php endif; ?>
+    <?php $n=0; foreach ($details as $detail): $n++; ?>
+      <article class="question">
+        <h3>Câu <?= $n ?>: <?= h($detail['question']) ?></h3>
+        <?php foreach ($detail['answers'] as $answer):
+          $chosen = $detail['selected'] === $answer['id'];
+          $cls = $answer['correct'] ? 'correct' : ($chosen ? 'chosen-wrong' : '');
+        ?>
+          <div class="answer <?= $cls ?>">
+            <?= h($answer['content']) ?>
+            <?php if ($answer['correct']): ?><span class="tag">— Đáp án đúng</span><?php endif; ?>
+            <?php if ($chosen): ?><span class="tag">— Bạn đã chọn</span><?php endif; ?>
+          </div>
+        <?php endforeach; ?>
+        <?php if (!empty($detail['explanation'])): ?><div class="explanation"><strong>Giải thích:</strong> <?= nl2br(h($detail['explanation'])) ?></div><?php endif; ?>
+      </article>
+    <?php endforeach; ?>
+  </section>
+</div>
 </body>
 </html>

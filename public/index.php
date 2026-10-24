@@ -33,16 +33,6 @@ $isTeacher = (
                         <p style="text-indent: 20px;">
                             Khám phá những sự kiện lịch sử quan trọng qua các bài trắc nghiệm.
                         </p>
-
-                        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 15px;">
-                            <a href="take_exam.php" class="slider-btn">
-                                Bắt đầu thi
-                            </a>
-                            <a href="history.php" class="slider-btn" >
-                                 Lịch sử làm bài
-                            </a>
-                        </div>
-
                     </div>
 
                 </div>
@@ -65,16 +55,6 @@ $isTeacher = (
                         <p style="text-indent: 20px;">
                             Ôn tập kiến thức Lịch sử THCS một cách dễ dàng và thú vị.
                         </p>
-
-                        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 15px;">
-                            <a href="take_exam.php" class="slider-btn">
-                                Bắt đầu thi
-                            </a>
-                            <a href="history.php" class="slider-btn">
-                                 Lịch sử làm bài
-                            </a>
-                        </div>
-
                     </div>
 
                 </div>
@@ -97,16 +77,6 @@ $isTeacher = (
                         <p style="text-indent: 20px;">
                             Củng cố kiến thức Lịch sử lớp 6, 7, 8 và 9.
                         </p>
-
-                        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 15px;">
-                            <a href="take_exam.php" class="slider-btn">
-                                Bắt đầu thi
-                            </a>
-                            <a href="history.php" class="slider-btn">
-                                 Lịch sử làm bài
-                            </a>
-                        </div>
-
                     </div>
 
                 </div>
@@ -286,7 +256,7 @@ $isTeacher = (
                             <h3 style="font-size: 1.1rem; margin: 10px 0; color: #2c3e50;"><?= htmlspecialchars($exam['title']) ?></h3>
                             <p style="font-size: 0.9rem; color: #666; margin-bottom: 15px;">⏱️ Thời gian: <?= $exam['duration'] ?> phút 📝 <?= $exam['total_questions'] ?> câu</p>
                         </div>
-                        <a href="take_exam.php?exam_id=<?= $exam['exam_id'] ?>" class="slider-btn" style="text-align: center; display: block; text-decoration: none;">Vào làm bài</a>
+                        <a href="intro_exam.php?exam_id=<?= $exam['exam_id'] ?>" class="slider-btn" style="text-align: center; display: block; text-decoration: none;">Vào làm bài</a>
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>

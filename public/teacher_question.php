@@ -37,55 +37,105 @@ function showMessage(string $type, string $text): string
 | HÀM LƯU CÂU HỎI VÀ CÁC ĐÁP ÁN
 |--------------------------------------------------------------------------
 */
+
 function saveQuestion(
     PDO $conn,
     int $topicId,
     string $question,
     array $options,
     string $correct,
-    string $explanation
+    string $explanation,
+    string $difficulty = 'EASY'
 ): void {
+    // 1. Loại bỏ các đáp án trống
     $options = array_filter(
         $options,
         fn($value) => trim((string)$value) !== ''
     );
 
+    // 2. Chuẩn hóa độ khó: ưu tiên so khớp tiếng Việt nguyên bản trước iconv.
+    // Tránh phụ thuộc iconv vì một số môi trường Windows/Laragon chuyển "Dễ" không ổn định.
+    $difficultyRaw = trim((string)$difficulty);
+    $difficultyText = mb_strtolower($difficultyRaw, 'UTF-8');
+    $difficultyText = preg_replace('/\s+/u', ' ', $difficultyText) ?? $difficultyText;
+
+    // So khớp trực tiếp các giá trị có dấu và không dấu.
+    $difficultyMap = [
+        'easy' => 'EASY',
+        'dễ' => 'EASY',
+        'de' => 'EASY',
+        'medium' => 'MEDIUM',
+        'trung bình' => 'MEDIUM',
+        'trung binh' => 'MEDIUM',
+        'hard' => 'HARD',
+        'khó' => 'HARD',
+        'kho' => 'HARD'
+    ];
+
+    if (isset($difficultyMap[$difficultyText])) {
+        $difficulty = $difficultyMap[$difficultyText];
+    } else {
+        // Dự phòng dữ liệu có khoảng trắng/ký tự dấu tổ hợp Unicode.
+        $folded = str_replace(['đ', 'Đ'], 'd', $difficultyText);
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $folded);
+        $ascii = strtolower(trim($ascii === false ? $folded : $ascii));
+        $difficulty = $difficultyMap[$ascii] ?? '';
+    }
+
+    if (!in_array($difficulty, ['EASY', 'MEDIUM', 'HARD'], true)) {
+        throw new Exception(
+            'Độ khó không hợp lệ: ' . $difficultyRaw .
+            '. Chỉ chấp nhận Dễ, Trung bình hoặc Khó.'
+        );
+    }
+
+    // 3. Kiểm tra nội dung câu hỏi
     if ($question === '') {
         throw new Exception('Nội dung câu hỏi không được để trống.');
     }
 
+    // 4. Kiểm tra số lượng đáp án
     if (count($options) < 2) {
         throw new Exception('Mỗi câu hỏi cần ít nhất 2 đáp án.');
     }
 
+    // 5. Kiểm tra đáp án đúng
     if (!isset($options[$correct])) {
-        throw new Exception('Đáp án đúng chưa được nhập.');
+        throw new Exception(
+            'Đáp án đúng chưa được nhập hoặc không khớp với các đáp án đã nhập.'
+        );
     }
 
+    // 6. Lưu câu hỏi và độ khó vào database
     $stmt = $conn->prepare(
-        "INSERT INTO questions (topic_id, content, difficulty, explanation)
-         VALUES (:topic_id, :content, 'EASY', :explanation)"
+        "INSERT INTO questions
+            (topic_id, content, difficulty, explanation)
+         VALUES
+            (:topic_id, :content, :difficulty, :explanation)"
     );
 
     $stmt->execute([
         'topic_id' => $topicId,
         'content' => $question,
+        'difficulty' => $difficulty,
         'explanation' => $explanation
     ]);
 
-    $questionId = (int)$conn->lastInsertId();
+    $questionId = (int) $conn->lastInsertId();
 
+    // 7. Lưu các đáp án
     $stmtAnswer = $conn->prepare(
         "INSERT INTO answers
-         (question_id, option_code, content, is_correct, is_fixed)
-         VALUES (:question_id, :option_code, :content, :is_correct, 0)"
+            (question_id, option_code, content, is_correct, is_fixed)
+         VALUES
+            (:question_id, :option_code, :content, :is_correct, 0)"
     );
 
     foreach ($options as $code => $content) {
         $stmtAnswer->execute([
             'question_id' => $questionId,
             'option_code' => $code,
-            'content' => trim((string)$content),
+            'content' => trim((string) $content),
             'is_correct' => ($code === $correct) ? 1 : 0
         ]);
     }
@@ -204,6 +254,7 @@ if (
 
         $correct = strtoupper(trim($_POST['correct_option'] ?? 'A'));
         $explanation = trim($_POST['explanation'] ?? '');
+        $difficulty = strtoupper(trim($_POST['difficulty'] ?? 'EASY'));
 
         try {
             $conn->beginTransaction();
@@ -214,7 +265,8 @@ if (
                 $question,
                 $options,
                 $correct,
-                $explanation
+                $explanation,
+                $difficulty
             );
 
             $conn->commit();
@@ -279,6 +331,53 @@ if (
                 $worksheet = $spreadsheet->getActiveSheet();
                 $rows = $worksheet->toArray();
 
+
+                // Xác định cột dựa trên tiêu đề để hỗ trợ cả mẫu Excel mới
+                // (A: khối lớp, B: câu hỏi...) và định dạng cũ (A: câu hỏi...).
+                $header = array_map(
+                    static function ($value): string {
+                        $value = trim((string)$value);
+                        $value = mb_strtolower($value, 'UTF-8');
+                        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+                        $ascii = $ascii === false ? $value : $ascii;
+                        return preg_replace('/[^a-z0-9]+/', '', strtolower($ascii));
+                    },
+                    $rows[0] ?? []
+                );
+
+                $findColumn = static function (array $aliases) use ($header): ?int {
+                    foreach ($header as $columnIndex => $label) {
+                        if (in_array($label, $aliases, true)) {
+                            return (int)$columnIndex;
+                        }
+                    }
+                    return null;
+                };
+
+                $questionCol = $findColumn(['noidungcauhoi', 'cauhoi', 'question', 'content']);
+                $optionACol = $findColumn(['dapana', 'optiona', 'answera']);
+                $optionBCol = $findColumn(['dapanb', 'optionb', 'answerb']);
+                $optionCCol = $findColumn(['dapanc', 'optionc', 'answerc']);
+                $optionDCol = $findColumn(['dapand', 'optiond', 'answerd']);
+                $correctCol = $findColumn(['dapandungabcd', 'dapandung', 'correctanswer', 'correctoption']);
+                $explanationCol = $findColumn(['loigiaichitiet', 'loigiai', 'explanation']);
+                $difficultyCol = $findColumn([
+                    'dokho', 'dokhocauhoi', 'difficulty', 'mucdo',
+                    'mucdokho', 'mucdocauhoi', 'level'
+                ]);
+                $topicIdCol = $findColumn(['chudeid', 'topicid', 'idchude', 'topic']);
+
+                // Dự phòng cho file cũ không có tiêu đề chuẩn.
+                if ($questionCol === null) $questionCol = 0;
+                if ($optionACol === null) $optionACol = 1;
+                if ($optionBCol === null) $optionBCol = 2;
+                if ($optionCCol === null) $optionCCol = 3;
+                if ($optionDCol === null) $optionDCol = 4;
+                if ($correctCol === null) $correctCol = 5;
+                if ($explanationCol === null) $explanationCol = 8;
+                // Mẫu cũ: A câu hỏi, B-E đáp án, F đáp án đúng, G độ khó, I lời giải.
+                if ($difficultyCol === null) $difficultyCol = 6;
+
                 $count = 0;
                 $errors = [];
 
@@ -290,46 +389,54 @@ if (
                         continue;
                     }
 
-                    $question = trim((string)($row[0] ?? ''));
-
+                    $question = trim((string)($row[$questionCol] ?? ''));
                     $options = [
-                        'A' => trim((string)($row[1] ?? '')),
-                        'B' => trim((string)($row[2] ?? '')),
-                        'C' => trim((string)($row[3] ?? '')),
-                        'D' => trim((string)($row[4] ?? ''))
+                        'A' => trim((string)($row[$optionACol] ?? '')),
+                        'B' => trim((string)($row[$optionBCol] ?? '')),
+                        'C' => trim((string)($row[$optionCCol] ?? '')),
+                        'D' => trim((string)($row[$optionDCol] ?? ''))
                     ];
-
-                    $correct = strtoupper(
-                        trim((string)($row[5] ?? ''))
-                    );
-
-                    // Cột I tương ứng chỉ số 8.
-                    $explanation = trim(
-                        (string)($row[8] ?? '')
-                    );
+                    $correct = strtoupper(trim((string)($row[$correctCol] ?? '')));
+                    $explanation = trim((string)($row[$explanationCol] ?? ''));
+                    $difficulty = trim((string)($row[$difficultyCol] ?? ''));
+                    $rowTopicId = $topicIdCol !== null
+                        ? (int)($row[$topicIdCol] ?? 0)
+                        : 0;
+                    $importTopicId = $rowTopicId > 0 ? $rowTopicId : $selected_topic_id;
+                    if ($difficulty === '') {
+                        $difficulty = 'EASY';
+                    }
 
                     // Bỏ qua hàng hoàn toàn trống.
-                    if (
-                        $question === ''
-                        && count(array_filter($options)) === 0
-                    ) {
+                    if ($question === '' && count(array_filter($options)) === 0) {
                         continue;
                     }
 
                     try {
+                        // saveQuestion() chuẩn hóa EASY/MEDIUM/HARD và Dễ/Trung bình/Khó.
+                        if ($importTopicId <= 0) {
+                            throw new Exception('Chưa chọn chủ đề và file Excel không có Chủ đề ID hợp lệ.');
+                        }
+
+                        // Xác nhận chủ đề tồn tại trước khi lưu câu hỏi.
+                        $checkTopic = $conn->prepare('SELECT topic_id FROM topics WHERE topic_id = :id LIMIT 1');
+                        $checkTopic->execute(['id' => $importTopicId]);
+                        if (!$checkTopic->fetchColumn()) {
+                            throw new Exception('Chủ đề ID ' . $importTopicId . ' không tồn tại trong database.');
+                        }
+
                         saveQuestion(
                             $conn,
-                            $selected_topic_id,
+                            $importTopicId,
                             $question,
                             $options,
                             $correct,
-                            $explanation
+                            $explanation,
+                            $difficulty
                         );
-
                         $count++;
                     } catch (Throwable $e) {
-                        $errors[] = 'Dòng ' . ($index + 1)
-                            . ': ' . $e->getMessage();
+                        $errors[] = 'Dòng ' . ($index + 1) . ': ' . $e->getMessage();
                     }
                 }
 
@@ -338,7 +445,7 @@ if (
 
                     $message = showMessage(
                         'danger',
-                        'Không có câu hỏi hợp lệ để import. Hãy kiểm tra file Excel.'
+                        'Không có câu hỏi hợp lệ để import. ' . (!empty($errors) ? implode(' | ', array_slice($errors, 0, 5)) : 'Hãy kiểm tra dữ liệu Excel.')
                     );
                 } elseif (!empty($errors)) {
                     // Có lỗi thì hoàn tác toàn bộ để tránh import một phần.
@@ -367,7 +474,7 @@ if (
 
                 $message = showMessage(
                     'danger',
-                    'Không thể xử lý file Excel. Hãy kiểm tra cấu trúc file và dữ liệu.'
+                    'Không thể xử lý file Excel: ' . $e->getMessage()
                 );
             }
         }
@@ -974,11 +1081,12 @@ $questions_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                 <div class="file-hint">
                     <strong>📌 Cấu trúc file Excel:</strong><br><br>
-                    <span class="option-label">Cột A</span> Nội dung câu hỏi<br>
-                    <span class="option-label">Cột B–E</span> Đáp án A, B, C, D<br>
-                    <span class="option-label">Cột F</span> Đáp án đúng: A, B, C hoặc D<br>
-                    <span class="option-label">Cột I</span> Lời giải chi tiết<br><br>
-                    <strong>Lưu ý:</strong> Hàng đầu tiên là hàng tiêu đề. Mỗi câu hỏi phải có ít nhất hai đáp án và đáp án đúng phải tồn tại trong các đáp án đã nhập.
+                    <span class="option-label">Cột B</span> Nội dung câu hỏi (nếu dùng mẫu có cột khối lớp ở A)<br>
+                    <span class="option-label">Cột C–F</span> Đáp án A, B, C, D<br>
+                    <span class="option-label">Cột G</span> Đáp án đúng: A, B, C hoặc D<br>
+                    <span class="option-label">Cột H</span> Lời giải chi tiết<br>
+                    <span class="option-label">Cột I</span> Độ khó: EASY, MEDIUM hoặc HARD<br><br>
+                    <strong>Lưu ý:</strong> Hàng đầu tiên là tiêu đề. Với mẫu cũ không có cột khối lớp, hệ thống vẫn nhận dạng theo tiêu đề; nếu file không có cột Độ khó thì hệ thống mặc định EASY. Mỗi câu hỏi cần ít nhất hai đáp án và đáp án đúng phải khớp với một đáp án đã nhập.
                 </div>
 
                 <div class="form-footer">
@@ -1073,6 +1181,15 @@ $questions_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <option value="B">Đáp án B</option>
                         <option value="C">Đáp án C</option>
                         <option value="D">Đáp án D</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="difficulty">Độ khó câu hỏi</label>
+                    <select id="difficulty" name="difficulty" style="max-width: 240px;" required>
+                        <option value="EASY">EASY - Dễ</option>
+                        <option value="MEDIUM">MEDIUM - Trung bình</option>
+                        <option value="HARD">HARD - Khó</option>
                     </select>
                 </div>
 
