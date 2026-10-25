@@ -9,6 +9,11 @@ if (!$exam_id || $exam_id <= 0) {
     die('Đề thi không hợp lệ. Vui lòng quay lại danh sách đề thi.');
 }
 
+// 🔄 XÓA CỜ HOÀN THÀNH KHI VÀO TRANG GIỚI THIỆU ĐỂ SẴN SÀNG CHO LƯỢT THI MỚI
+if (isset($_SESSION['exam_completed_' . $exam_id])) {
+    unset($_SESSION['exam_completed_' . $exam_id]);
+}
+
 // Lấy thông tin đề thi
 $stmt = $conn->prepare("
     SELECT exam_id, title, grade, duration, total_questions, max_attempts
@@ -65,25 +70,6 @@ $stmtAttempts->execute([
 
 $totalAttempts = (int) $stmtAttempts->fetchColumn();
 
-// Số lượt làm tối đa
-$max_attempts = 1;
-
-// Đếm số lượt học sinh đã làm đề thi này
-$sql = "
-    SELECT COUNT(*)
-    FROM exam_results
-    WHERE user_id = :user_id
-      AND exam_id = :exam_id
-";
-
-$stmt = $conn->prepare($sql);
-$stmt->execute([
-    ':user_id' => $_SESSION['user_id'],
-    ':exam_id' => $exam_id
-]);
-
-$attempt_count = (int) $stmt->fetchColumn();
-
 // Đếm số câu hỏi thực tế trong đề
 $stmtCount = $conn->prepare("
     SELECT COUNT(*)
@@ -93,8 +79,6 @@ $stmtCount = $conn->prepare("
 $stmtCount->execute(['exam_id' => $exam_id]);
 $questionCount = (int) $stmtCount->fetchColumn();
 
-// Dùng số câu hỏi thực tế; nếu bảng liên kết không có câu hỏi,
-// thông báo để người dùng không vào một bài thi trống.
 $title = $exam['title'] ?? 'Bài thi Lịch sử';
 $grade = $exam['grade'] ?? '';
 $duration = max(1, (int) ($exam['duration'] ?? 1));

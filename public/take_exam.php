@@ -2,7 +2,6 @@
 session_start();
 require_once __DIR__ . '/../config/database.php';
 
-
 // Không lưu trang làm bài vào bộ nhớ đệm.
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
@@ -13,20 +12,20 @@ if (empty($_SESSION['user_id'])) {
     exit;
 }
 
-$exam_id = (int) ($_GET['exam_id'] ?? 0);
+$user_id = (int)($_SESSION['user_id'] ?? 0);
+$exam_id = (int)($_GET['exam_id'] ?? 0);
 
 if ($exam_id <= 0) {
     header('Location: index.php');
     exit;
 }
 
-// Không chặn ở đây chỉ vì đã có kết quả cũ.
-// Phần giới hạn lượt thi bên dưới sẽ xử lý theo cột max_attempts của đề.
-
-
-// Lấy ID người dùng từ Session
-$user_id =$_SESSION['user_id'] ?? 0;
-$exam_id = isset($_GET['exam_id']) ? (int)$_GET['exam_id'] : 1;
+// 🛑 CHẶN BẤM BACK QUAY LẠI TRANG LÀM BÀI KHI ĐÃ NỘP BÀI
+if (!empty($_SESSION['exam_completed_' .$exam_id])) {
+    // Chú ý: Đổi 'intro_exam.php' thành tên file trang giới thiệu/thông tin đề thi của bạn nếu tên file khác
+    header('Location: intro_exam.php?exam_id=' . $exam_id);
+    exit;
+}
 
 // 1. Lấy thông tin đề thi
 $stmt =$conn->prepare("SELECT * FROM exam WHERE exam_id = :id");
@@ -37,18 +36,14 @@ if (!$exam) {
     die("Đề thi không tồn tại!");
 }
 
-/*
-|--------------------------------------------------------------------------
-| 🎯 1. KIỂM TRA GIỚI HẠN SỐ LẦN LÀM BÀI (MAX ATTEMPTS)
-|--------------------------------------------------------------------------
-*/
-$max_attempts = (int)($exam['max_attempts'] ?? 0);
+$max_attempts = (int)($exam['max_attempts'] ?? 0); // 0 = không giới hạn lượt
 
-if ($max_attempts > 0 &&$user_id > 0) {
-    // Đếm số lần thí sinh này đã nộp bài thi
+// Đếm số lượt đã nộp của đúng học sinh và đúng đề thi.
+$user_attempts = 0;
+if ($user_id > 0) {
     $stmt_check =$conn->prepare("
-        SELECT COUNT(*) 
-        FROM exam_results 
+        SELECT COUNT(*)
+        FROM exam_results
         WHERE user_id = :user_id AND exam_id = :exam_id
     ");
     $stmt_check->execute([
@@ -56,38 +51,39 @@ if ($max_attempts > 0 &&$user_id > 0) {
         'exam_id' => $exam_id
     ]);
     $user_attempts = (int)$stmt_check->fetchColumn();
+}
 
-    // Nếu số lần làm đã vượt quá giới hạn -> Chặn làm bài
-    if ($user_attempts >=$max_attempts) {
-        ?>
-        <!DOCTYPE html>
-        <html lang="vi">
-        <head>
-            <meta charset="UTF-8">
-            <title>Hết lượt làm bài</title>
-            <style>
-                body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-                .card-error { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: center; max-width: 480px; width: 90%; }
-                .card-error h2 { color: #e74c3c; margin-bottom: 15px; }
-                .card-error p { color: #555; line-height: 1.6; margin-bottom: 25px; }
-                .btn-home { display: inline-block; background: #3498db; color: white; text-decoration: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; }
-                .btn-home:hover { background: #2980b9; }
-            </style>
-        </head>
-        <body>
-            <div class="card-error">
-                <h2>🚫 Bạn đã hết lượt làm bài!</h2>
-                <p>
-                    Đề thi <strong>"<?php echo htmlspecialchars($exam['title']); ?>"</strong> chỉ cho phép làm tối đa <strong><?php echo $max_attempts; ?></strong> lần.<br>
-                    Bạn đã thực hiện <strong><?php echo $user_attempts; ?>/<?php echo$max_attempts; ?></strong> lượt.
-                </p>
-                <a href="index.php" class="btn-home">Quay lại trang chủ</a>
-            </div>
-        </body>
-        </html>
-        <?php
-        exit;
-    }
+// Chỉ chặn khi có giới hạn dương. max_attempts = 0 nghĩa là không giới hạn.
+if ($max_attempts > 0 && $user_attempts >=$max_attempts) {
+    unset($_SESSION['exam_auth_' .$exam_id]);
+    $safeTitle = htmlspecialchars((string)($exam['title'] ?? 'Bài thi'), ENT_QUOTES, 'UTF-8');
+    ?>
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Hết lượt làm bài</title>
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+            .card-error { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: center; max-width: 480px; width: 90%; box-sizing: border-box; }
+            .card-error h2 { color: #e74c3c; margin-bottom: 15px; }
+            .card-error p { color: #555; line-height: 1.6; margin-bottom: 25px; }
+            .btn-home { display: inline-block; background: #3498db; color: white; text-decoration: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; }
+            .btn-home:hover { background: #2980b9; }
+        </style>
+    </head>
+    <body>
+        <div class="card-error">
+            <h2>🚫 Bạn đã hết lượt làm bài!</h2>
+            <p>Đề thi <strong>"<?= $safeTitle ?>"</strong> cho phép làm tối đa <strong><?= $max_attempts ?></strong> lần.<br>
+            Bạn đã thực hiện <strong><?= $user_attempts ?>/<?= $max_attempts ?></strong> lượt.</p>
+            <a href="index.php" class="btn-home">Quay lại trang chủ</a>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit;
 }
 
 /*
@@ -235,7 +231,7 @@ foreach ($raw_questions as$q) {
         <div class="exam-title"><?php echo htmlspecialchars($exam['title'] ?? 'Bài thi'); ?></div>
         <div style="display: flex; gap: 15px; align-items: center;">
             <div class="timer-box">⏱️ Thời gian còn lại: <span id="timer-display">00:00</span></div>
-            <a href="index.php" class="btn-exit-header" onclick="return confirm('Bạn có chắc chắn muốn thoát?');">Thoát</a>
+            <a href="#" id="btn-exit" class="btn-exit-header">Thoát</a>
         </div>
     </header>
 
@@ -268,40 +264,114 @@ foreach ($raw_questions as$q) {
     </div>
 
     <script>
-        let totalSeconds = <?php echo (int)($exam['duration'] ?? 15) * 60; ?>;
-        const timerDisplay = document.getElementById('timer-display');
-        const examForm = document.getElementById('exam-form');
-        const completionTimeInput = document.getElementById('completion_time_input');
+    let totalSeconds = <?php echo (int)($exam['duration'] ?? 15) * 60; ?>;
+    const timerDisplay = document.getElementById('timer-display');
+    const examForm = document.getElementById('exam-form');
+    const completionTimeInput = document.getElementById('completion_time_input');
+    const btnExit = document.getElementById('btn-exit');
+    const startTime = Date.now();
 
-        const startTime = Date.now();
-
-        function calculateTimeSpent() {
-            const endTime = Date.now();
-            const secondsSpent = Math.round((endTime - startTime) / 1000);
-            completionTimeInput.value = secondsSpent;
+    // 🔄 Tải lại trang khi bấm Back/Forward để PHP kiểm tra chặn
+    window.addEventListener('pageshow', function (event) {
+        if (event.persisted || (performance.getEntriesByType("navigation")[0]?.type === 'back_forward')) {
+            window.location.reload();
         }
+    });
 
-        examForm.addEventListener('submit', function() {
-            calculateTimeSpent();
-        });
+    function calculateTimeSpent() {
+        const endTime = Date.now();
+        const secondsSpent = Math.round((endTime - startTime) / 1000);
+        completionTimeInput.value = secondsSpent;
+    }
 
-        function updateTimer() {
-            let minutes = Math.floor(totalSeconds / 60);
-            let seconds = totalSeconds % 60;
+    // 🚪 XỬ LÝ NÚT THOÁT: Nộp bài ngầm (tính 0 điểm) rồi thoát
+    if (btnExit) {
+        btnExit.addEventListener('click', function(e) {
+            e.preventDefault();
             
-            timerDisplay.textContent = `${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
-            
-            if (totalSeconds <= 0) {
-                alert('Đã hết giờ làm bài!');
+            if (confirm('Nếu bạn thoát bây giờ, bài thi vẫn sẽ được tính là 1 lượt làm bài (với 0 điểm nếu chưa chọn đáp án). Bạn có chắc chắn muốn thoát?')) {
                 calculateTimeSpent();
-                examForm.submit();
-            } else {
-                totalSeconds--;
+                
+                // Vô hiệu hóa nút thoát để tránh bấm lặp lại
+                btnExit.style.pointerEvents = 'none';
+                btnExit.textContent = 'Đang thoát...';
+
+                const formData = new FormData(examForm);
+
+                // Nộp bài ngầm lên server
+                fetch('result.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    // Chuyển hướng về trang thông tin đề thi hoặc trang chủ
+                    window.location.replace('intro_exam.php?exam_id=<?php echo $exam_id; ?>');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    window.location.replace('index.php');
+                });
             }
+        });
+    }
+
+    // 🚀 XỬ LÝ NỘP BÀI CHÍNH THỨC
+    examForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        if (!confirm('Bạn có chắc chắn muốn nộp bài?')) {
+            return;
         }
+
+        calculateTimeSpent();
+
+        const submitBtn = examForm.querySelector('.btn-submit');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Đang nộp bài...';
+        }
+
+        const formData = new FormData(examForm);
+
+        fetch('result.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.redirect_url) {
+                window.location.replace(data.redirect_url);
+            } else {
+                alert(data.message || 'Có lỗi xảy ra khi nộp bài.');
+                if (submitBtn) submitBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại mạng.');
+            if (submitBtn) submitBtn.disabled = false;
+        });
+    });
+
+    // ⏱️ ĐẾM NGƯỢC THỜI GIAN
+    function updateTimer() {
+        let minutes = Math.floor(totalSeconds / 60);
+        let seconds = totalSeconds % 60;
         
-        setInterval(updateTimer, 1000);
-        updateTimer();
+        timerDisplay.textContent = `${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+        
+        if (totalSeconds <= 0) {
+            alert('Đã hết giờ làm bài!');
+            calculateTimeSpent();
+            examForm.requestSubmit();
+        } else {
+            totalSeconds--;
+        }
+    }
+    
+    setInterval(updateTimer, 1000);
+    updateTimer();
     </script>
 </body>
 </html>
