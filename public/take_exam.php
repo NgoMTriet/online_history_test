@@ -6,7 +6,6 @@ if (session_status() === PHP_SESSION_NONE) {
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 require_once __DIR__ . '/../config/database.php';
 
-// Không lưu trang làm bài vào bộ nhớ đệm
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
@@ -16,28 +15,27 @@ if (empty($_SESSION['user_id'])) {
     exit;
 }
 
-$user_id = (int)($_SESSION['user_id'] ?? 0);
-$exam_id = (int)($_GET['exam_id'] ?? 0);
+$user_id = (int) $_SESSION['user_id'];
+$exam_id = (int) ($_GET['exam_id'] ?? 0);
 
 if ($exam_id <= 0) {
     header('Location: index.php');
     exit;
 }
 
-// 1. LẤY THÔNG TIN ĐỀ THI
-$stmt = $conn->prepare("SELECT * FROM exam WHERE exam_id = :id");
+// 1. Lấy thông tin đề thi
+$stmt = $conn->prepare('SELECT * FROM exam WHERE exam_id = :id');
 $stmt->execute(['id' => $exam_id]);
 $exam = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$exam) {
-    die("Đề thi không tồn tại!");
+    die('Đề thi không tồn tại!');
 }
 
-$tz = new DateTimeZone('Asia/Ho_Chi_Minh');
-$now = new DateTime('now', $tz);
-
-// ⏱️ 2.1. KIỂM TRA THỜI GIAN MỞ ĐỀ THI (START TIME)
+// 2. Kiểm tra thời gian mở đề
 if (!empty($exam['start_time'])) {
+    $tz = new DateTimeZone('Asia/Ho_Chi_Minh');
+    $now = new DateTime('now', $tz);
     $startTime = new DateTime($exam['start_time'], $tz);
 
     if ($now < $startTime) {
@@ -47,23 +45,82 @@ if (!empty($exam['start_time'])) {
         <html lang="vi">
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
             <title>Chưa đến giờ làm bài</title>
             <style>
-                body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-                .card-wait { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: center; max-width: 480px; width: 90%; box-sizing: border-box; }
-                .card-wait h2 { color: #e67e22; margin-bottom: 15px; }
-                .card-wait p { color: #555; line-height: 1.6; margin-bottom: 25px; }
-                .btn-home { display: inline-block; background: #3498db; color: white; text-decoration: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; }
-                .btn-home:hover { background: #2980b9; }
+                body {
+                    font-family: Arial, sans-serif;
+                    background: #f4f6f9;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                    margin: 0;
+                }
+                .card {
+                    background: white;
+                    padding: 35px;
+                    border-radius: 12px;
+                    text-align: center;
+                    max-width: 480px;
+                    width: 90%;
+                    box-sizing: border-box;
+                }
+                .btn {
+                    display: inline-block;
+                    padding: 12px 24px;
+                    background: #3498db;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 8px;
+                }
+                .submit-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    background: rgba(0, 0, 0, 0.65);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.submit-modal.show {
+    display: flex;
+}
+
+.submit-modal-content {
+    width: 100%;
+    max-width: 420px;
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,.2);
+}
+
+.submit-modal-content h2 {
+    color: #1e293b;
+    margin-bottom: 15px;
+}
+
+.submit-modal-content p {
+    color: #475569;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
             </style>
         </head>
         <body>
-            <div class="card-wait">
+            <div class="card">
                 <h2>⏳ Chưa đến thời gian làm bài!</h2>
-                <p>Đề thi <strong>"<?= htmlspecialchars($exam['title'] ?? 'Bài thi', ENT_QUOTES, 'UTF-8') ?>"</strong> sẽ mở vào lúc:<br>
-                <strong style="color: #27ae60; font-size: 1.1rem;"><?= $formattedStartTime ?></strong></p>
-                <a href="index.php" class="btn-home">Quay lại trang chủ</a>
+                <p>
+                    Đề thi
+                    <strong><?= htmlspecialchars($exam['title'] ?? 'Bài thi', ENT_QUOTES, 'UTF-8') ?></strong>
+                    sẽ mở lúc
+                    <strong><?= htmlspecialchars($formattedStartTime, ENT_QUOTES, 'UTF-8') ?></strong>.
+                </p>
+                <a href="index.php" class="btn">Quay lại trang chủ</a>
             </div>
         </body>
         </html>
@@ -72,85 +129,77 @@ if (!empty($exam['start_time'])) {
     }
 }
 
-// 🛑 2.2. KIỂM TRA THỜI GIAN ĐÓNG ĐỀ THI (END TIME)
-if (!empty($exam['end_time'])) {
-    $endTime = new DateTime($exam['end_time'], $tz);
+// 3. Kiểm tra số lượt làm bài
+// max_attempts = 0: không giới hạn
+$max_attempts = (int) ($exam['max_attempts'] ?? 0);
 
-    if ($now > $endTime) {
-        $formattedEndTime = $endTime->format('H:i - d/m/Y');
-        ?>
-        <!DOCTYPE html>
-        <html lang="vi">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Đề thi đã đóng</title>
-            <style>
-                body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-                .card-expired { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: center; max-width: 480px; width: 90%; box-sizing: border-box; }
-                .card-expired h2 { color: #e74c3c; margin-bottom: 15px; }
-                .card-expired p { color: #555; line-height: 1.6; margin-bottom: 25px; }
-                .btn-home { display: inline-block; background: #3498db; color: white; text-decoration: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; }
-                .btn-home:hover { background: #2980b9; }
-            </style>
-        </head>
-        <body>
-            <div class="card-expired">
-                <h2>🚫 Đề thi đã đóng!</h2>
-                <p>Đề thi <strong>"<?= htmlspecialchars($exam['title'] ?? 'Bài thi', ENT_QUOTES, 'UTF-8') ?>"</strong> đã hết thời gian cho phép làm bài vào lúc:<br>
-                <strong style="color: #e74c3c; font-size: 1.1rem;"><?= $formattedEndTime ?></strong></p>
-                <a href="index.php" class="btn-home">Quay lại trang chủ</a>
-            </div>
-        </body>
-        </html>
-        <?php
-        exit;
-    }
-}
+$stmt_check = $conn->prepare(
+    'SELECT COUNT(*) FROM exam_results
+     WHERE user_id = :user_id AND exam_id = :exam_id'
+);
 
-// 3. KIỂM TRA SỐ LẦN LÀM BÀI BẰNG DATABASE (CHUẨN XÁC)
-$max_attempts = (int)($exam['max_attempts'] ?? 0); // 0 = không giới hạn lượt
-$user_attempts = 0;
+$stmt_check->execute([
+    'user_id' => $user_id,
+    'exam_id' => $exam_id
+]);
 
-if ($user_id > 0) {
-    $stmt_check = $conn->prepare("
-        SELECT COUNT(*)
-        FROM exam_results
-        WHERE user_id = :user_id AND exam_id = :exam_id
-    ");
-    $stmt_check->execute([
-        'user_id' => $user_id,
-        'exam_id' => $exam_id
-    ]);
-    $user_attempts = (int)$stmt_check->fetchColumn();
-}
+$user_attempts = (int) $stmt_check->fetchColumn();
 
-// CHỈ CHẶN KHI ĐÃ ĐẠT/VƯỢT QUÁ SỐ LẦN TỐI ĐA (Và max_attempts > 0)
 if ($max_attempts > 0 && $user_attempts >= $max_attempts) {
     unset($_SESSION['exam_auth_' . $exam_id]);
-    $safeTitle = htmlspecialchars((string)($exam['title'] ?? 'Bài thi'), ENT_QUOTES, 'UTF-8');
+
+    $safeTitle = htmlspecialchars(
+        (string) ($exam['title'] ?? 'Bài thi'),
+        ENT_QUOTES,
+        'UTF-8'
+    );
     ?>
     <!DOCTYPE html>
     <html lang="vi">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Hết lượt làm bài</title>
         <style>
-            body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-            .card-error { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: center; max-width: 480px; width: 90%; box-sizing: border-box; }
-            .card-error h2 { color: #e74c3c; margin-bottom: 15px; }
-            .card-error p { color: #555; line-height: 1.6; margin-bottom: 25px; }
-            .btn-home { display: inline-block; background: #3498db; color: white; text-decoration: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; }
-            .btn-home:hover { background: #2980b9; }
+            body {
+                font-family: Arial, sans-serif;
+                background: #f4f6f9;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                margin: 0;
+            }
+            .card {
+                background: white;
+                padding: 35px;
+                border-radius: 12px;
+                text-align: center;
+                max-width: 480px;
+                width: 90%;
+                box-sizing: border-box;
+            }
+            .btn {
+                display: inline-block;
+                padding: 12px 24px;
+                background: #3498db;
+                color: white;
+                text-decoration: none;
+                border-radius: 8px;
+            }
         </style>
     </head>
     <body>
-        <div class="card-error">
+        <div class="card">
             <h2>🚫 Bạn đã hết lượt làm bài!</h2>
-            <p>Đề thi <strong>"<?= $safeTitle ?>"</strong> cho phép làm tối đa <strong><?= $max_attempts ?></strong> lần.<br>
-            Bạn đã thực hiện <strong><?= $user_attempts ?>/<?= $max_attempts ?></strong> lượt.</p>
-            <a href="index.php" class="btn-home">Quay lại trang chủ</a>
+            <p>
+                Đề thi <strong><?= $safeTitle ?></strong>
+                cho phép làm tối đa <strong><?= $max_attempts ?></strong> lần.
+                <br>
+                Bạn đã thực hiện
+                <strong><?= $user_attempts ?>/<?= $max_attempts ?></strong> lượt.
+            </p>
+            <a href="index.php" class="btn">Quay lại trang chủ</a>
         </div>
     </body>
     </html>
@@ -158,18 +207,21 @@ if ($max_attempts > 0 && $user_attempts >= $max_attempts) {
     exit;
 }
 
-// Xóa cờ exam_completed nếu họ vẫn còn lượt làm bài để cho phép làm lại
 unset($_SESSION['exam_completed_' . $exam_id]);
 
-// 🔑 4. KIỂM TRA MẬT KHẨU ĐỀ THI
+// 4. Kiểm tra mật khẩu đề thi
 $require_password = !empty($exam['exam_password']);
 $password_error = '';
 
 if ($require_password) {
     $session_pass_key = 'exam_auth_' . $exam_id;
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_exam_password'])) {
+    if (
+        $_SERVER['REQUEST_METHOD'] === 'POST'
+        && isset($_POST['submit_exam_password'])
+    ) {
         $input_password = trim($_POST['input_password'] ?? '');
+
         if ($input_password === $exam['exam_password']) {
             $_SESSION[$session_pass_key] = true;
         } else {
@@ -183,36 +235,83 @@ if ($require_password) {
         <html lang="vi">
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
             <title>Yêu cầu mật khẩu bài thi</title>
             <style>
-                body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-                .card-password { background: white; padding: 35px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); text-align: center; max-width: 400px; width: 90%; }
-                .card-password h2 { color: #2c3e50; margin-bottom: 10px; font-size: 22px; }
-                .card-password p { color: #666; font-size: 14px; margin-bottom: 20px; line-height: 1.5; }
-                .form-input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 15px; box-sizing: border-box; font-size: 15px; outline: none; }
-                .form-input:focus { border-color: #2563eb; }
-                .btn-submit { width: 100%; background: #2563eb; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; }
-                .btn-submit:hover { background: #1d4ed8; }
-                .error-msg { color: #dc2626; font-size: 13px; margin-bottom: 15px; }
-                .btn-back { display: inline-block; margin-top: 15px; color: #64748b; text-decoration: none; font-size: 14px; }
+                body {
+                    font-family: Arial, sans-serif;
+                    background: #f4f6f9;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                    margin: 0;
+                }
+                .card {
+                    background: white;
+                    padding: 30px;
+                    border-radius: 12px;
+                    text-align: center;
+                    max-width: 400px;
+                    width: 90%;
+                    box-sizing: border-box;
+                }
+                .form-input {
+                    width: 100%;
+                    padding: 12px;
+                    margin-bottom: 15px;
+                    border: 1px solid #ccc;
+                    border-radius: 8px;
+                    box-sizing: border-box;
+                }
+                .btn-submit {
+                    width: 100%;
+                    padding: 12px;
+                    background: #2563eb;
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                }
+                .error-msg {
+                    color: #dc2626;
+                    margin-bottom: 12px;
+                }
             </style>
         </head>
         <body>
-            <div class="card-password">
+            <div class="card">
                 <h2>🔒 Đề thi có mật khẩu</h2>
-                <p>Nhập mật khẩu do giáo viên cung cấp để làm bài thi <strong>"<?php echo htmlspecialchars($exam['title']); ?>"</strong>.</p>
+                <p>
+                    Nhập mật khẩu để làm bài
+                    <strong><?= htmlspecialchars($exam['title'] ?? 'Bài thi', ENT_QUOTES, 'UTF-8') ?></strong>.
+                </p>
 
                 <?php if ($password_error !== ''): ?>
-                    <div class="error-msg"><?php echo htmlspecialchars($password_error); ?></div>
+                    <div class="error-msg">
+                        <?= htmlspecialchars($password_error, ENT_QUOTES, 'UTF-8') ?>
+                    </div>
                 <?php endif; ?>
 
                 <form method="POST">
-                    <input type="password" name="input_password" class="form-input" placeholder="Nhập mật khẩu bài thi..." required autoFocus>
-                    <button type="submit" name="submit_exam_password" class="btn-submit">Xác nhận làm bài</button>
+                    <input
+                        type="password"
+                        name="input_password"
+                        class="form-input"
+                        placeholder="Nhập mật khẩu đề thi"
+                        required
+                        autofocus
+                    >
+                    <button
+                        type="submit"
+                        name="submit_exam_password"
+                        class="btn-submit"
+                    >
+                        Xác nhận làm bài
+                    </button>
                 </form>
 
-                <a href="index.php" class="btn-back">⬅ Quay lại trang chủ</a>
+                <p><a href="index.php">Quay lại trang chủ</a></p>
             </div>
         </body>
         </html>
@@ -221,27 +320,27 @@ if ($require_password) {
     }
 }
 
-// 5. LẤY DANH SÁCH CÂU HỎI
-$stmt_q = $conn->prepare("
-    SELECT q.question_id, q.content 
-    FROM questions q
-    JOIN exam_questions eq ON q.question_id = eq.question_id
-    WHERE eq.exam_id = :exam_id
-");
+// 5. Lấy danh sách câu hỏi
+$stmt_q = $conn->prepare(
+    'SELECT q.question_id, q.content
+     FROM questions q
+     JOIN exam_questions eq ON q.question_id = eq.question_id
+     WHERE eq.exam_id = :exam_id'
+);
+
 $stmt_q->execute(['exam_id' => $exam_id]);
 $raw_questions = $stmt_q->fetchAll(PDO::FETCH_ASSOC);
 
 if (empty($raw_questions)) {
-    die("Đề thi này chưa có câu hỏi nào!");
+    die('Đề thi này chưa có câu hỏi nào!');
 }
 
 shuffle($raw_questions);
 
-// 6. LẤY DANH SÁCH ĐÁP ÁN
-$stmt_ans = $conn->prepare("
-    SELECT * FROM answers
-    WHERE question_id = :q_id
-");
+// 6. Lấy danh sách đáp án
+$stmt_ans = $conn->prepare(
+    'SELECT * FROM answers WHERE question_id = :q_id'
+);
 
 $questions_for_client = [];
 
@@ -256,182 +355,1283 @@ foreach ($raw_questions as $q) {
 
     foreach ($answers as $idx => $a) {
         $options[] = [
-            'id'      => $a['answer_id'],
-            'label'   => $labels[$idx] ?? (string)($idx + 1),
+            'id' => $a['answer_id'],
+            'label' => $labels[$idx] ?? (string) ($idx + 1),
             'content' => $a['content']
         ];
     }
 
     $questions_for_client[] = [
-        'id'       => $q['question_id'],
+        'id' => $q['question_id'],
         'question' => $q['content'],
-        'options'  => $options
+        'options' => $options
     ];
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <title><?php echo htmlspecialchars($exam['title'] ?? 'Làm bài thi'); ?></title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        body { background-color: #f4f6f9; color: #333; padding-bottom: 80px; }
-        header { background: #2c3e50; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
-        .exam-title { font-size: 1.2rem; font-weight: bold; }
-        .timer-box { background: #e74c3c; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; }
-        .btn-exit-header { background-color: #7f8c8d; color: white; text-decoration: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; }
-        .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
-        .question-card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .question-title { font-weight: 600; font-size: 1.1rem; margin-bottom: 15px; color: #2c3e50; }
-        .options-list { display: flex; flex-direction: column; gap: 10px; }
-        .option-item { display: flex; align-items: center; padding: 12px 15px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
-        .option-item:hover { background-color: #f8f9fa; }
-        .btn-submit { background-color: #27ae60; color: white; border: none; padding: 12px 35px; font-size: 1.1rem; font-weight: bold; border-radius: 6px; cursor: pointer; }
-        .btn-submit:hover { background-color: #219150; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><?= htmlspecialchars($exam['title'] ?? 'Làm bài thi', ENT_QUOTES, 'UTF-8') ?></title>
+
+<style>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+body {
+    background: #f4f6f9;
+    color: #333;
+    padding-bottom: 80px;
+}
+
+header {
+    background: #2c3e50;
+    color: white;
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.exam-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.timer-box {
+    background: #e74c3c;
+    color: white;
+    padding: 9px 18px;
+    border-radius: 25px;
+    font-weight: bold;
+    white-space: nowrap;
+    font-size: 18px;
+    box-shadow: 0 3px 10px rgba(231, 76, 60, .2);
+}
+
+.container {
+    max-width: 1250px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+.exam-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 270px;
+    gap: 24px;
+    align-items: start;
+}
+
+.exam-main {
+    min-width: 0;
+}
+
+.question-card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px #0000000d;
+    scroll-margin-top: 90px;
+}
+
+.question-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    color: #2c3e50;
+    line-height: 1.5;
+}
+
+.options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.option-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    cursor: pointer;
+    line-height: 1.5;
+}
+
+.option-item:hover {
+    background: #f8f9fa;
+}
+
+.option-item input {
+    flex-shrink: 0;
+}
+
+.question-sidebar {
+    position: sticky;
+    top: 90px;
+    align-self: start;
+}
+
+.question-navigation {
+    background: white;
+    padding: 18px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px #00000012;
+}
+
+.question-navigation h3 {
+    margin-bottom: 14px;
+    color: #2c3e50;
+    font-size: 17px;
+}
+
+.question-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.question-number {
+    width: 100%;
+    height: 40px;
+    border: 1px solid #fca5a5;
+    border-radius: 8px;
+    background: #fee2e2;
+    color: #b91c1c;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.question-number.answered {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
+}
+
+.question-number.current {
+    outline: 3px solid #93c5fd;
+    border-color: #2563eb;
+}
+
+.question-number.unanswered-warning {
+    animation: warningPulse 1s ease-in-out 2;
+    border: 2px solid #dc2626;
+}
+
+@keyframes warningPulse {
+    50% {
+        background: #fca5a5;
+        transform: scale(1.06);
+    }
+}
+
+.question-progress {
+    font-size: 13px;
+    color: #475569;
+    margin-top: 12px;
+}
+
+.question-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin-top: 16px;
+    font-size: 13px;
+}
+
+.question-legend span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.legend-box {
+    width: 13px;
+    height: 13px;
+    display: inline-block;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+/* Nút nộp bài trong thanh danh sách câu hỏi */
+.submit-exam-container {
+    margin-top: 20px;
+}
+
+.submit-exam-btn {
+    width: 100%;
+    padding: 13px 15px;
+    background: #16a34a;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background .2s, transform .2s;
+}
+
+.submit-exam-btn:hover {
+    background: #15803d;
+    transform: translateY(-1px);
+}
+
+.submit-exam-btn:disabled {
+    opacity: .65;
+    cursor: wait;
+    transform: none;
+}
+
+/* Nút thoát bài thi */
+.btn-exit-header {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    background: #ffffff;
+    color: #dc2626;
+    border: 1px solid rgba(255,255,255,.55);
+    text-decoration: none;
+    padding: 9px 17px;
+    border-radius: 999px;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 3px 10px rgba(0,0,0,.12);
+    transition: background .2s, color .2s, transform .2s;
+}
+
+.btn-exit-header:hover {
+    background: #dc2626;
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+/* Bảng xác nhận thoát bài */
+.exit-modal,
+.submit-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, .68);
+    backdrop-filter: blur(3px);
+}
+
+.exit-modal {
+    z-index: 10000;
+}
+
+.submit-modal {
+    z-index: 11000;
+}
+
+.exit-modal.show,
+.submit-modal.show {
+    display: flex;
+}
+
+.exit-modal-content,
+.submit-modal-content {
+    width: 100%;
+    max-width: 440px;
+    padding: 30px;
+    border-radius: 18px;
+    background: #ffffff;
+    text-align: center;
+    box-shadow: 0 22px 65px rgba(0,0,0,.28);
+    animation: exitModalAppear .22s ease-out;
+}
+
+.exit-modal-icon,
+.submit-modal-icon {
+    display: grid;
+    place-items: center;
+    width: 62px;
+    height: 62px;
+    margin: 0 auto 15px;
+    border-radius: 50%;
+    font-size: 30px;
+}
+
+.exit-modal-icon {
+    background: #fff1f2;
+    color: #dc2626;
+}
+
+.submit-modal-icon {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.exit-modal-content h2,
+.submit-modal-content h2 {
+    margin: 0 0 12px;
+    color: #1e293b;
+    font-size: 22px;
+}
+
+.exit-modal-content p,
+.submit-modal-content p {
+    margin: 7px 0;
+    color: #475569;
+    line-height: 1.6;
+    font-size: 15px;
+}
+
+.exit-modal-content .exit-warning {
+    color: #dc2626;
+    font-size: 13px;
+}
+
+.exit-modal-actions,
+.submit-modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.exit-modal-actions button,
+.submit-modal-actions button {
+    flex: 1;
+    min-height: 44px;
+    padding: 10px 14px;
+    border: 0;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter .2s, transform .2s;
+}
+
+.exit-modal-actions button:hover,
+.submit-modal-actions button:hover {
+    filter: brightness(.95);
+    transform: translateY(-1px);
+}
+
+.btn-stay,
+.btn-cancel-submit {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.btn-confirm-exit {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.btn-confirm-submit {
+    background: #16a34a;
+    color: #ffffff;
+}
+
+@keyframes exitModalAppear {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (max-width: 800px) {
+    .exam-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .question-sidebar {
+        position: static;
+        grid-row: 1;
+    }
+
+    .question-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .container {
+        margin: 18px auto;
+        padding: 0 12px;
+    }
+
+    header {
+        padding: 12px 15px;
+        flex-wrap: wrap;
+    }
+
+    .exam-title {
+        font-size: 1rem;
+    }
+
+    .timer-box {
+        font-size: 13px;
+        padding: 7px 10px;
+    }
+
+    .btn-exit-header {
+        padding: 7px 10px;
+        font-size: 13px;
+    }
+
+    .exit-modal-actions,
+    .submit-modal-actions {
+        flex-direction: column;
+    }
+}
+</style>
 </head>
 <body>
 
-    <header>
-        <div class="exam-title"><?php echo htmlspecialchars($exam['title'] ?? 'Bài thi'); ?></div>
-        <div style="display: flex; gap: 15px; align-items: center;">
-            <div class="timer-box">⏱️ Thời gian còn lại: <span id="timer-display">00:00</span></div>
-            <a href="#" id="btn-exit" class="btn-exit-header">Thoát</a>
-        </div>
-    </header>
-
-    <div class="container">
-        <form id="exam-form" method="POST" action="result.php">
-            <input type="hidden" name="action" value="submit_exam">
-            <input type="hidden" name="exam_id" value="<?php echo $exam_id; ?>">
-            <input type="hidden" name="completion_time" id="completion_time_input" value="0">
-
-            <?php foreach ($questions_for_client as $index => $q): ?>
-                <div class="question-card">
-                    <div class="question-title">
-                        Câu <?php echo ($index + 1); ?>: <?php echo htmlspecialchars($q['question']); ?>
-                    </div>
-                    <div class="options-list">
-                        <?php foreach ($q['options'] as $option): ?>
-                            <label class="option-item">
-                                <input type="radio" name="answers[<?php echo $q['id']; ?>]" value="<?php echo $option['id']; ?>" style="margin-right: 10px;" required>
-                                <strong><?php echo $option['label']; ?>.</strong>&nbsp;<?php echo htmlspecialchars($option['content']); ?>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-
-            <div style="text-align: center; margin-top: 30px;">
-                <button type="submit" class="btn-submit" onclick="return confirm('Bạn có chắc chắn muốn nộp bài?');">Nộp bài thi</button>
-            </div>
-        </form>
+<header>
+    <div class="exam-title">
+        <?= htmlspecialchars($exam['title'] ?? 'Bài thi', ENT_QUOTES, 'UTF-8') ?>
     </div>
 
-    <script>
-    let totalSeconds = <?php echo (int)($exam['duration'] ?? 15) * 60; ?>;
-    const timerDisplay = document.getElementById('timer-display');
-    const examForm = document.getElementById('exam-form');
-    const completionTimeInput = document.getElementById('completion_time_input');
-    const btnExit = document.getElementById('btn-exit');
-    const startTime = Date.now();
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div class="timer-box">
+            ⏱️ Thời gian còn lại:
+            <span id="timer-display">00:00</span>
+        </div>
 
-    window.addEventListener('pageshow', function (event) {
-        if (event.persisted || (performance.getEntriesByType("navigation")[0]?.type === 'back_forward')) {
-            window.location.reload();
-        }
-    });
+        <a href="index.php" id="btn-exit" class="btn-exit-header">
+            <span aria-hidden="true">↩</span> Thoát
+        </a>
+    </div>
+</header>
 
-    function calculateTimeSpent() {
-        const endTime = Date.now();
-        const secondsSpent = Math.round((endTime - startTime) / 1000);
-        completionTimeInput.value = secondsSpent;
+<div class="container">
+<form id="exam-form" method="POST" action="result.php">
+
+    <input type="hidden" name="action" value="submit_exam">
+
+    <input type="hidden" name="exam_id" value="<?= $exam_id ?>">
+
+    <input
+        type="hidden"
+        name="completion_time"
+        id="completion_time_input"
+        value="0"
+    >
+
+    <div class="exam-layout">
+
+        <!-- Khu vực hiển thị câu hỏi -->
+        <main class="exam-main">
+
+            <?php foreach ($questions_for_client as $index => $q): ?>
+
+            <section
+                class="question-card"
+                id="question-<?= $index ?>"
+            >
+
+                <div class="question-title">
+                    Câu <?= $index + 1 ?>:
+                    <?= htmlspecialchars($q['question'], ENT_QUOTES, 'UTF-8') ?>
+                </div>
+
+                <div class="options-list">
+
+                    <?php foreach ($q['options'] as $option): ?>
+
+                    <label class="option-item">
+
+                        <input
+                            type="radio"
+                            name="answers[<?= (int) $q['id'] ?>]"
+                            value="<?= (int) $option['id'] ?>"
+                            style="margin-right:10px"
+                        >
+
+                        <strong>
+                            <?= htmlspecialchars($option['label'], ENT_QUOTES, 'UTF-8') ?>.
+                        </strong>
+
+                        &nbsp;
+
+                        <?= htmlspecialchars($option['content'], ENT_QUOTES, 'UTF-8') ?>
+
+                    </label>
+
+                    <?php endforeach; ?>
+
+                </div>
+
+            </section>
+
+            <?php endforeach; ?>
+
+        </main>
+
+        <!-- Thanh danh sách câu hỏi -->
+        <aside class="question-sidebar">
+
+            <div class="question-navigation">
+
+                <h3>Danh sách câu hỏi</h3>
+
+                <div class="question-grid">
+
+                    <?php foreach ($questions_for_client as $index => $q): ?>
+
+                    <button
+                        type="button"
+                        class="question-number"
+                        data-question="<?= $index ?>"
+                        aria-label="Đi đến câu <?= $index + 1 ?>"
+                    >
+                        <?= $index + 1 ?>
+                    </button>
+
+                    <?php endforeach; ?>
+
+                </div>
+
+                <div class="question-progress" id="question-progress">
+                    Đã làm 0/<?= count($questions_for_client) ?> câu
+                </div>
+
+                <!-- Chú thích trạng thái câu hỏi -->
+                <div class="question-legend">
+
+                    <span>
+                        <i
+                            class="legend-box"
+                            style="background:#fee2e2"
+                        ></i>
+                        Chưa làm
+                    </span>
+
+                    <span>
+                        <i
+                            class="legend-box"
+                            style="background:#dcfce7"
+                        ></i>
+                        Đã làm
+                    </span>
+
+                    <span>
+                        <i
+                            class="legend-box"
+                            style="background:#dbeafe"
+                        ></i>
+                        Đang xem
+                    </span>
+
+                </div>
+
+                <!-- Nút nộp bài nằm trong thanh danh sách -->
+                <div class="submit-exam-container">
+
+                    <button
+                        type="button"
+                        id="submit-exam-btn"
+                        class="submit-exam-btn"
+                    >
+                        Nộp bài
+                    </button>
+
+                </div>
+
+            </div>
+
+        </aside>
+
+    </div>
+
+</form>
+</div>
+
+<!-- Bảng xác nhận thoát bài thi -->
+<div
+    class="exit-modal"
+    id="exitModal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="exitModalTitle"
+    aria-hidden="true"
+>
+
+    <div class="exit-modal-content">
+
+        <div class="exit-modal-icon" aria-hidden="true">
+            ⚠️
+        </div>
+
+        <h2 id="exitModalTitle">
+            Xác nhận thoát bài thi
+        </h2>
+
+        <p>
+            Bạn có chắc chắn muốn thoát khỏi bài thi không?
+        </p>
+
+        <p class="exit-warning">
+            Những câu trả lời chưa nộp có thể bị mất.
+        </p>
+
+        <div class="exit-modal-actions">
+
+            <button
+                type="button"
+                class="btn-stay"
+                id="btnStay"
+            >
+                Ở lại làm bài
+            </button>
+
+            <button
+                type="button"
+                class="btn-confirm-exit"
+                id="btnConfirmExit"
+            >
+                Thoát bài thi
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Bảng xác nhận nộp bài -->
+<div
+    class="submit-modal"
+    id="submitModal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="submitModalTitle"
+    aria-hidden="true"
+>
+    <div class="submit-modal-content">
+
+        <div class="submit-modal-icon">
+            ✓
+        </div>
+
+        <h2 id="submitModalTitle">
+            Xác nhận nộp bài
+        </h2>
+
+        <p>
+            Bạn có chắc chắn muốn nộp bài thi không?
+        </p>
+
+        <p>
+            Sau khi nộp bài, bạn sẽ không thể thay đổi câu trả lời.
+        </p>
+
+        <div class="submit-modal-actions">
+
+            <button
+                type="button"
+                class="btn-cancel-submit"
+                id="btnCancelSubmit"
+            >
+                Tiếp tục làm bài
+            </button>
+
+            <button
+                type="button"
+                class="btn-confirm-submit"
+                id="btnConfirmSubmit"
+            >
+                Xác nhận nộp bài
+            </button>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- Bảng thông báo câu chưa hoàn thành -->
+<div
+    id="unansweredModal"
+    class="submit-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+>
+    <div class="submit-modal-content">
+
+        <div
+            class="submit-modal-icon"
+            style="background:#fef3c7;color:#d97706;"
+        >
+            !
+        </div>
+
+        <h2>Bạn chưa hoàn thành bài thi!</h2>
+
+        <p id="unansweredMessage">
+            Bạn vẫn còn câu hỏi chưa được trả lời.
+        </p>
+
+        <div class="submit-modal-actions">
+
+            <button
+                type="button"
+                id="btnCloseUnanswered"
+                class="btn-cancel-submit"
+            >
+                Tiếp tục làm bài
+            </button>
+
+        </div>
+
+    </div>
+</div>
+
+<script>
+let totalSeconds = <?= max(1, (int) ($exam['duration'] ?? 15) * 60) ?>;
+
+// Các phần tử giao diện
+const timerDisplay = document.getElementById('timer-display');
+
+const examForm = document.getElementById('exam-form');
+
+const completionTimeInput = document.getElementById(
+    'completion_time_input'
+);
+
+// Các phần tử bảng thoát bài
+const btnExit = document.getElementById('btn-exit');
+
+const exitModal = document.getElementById('exitModal');
+
+const btnStay = document.getElementById('btnStay');
+
+const btnConfirmExit = document.getElementById('btnConfirmExit');
+
+// Các phần tử bảng nộp bài
+const submitBtn = document.getElementById('submit-exam-btn');
+
+const submitModal = document.getElementById('submitModal');
+
+const btnCancelSubmit = document.getElementById('btnCancelSubmit');
+
+const btnConfirmSubmit = document.getElementById('btnConfirmSubmit');
+
+// Các phần tử danh sách câu hỏi
+const questionButtons = document.querySelectorAll('.question-number');
+
+const questionCards = document.querySelectorAll('.question-card');
+
+const questionProgress = document.getElementById('question-progress');
+
+const startTime = Date.now();
+
+let currentQuestion = 0;
+
+let isSubmitting = false;
+
+let timerInterval = null;
+
+
+// Khi quay lại trang làm bài bằng nút Back của trình duyệt,
+// tải lại trang để tránh sử dụng giao diện làm bài cũ.
+window.addEventListener('pageshow', function(event) {
+
+    const navigation = performance.getEntriesByType('navigation')[0];
+
+    if (
+        event.persisted ||
+        (navigation && navigation.type === 'back_forward')
+    ) {
+        window.location.reload();
     }
 
-    if (btnExit) {
-        btnExit.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            if (confirm('Nếu bạn thoát bây giờ, bài thi vẫn sẽ được tính là 1 lượt làm bài (với 0 điểm nếu chưa chọn đáp án). Bạn có chắc chắn muốn thoát?')) {
-                calculateTimeSpent();
-                
-                btnExit.style.pointerEvents = 'none';
-                btnExit.textContent = 'Đang thoát...';
+});
 
-                const formData = new FormData(examForm);
 
-                fetch('result.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(res => res.json())
-                .then(data => {
-                    window.location.replace('intro_exam.php?exam_id=<?php echo $exam_id; ?>');
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    window.location.replace('index.php');
-                });
-            }
-        });
-    }
+// Tính thời gian đã làm bài.
+function calculateTimeSpent() {
 
-    examForm.addEventListener('submit', function(e) {
-        e.preventDefault();
+    completionTimeInput.value = Math.round(
+        (Date.now() - startTime) / 1000
+    );
 
-        if (!confirm('Bạn có chắc chắn muốn nộp bài?')) {
-            return;
+}
+
+
+// Tìm những câu chưa chọn đáp án.
+function getUnansweredQuestions() {
+
+    const unanswered = [];
+
+    questionCards.forEach((card, index) => {
+
+        const selected = card.querySelector(
+            'input[type="radio"]:checked'
+        );
+
+        if (!selected) {
+            unanswered.push(index);
         }
 
-        calculateTimeSpent();
-
-        const submitBtn = examForm.querySelector('.btn-submit');
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Đang nộp bài...';
-        }
-
-        const formData = new FormData(examForm);
-
-        fetch('result.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.redirect_url) {
-                window.location.replace(data.redirect_url);
-            } else {
-                alert(data.message || 'Có lỗi xảy ra khi nộp bài.');
-                if (submitBtn) submitBtn.disabled = false;
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại mạng.');
-            if (submitBtn) submitBtn.disabled = false;
-        });
     });
 
-    function updateTimer() {
-        let minutes = Math.floor(totalSeconds / 60);
-        let seconds = totalSeconds % 60;
-        
-        timerDisplay.textContent = `${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
-        
-        if (totalSeconds <= 0) {
-            alert('Đã hết giờ làm bài!');
-            calculateTimeSpent();
-            examForm.requestSubmit();
+    return unanswered;
+
+}
+
+
+// Cập nhật màu sắc thanh số câu và số câu đã làm.
+function updateQuestionNavigation() {
+
+    let answeredCount = 0;
+
+    questionButtons.forEach((button, index) => {
+
+        const card = questionCards[index];
+
+        const selected = card
+            ? card.querySelector('input[type="radio"]:checked')
+            : null;
+
+        if (selected) {
+            answeredCount++;
+        }
+
+        button.classList.toggle('answered', !!selected);
+
+        button.classList.toggle(
+            'current',
+            index === currentQuestion
+        );
+
+        button.setAttribute(
+            'aria-label',
+            `Câu ${index + 1}: ${selected ? 'đã làm' : 'chưa làm'}`
+        );
+
+    });
+
+    questionProgress.textContent =
+        `Đã làm ${answeredCount}/${questionCards.length} câu`;
+
+}
+
+
+// Bấm số câu để cuộn đến câu tương ứng.
+questionButtons.forEach((button, index) => {
+
+    button.addEventListener('click', function() {
+
+        currentQuestion = index;
+
+        questionCards[index].scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+
+        updateQuestionNavigation();
+
+    });
+
+});
+
+
+// Khi chọn đáp án, cập nhật thanh câu hỏi.
+document.querySelectorAll(
+    '#exam-form input[type="radio"]'
+).forEach(radio => {
+
+    radio.addEventListener('change', function() {
+
+        const card = radio.closest('.question-card');
+
+        if (card) {
+            card.classList.remove('missing-answer');
+        }
+
+        updateQuestionNavigation();
+
+    });
+
+});
+
+
+// Kiểm tra câu bỏ trống trước khi nộp.
+function validateAllAnswers() {
+
+    const unanswered = getUnansweredQuestions();
+
+    if (unanswered.length === 0) {
+        return true;
+    }
+
+    // Lấy số thứ tự các câu chưa làm
+    const questionNumbers = unanswered.map(index => index + 1);
+
+    // Hiển thị nội dung thông báo
+    document.getElementById('unansweredMessage').textContent =
+        `Bạn vẫn còn ${unanswered.length} câu hỏi chưa được trả lời: ` +
+        `Câu ${questionNumbers.join(', ')}. ` +
+        `Vui lòng hoàn thành các câu hỏi còn thiếu trước khi nộp bài.`;
+
+    // Hiển thị bảng thông báo
+    document.getElementById('unansweredModal').classList.add('show');
+
+    // Đánh dấu câu chưa làm
+    unanswered.forEach(index => {
+        questionButtons[index].classList.add('unanswered-warning');
+    });
+
+    return false;
+}
+// Đóng bảng xác nhận nộp bài.
+function closeSubmitModal() {
+
+    submitModal.classList.remove('show');
+
+    submitModal.setAttribute('aria-hidden', 'true');
+
+}
+
+
+// Mở bảng xác nhận nộp bài.
+function openSubmitModal() {
+
+    submitModal.classList.add('show');
+
+    submitModal.setAttribute('aria-hidden', 'false');
+
+    btnCancelSubmit.focus();
+
+}
+
+
+// Gửi bài lên result.php.
+function submitExam(forceSubmit = false) {
+
+    if (isSubmitting) {
+        return;
+    }
+
+    // Không cho nộp nếu còn câu bỏ trống,
+    // trừ trường hợp hết giờ tự động nộp.
+    if (!forceSubmit && !validateAllAnswers()) {
+        return;
+    }
+
+    isSubmitting = true;
+
+    calculateTimeSpent();
+
+    if (submitBtn) {
+
+        submitBtn.disabled = true;
+
+        submitBtn.textContent = 'Đang nộp bài...';
+
+    }
+
+    if (btnConfirmSubmit) {
+
+        btnConfirmSubmit.disabled = true;
+
+        btnConfirmSubmit.textContent = 'Đang nộp bài...';
+
+    }
+
+    fetch('result.php', {
+
+        method: 'POST',
+
+        body: new FormData(examForm)
+
+    })
+
+    .then(response => {
+
+        if (!response.ok) {
+
+            throw new Error(
+                'Máy chủ trả về lỗi HTTP ' + response.status
+            );
+
+        }
+
+        return response.json();
+
+    })
+
+    .then(data => {
+
+        if (data.success && data.redirect_url) {
+
+            window.location.replace(data.redirect_url);
+
         } else {
-            totalSeconds--;
+
+            alert(data.message || 'Có lỗi xảy ra khi nộp bài.');
+
+            isSubmitting = false;
+
+            submitBtn.disabled = false;
+
+            submitBtn.textContent = 'Nộp bài';
+
+            btnConfirmSubmit.disabled = false;
+
+            btnConfirmSubmit.textContent = 'Xác nhận nộp bài';
+
         }
+
+    })
+
+    .catch(error => {
+
+        console.error(error);
+
+        alert(
+            'Không thể kết nối đến máy chủ. ' +
+            'Vui lòng kiểm tra lại và thử nộp bài.'
+        );
+
+        isSubmitting = false;
+
+        submitBtn.disabled = false;
+
+        submitBtn.textContent = 'Nộp bài';
+
+        btnConfirmSubmit.disabled = false;
+
+        btnConfirmSubmit.textContent = 'Xác nhận nộp bài';
+
+    });
+
+}
+
+
+// Bấm nút Nộp bài trên thanh danh sách câu hỏi.
+submitBtn.addEventListener('click', function() {
+
+    if (isSubmitting) {
+        return;
     }
-    
-    setInterval(updateTimer, 1000);
-    updateTimer();
-    </script>
+
+    // Nếu còn câu chưa làm, hiện bảng thông báo
+    if (!validateAllAnswers()) {
+        return;
+    }
+
+    // Nếu đã làm hết, hiện bảng xác nhận nộp bài
+    openSubmitModal();
+
+});
+// =====================================
+// XỬ LÝ BẢNG THÔNG BÁO CÂU CHƯA LÀM
+// =====================================
+
+const unansweredModal = document.getElementById('unansweredModal');
+
+const btnCloseUnanswered = document.getElementById('btnCloseUnanswered');
+
+// Bấm Tiếp tục làm bài để đóng bảng thông báo
+btnCloseUnanswered.addEventListener('click', function(event) {
+
+    event.preventDefault();
+
+    // Đóng bảng thông báo
+    unansweredModal.classList.remove('show');
+
+    unansweredModal.setAttribute('aria-hidden', 'true');
+
+    // Xóa hiệu ứng cảnh báo ở các câu chưa làm
+    questionButtons.forEach(button => {
+        button.classList.remove('unanswered-warning');
+    });
+
+    // Không nộp bài, không khóa giao diện
+    isSubmitting = false;
+
+});
+
+// Bấm Tiếp tục làm bài.
+btnCancelSubmit.addEventListener('click', function() {
+
+    closeSubmitModal();
+
+    submitBtn.focus();
+
+});
+
+
+// =====================================
+// XÁC NHẬN NỘP BÀI
+// =====================================
+
+btnConfirmSubmit.addEventListener('click', function() {
+
+    if (isSubmitting) {
+        return;
+    }
+
+    closeSubmitModal();
+
+    submitExam(false);
+
+});
+
+// Bấm vùng tối bên ngoài bảng xác nhận để đóng.
+submitModal.addEventListener('click', function(event) {
+
+    if (event.target === submitModal) {
+
+        closeSubmitModal();
+
+        submitBtn.focus();
+
+    }
+
+});
+
+
+// Mở bảng xác nhận thoát khi bấm nút Thoát.
+btnExit.addEventListener('click', function(event) {
+
+    event.preventDefault();
+
+    if (isSubmitting) {
+        return;
+    }
+
+    exitModal.classList.add('show');
+
+    exitModal.setAttribute('aria-hidden', 'false');
+
+    btnStay.focus();
+
+});
+
+
+// Đóng bảng xác nhận thoát.
+function closeExitModal() {
+
+    exitModal.classList.remove('show');
+
+    exitModal.setAttribute('aria-hidden', 'true');
+
+    btnExit.focus();
+
+}
+
+
+// Chọn ở lại: đóng bảng và tiếp tục làm bài.
+btnStay.addEventListener('click', closeExitModal);
+
+
+// Xác nhận thoát: chuyển về trang chủ, không tự nộp bài.
+btnConfirmExit.addEventListener('click', function() {
+
+    window.location.href = btnExit.href;
+
+});
+
+
+// Bấm vùng tối bên ngoài bảng thoát để đóng.
+exitModal.addEventListener('click', function(event) {
+
+    if (event.target === exitModal) {
+
+        closeExitModal();
+
+    }
+
+});
+
+
+// Nhấn ESC để đóng bảng đang mở.
+document.addEventListener('keydown', function(event) {
+
+    if (event.key === 'Escape') {
+
+        if (submitModal.classList.contains('show')) {
+
+            closeSubmitModal();
+
+            submitBtn.focus();
+
+        } else if (exitModal.classList.contains('show')) {
+
+            closeExitModal();
+
+        }
+
+    }
+
+});
+
+
+// Đồng hồ đếm ngược dựa trên mốc thời gian thực.
+const examDeadline = Date.now() + (totalSeconds * 1000);
+
+let timeExpiredHandled = false;
+
+
+function updateTimer() {
+
+    const remainingMilliseconds = Math.max(
+        0,
+        examDeadline - Date.now()
+    );
+
+    totalSeconds = Math.ceil(
+        remainingMilliseconds / 1000
+    );
+
+    const minutes = Math.floor(totalSeconds / 60);
+
+    const seconds = totalSeconds % 60;
+
+    timerDisplay.textContent =
+        String(minutes).padStart(2, '0') + ':' +
+        String(seconds).padStart(2, '0');
+
+    if (totalSeconds <= 0 && !timeExpiredHandled) {
+
+        timeExpiredHandled = true;
+
+        clearInterval(timerInterval);
+
+        alert(
+            'Đã hết giờ làm bài! ' +
+            'Hệ thống sẽ tự động nộp bài với các đáp án hiện có.'
+        );
+
+        // Khi hết giờ, tự động nộp kể cả còn câu chưa làm.
+        closeSubmitModal();
+
+        submitExam(true);
+
+    }
+
+}
+
+
+// Khởi tạo giao diện và đồng hồ.
+updateQuestionNavigation();
+
+updateTimer();
+
+timerInterval = setInterval(updateTimer, 250);
+
+</script>
+
 </body>
 </html>
