@@ -1,6 +1,8 @@
 <?php
 session_start();
+date_default_timezone_set('Asia/Ho_Chi_Minh');
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/exam_attempts.php';
 
 // Lấy ID đề thi từ URL
 $exam_id = filter_input(INPUT_GET, 'exam_id', FILTER_VALIDATE_INT);
@@ -16,7 +18,15 @@ if (isset($_SESSION['exam_completed_' . $exam_id])) {
 
 // Lấy thông tin đề thi
 $stmt = $conn->prepare("
-    SELECT exam_id, title, grade, duration, total_questions, max_attempts
+    SELECT 
+        exam_id,
+        title,
+        grade,
+        duration,
+        total_questions,
+        max_attempts,
+        start_time,
+        end_time
     FROM exam
     WHERE exam_id = :exam_id
     LIMIT 1
@@ -35,8 +45,13 @@ $maxAttempts = (int)($exam['max_attempts'] ?? 0);
 // Đếm số lượt học sinh hiện tại đã làm đề thi này
 $userId = $_SESSION['user_id'] ?? null;
 $attemptCount = 0;
+$hasInProgress = false;
 
 if ($userId !== null) {
+    // Đóng các lượt làm dở đã quá hạn, rồi kiểm tra học viên có lượt đang làm không.
+    close_expired_attempts($conn);
+    $hasInProgress = find_in_progress_attempt($conn, (int) $userId, $exam_id) !== null;
+
     $stmtAttempts = $conn->prepare("
         SELECT COUNT(*)
         FROM exam_results
@@ -82,6 +97,41 @@ $questionCount = (int) $stmtCount->fetchColumn();
 $title = $exam['title'] ?? 'Bài thi Lịch sử';
 $grade = $exam['grade'] ?? '';
 $duration = max(1, (int) ($exam['duration'] ?? 1));
+// Lấy thời gian hiện tại theo múi giờ Việt Nam
+$now = new DateTimeImmutable('now', new DateTimeZone('Asia/Ho_Chi_Minh'));
+
+// Lấy thời gian mở đề
+$startTime = !empty($exam['start_time'])
+    ? new DateTimeImmutable($exam['start_time'], new DateTimeZone('Asia/Ho_Chi_Minh'))
+    : null;
+
+// Lấy thời gian khóa đề
+$endTime = !empty($exam['end_time'])
+    ? new DateTimeImmutable($exam['end_time'], new DateTimeZone('Asia/Ho_Chi_Minh'))
+    : null;
+
+// Kiểm tra trạng thái đề thi
+$examNotOpened = $startTime !== null && $now < $startTime;
+
+$examClosed = $endTime !== null && $now >= $endTime;
+
+// Kiểm tra số lượt làm bài
+$hasAttemptsLeft = $maxAttempts === 0 || $attemptCount < $maxAttempts;
+
+// Kiểm tra học sinh có được bắt đầu thi không
+// Lượt đang làm dở được tiếp tục dù đề đã khóa hoặc đã dùng hết lượt.
+$canStartExam = !$examNotOpened
+    && $questionCount > 0
+    && ($hasInProgress || (!$examClosed && $hasAttemptsLeft));
+
+// Định dạng thời gian hiển thị
+$startTimeText = $startTime
+    ? $startTime->format('d/m/Y H:i')
+    : 'Không thiết lập';
+
+$endTimeText = $endTime
+    ? $endTime->format('d/m/Y H:i')
+    : 'Không thiết lập';
 $h = static fn($value) => htmlspecialchars(
     (string) $value,
     ENT_QUOTES,
@@ -425,7 +475,57 @@ $h = static fn($value) => htmlspecialchars(
                     <div class="info-label">📝 Số câu hỏi</div>
                     <div class="info-value"><?= $questionCount ?> câu</div>
                 </div>
+
+                <div class="info-item">
+                    <div class="info-label">🟢 Thời gian mở đề</div>
+                    <div class="info-value" style="font-size: 17px;">
+                        <?= $h($startTimeText) ?>
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-label">🔒 Thời gian khóa đề</div>
+                    <div class="info-value" style="font-size: 17px;">
+                        <?= $h($endTimeText) ?>
+                    </div>
+                </div>
             </div>
+
+            <?php if ($hasInProgress): ?>
+
+    <div class="notice">
+        Bạn đang có một lượt làm bài chưa hoàn thành. Bấm "Tiếp tục làm bài"
+        để quay lại, thời gian còn lại vẫn được tính từ lúc bạn bắt đầu.
+    </div>
+
+<?php elseif ($examNotOpened): ?>
+
+    <div class="empty">
+        Đề thi chưa mở. Vui lòng quay lại vào lúc
+        <?= $h($startTimeText) ?>.
+    </div>
+
+<?php elseif ($examClosed): ?>
+
+    <div class="empty">
+        Đề thi đã kết thúc vào lúc
+        <?= $h($endTimeText) ?>.
+        Bạn không thể bắt đầu lượt thi mới.
+    </div>
+
+<?php elseif (!$hasAttemptsLeft): ?>
+
+    <div class="empty">
+        Bạn đã sử dụng hết số lượt làm bài cho phép.
+    </div>
+
+<?php elseif ($questionCount > 0): ?>
+
+    <div class="notice">
+        Đề thi hiện đang mở. Bạn có thể bắt đầu làm bài.
+    </div>
+
+<?php endif; ?>
 
             <?php if ($questionCount === 0): ?>
                 <div class="empty">
@@ -464,6 +564,7 @@ $h = static fn($value) => htmlspecialchars(
             <div class="notice">
                 ⚠️ Khi bắt đầu, bạn sẽ được chuyển đến trang làm bài.
                 Hãy chỉ bắt đầu khi bạn đã sẵn sàng.
+                Lượt làm bài được tính ngay khi bắt đầu, kể cả khi bạn thoát giữa chừng.
             </div>
 
             <form action="take_exam.php" method="GET" id="start-form">
@@ -487,7 +588,7 @@ $h = static fn($value) => htmlspecialchars(
                         id="start-button"
                         disabled
                     >
-                        Bắt đầu thi →
+                        <?= $hasInProgress ? 'Tiếp tục làm bài →' : 'Bắt đầu thi →' ?>
                     </button>
                 </div>
             </form>
@@ -498,16 +599,21 @@ $h = static fn($value) => htmlspecialchars(
 <script>
     const readyCheck = document.getElementById('ready-check');
     const startButton = document.getElementById('start-button');
+
     const questionCount = <?= $questionCount ?>;
+    const canStartExam = <?= $canStartExam ? 'true' : 'false' ?>;
 
     readyCheck.addEventListener('change', function () {
-        startButton.disabled = !this.checked || questionCount <= 0;
+        startButton.disabled = !this.checked
+            || questionCount <= 0
+            || !canStartExam;
     });
 
     document.getElementById('start-form').addEventListener('submit', function (event) {
-        if (!readyCheck.checked || questionCount <= 0) {
+        if (!readyCheck.checked || questionCount <= 0 || !canStartExam) {
             event.preventDefault();
-            alert('Vui lòng xác nhận đã sẵn sàng và kiểm tra đề thi có câu hỏi.');
+
+            alert('Hiện tại bạn chưa thể bắt đầu bài thi.');
         }
     });
 </script>
