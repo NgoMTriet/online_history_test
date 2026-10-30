@@ -17,7 +17,7 @@ $user_id = (int) $_SESSION['user_id'];
 $message = '';
 $user_info = [];
 
-// Lấy thông tin người dùng hiện tại (Đã thêm class_name và dob)
+// Lấy thông tin người dùng hiện tại
 function getUserInfo(PDO $conn, int $userId): array
 {
     $stmt = $conn->prepare(
@@ -54,7 +54,7 @@ try {
         $fullName = trim($_POST['full_name'] ?? '');
         $email = trim($_POST['email'] ?? '');
         $className = trim($_POST['class_name'] ?? '');
-        $dob = trim($_POST['dob'] ?? '');
+        $dobInput = trim($_POST['dob'] ?? '');
         $password = $_POST['current_password'] ?? '';
         $newPassword = $_POST['new_password'] ?? '';
         $confirmPassword = $_POST['confirm_password'] ?? '';
@@ -96,8 +96,8 @@ try {
             }
         }
 
-        // Chuẩn hóa dữ liệu ngày sinh (nếu rỗng thì để NULL)
-        $dobValue = $dob !== '' ? $dob : null;
+        // Chuẩn hóa dữ liệu ngày sinh: Nếu rỗng thì gán NULL để tránh lỗi SQL DATE
+        $dob = !empty($dobInput) ? $dobInput : null;
 
         // Cập nhật thông tin vào CSDL
         if ($changePassword) {
@@ -111,7 +111,7 @@ try {
                 $fullName,
                 $email,
                 $className,
-                $dobValue,
+                $dob,
                 password_hash($newPassword, PASSWORD_DEFAULT),
                 $user_id
             ]);
@@ -122,7 +122,13 @@ try {
                  WHERE user_id = ?'
             );
 
-            $stmt->execute([$fullName, $email, $className, $dobValue, $user_id]);
+            $stmt->execute([
+                $fullName,
+                $email,
+                $className,
+                $dob,
+                $user_id
+            ]);
         }
 
         // Đồng bộ thông tin với session đăng nhập
@@ -401,7 +407,7 @@ try {
                     >
                 </div>
 
-                <!-- BỔ SUNG: CỘT LỚP HỌC VÀ NGÀY SINH -->
+                <!-- CỘT LỚP HỌC VÀ NGÀY SINH -->
                 <div class="form-row">
                     <div class="form-group">
                         <label for="class_name">Lớp học</label>

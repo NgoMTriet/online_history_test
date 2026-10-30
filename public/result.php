@@ -10,6 +10,11 @@ header('Pragma: no-cache');
 header('Expires: 0');
 
 if (empty($_SESSION['user_id'])) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Vui lòng đăng nhập lại.']);
+        exit;
+    }
     header('Location: login.php');
     exit;
 }
@@ -19,85 +24,126 @@ $is_post_submit = $_SERVER['REQUEST_METHOD'] === 'POST'
     && (($_POST['action'] ?? '') === 'submit_exam');
 
 if ($is_post_submit) {
+    header('Content-Type: application/json');
+
     $exam_id = (int) ($_POST['exam_id'] ?? 0);
     $user_answers = $_POST['answers'] ?? [];
     $completion_time = max(0, (int) ($_POST['completion_time'] ?? 0));
+    
     if ($exam_id <= 0 || !is_array($user_answers)) {
-        exit('Thông tin bài thi không hợp lệ.');
+        echo json_encode(['success' => false, 'message' => 'Thông tin bài thi không hợp lệ.']);
+        exit;
     }
 
     try {
-        // Nếu bài này đã được nộp trước đó, không lưu lần hai; hiển thị kết quả đã lưu.
-        $existing = $conn->prepare('SELECT result_id FROM exam_results WHERE user_id = :uid AND exam_id = :eid ORDER BY result_id DESC LIMIT 1');
-        $existing->execute(['uid' => $user_id, 'eid' => $exam_id]);
-        $result_id = (int) ($existing->fetchColumn() ?: 0);
-
-        if ($result_id === 0) {
-            $stmt_exam = $conn->prepare('SELECT title FROM exam WHERE exam_id = :eid LIMIT 1');
-            $stmt_exam->execute(['eid' => $exam_id]);
-            $exam_title = $stmt_exam->fetchColumn();
-            if ($exam_title === false) exit('Không tìm thấy đề thi.');
-
-            $stmt_qs = $conn->prepare('SELECT q.question_id, q.content AS question, q.explanation FROM questions q INNER JOIN exam_questions eq ON q.question_id = eq.question_id WHERE eq.exam_id = :eid');
-            $stmt_qs->execute(['eid' => $exam_id]);
-            $questions = $stmt_qs->fetchAll(PDO::FETCH_ASSOC);
-            $total_questions = count($questions);
-            if ($total_questions === 0) exit('Đề thi chưa có câu hỏi.');
-
-            $correct_count = 0;
-            $answer_rows = [];
-            $stmt_ans = $conn->prepare('SELECT answer_id, is_correct FROM answers WHERE question_id = :qid');
-            foreach ($questions as $q) {
-                $qid = (int) $q['question_id'];
-                $stmt_ans->execute(['qid' => $qid]);
-                $answers = $stmt_ans->fetchAll(PDO::FETCH_ASSOC);
-                $selected = $user_answers[$qid] ?? null;
-                if ($selected === null || $selected === '') {
-                    $selected = null;
-                } else {
-                    $selected = filter_var($selected, FILTER_VALIDATE_INT);
-                    if ($selected === false) $selected = null;
-                }
-                $valid = false;
-                $correct = false;
-                foreach ($answers as $a) {
-                    if ($selected !== null && (int)$a['answer_id'] === (int)$selected) {
-                        $valid = true;
-                        $correct = (int)$a['is_correct'] === 1;
-                        break;
-                    }
-                }
-                if (!$valid) $selected = null;
-                if ($correct) $correct_count++;
-                $answer_rows[] = ['question_id'=>$qid, 'selected_answer_id'=>$selected, 'is_correct'=>$correct ? 1 : 0];
-            }
-            $score = round(($correct_count / $total_questions) * 10, 2);
-            $status = $score >= 5 ? 'PASSED' : 'FAILED';
-
-            $conn->beginTransaction();
-            // Kiểm tra lần nữa trong transaction để hạn chế nộp trùng.
-            $existing2 = $conn->prepare('SELECT result_id FROM exam_results WHERE user_id = :uid AND exam_id = :eid ORDER BY result_id DESC LIMIT 1 FOR UPDATE');
-            $existing2->execute(['uid'=>$user_id, 'eid'=>$exam_id]);
-            $result_id = (int) ($existing2->fetchColumn() ?: 0);
-            if ($result_id === 0) {
-                $insert = $conn->prepare('INSERT INTO exam_results (user_id, exam_id, score, correct_answers_count, total_questions, completion_time, status) VALUES (:uid, :eid, :score, :correct_count, :total_count, :completion_time, :status)');
-                $insert->execute(['uid'=>$user_id, 'eid'=>$exam_id, 'score'=>$score, 'correct_count'=>$correct_count, 'total_count'=>$total_questions, 'completion_time'=>$completion_time, 'status'=>$status]);
-                $result_id = (int)$conn->lastInsertId();
-                $insertAnswer = $conn->prepare('INSERT INTO student_answers (result_id, question_id, selected_answer_id, is_correct) VALUES (:rid, :qid, :aid, :correct)');
-                foreach ($answer_rows as $r) {
-                    $insertAnswer->execute(['rid'=>$result_id, 'qid'=>$r['question_id'], 'aid'=>$r['selected_answer_id'], 'correct'=>$r['is_correct']]);
-                }
-            }
-            $conn->commit();
+        // 1. Kiểm tra thông tin đề thi & số lượt tối đa
+        $stmt_exam = $conn->prepare('SELECT title, max_attempts FROM exam WHERE exam_id = :eid LIMIT 1');
+        $stmt_exam->execute(['eid' => $exam_id]);
+        $exam_info = $stmt_exam->fetch(PDO::FETCH_ASSOC);
+        if (!$exam_info) {
+            echo json_encode(['success' => false, 'message' => 'Không tìm thấy đề thi.']);
+            exit;
         }
+
+        $exam_title = $exam_info['title'];
+        $max_attempts = (int)($exam_info['max_attempts'] ?? 0);
+
+        // 2. Đếm số lượt người dùng đã nộp trước đó
+        $stmt_count = $conn->prepare('SELECT COUNT(*) FROM exam_results WHERE user_id = :uid AND exam_id = :eid');
+        $stmt_count->execute(['uid' => $user_id, 'eid' => $exam_id]);
+        $current_attempts = (int) $stmt_count->fetchColumn();
+
+        if ($max_attempts > 0 && $current_attempts >= $max_attempts) {
+            echo json_encode(['success' => false, 'message' => 'Bạn đã hết số lượt làm bài cho đề thi này.']);
+            exit;
+        }
+
+        // 3. Lấy danh sách câu hỏi
+        $stmt_qs = $conn->prepare('SELECT q.question_id, q.content AS question, q.explanation FROM questions q INNER JOIN exam_questions eq ON q.question_id = eq.question_id WHERE eq.exam_id = :eid');
+        $stmt_qs->execute(['eid' => $exam_id]);
+        $questions = $stmt_qs->fetchAll(PDO::FETCH_ASSOC);
+        $total_questions = count($questions);
+        
+        if ($total_questions === 0) {
+            echo json_encode(['success' => false, 'message' => 'Đề thi chưa có câu hỏi.']);
+            exit;
+        }
+
+        // 4. Chấm điểm
+        $correct_count = 0;
+        $answer_rows = [];
+        $stmt_ans = $conn->prepare('SELECT answer_id, is_correct FROM answers WHERE question_id = :qid');
+        foreach ($questions as $q) {
+            $qid = (int) $q['question_id'];
+            $stmt_ans->execute(['qid' => $qid]);
+            $answers = $stmt_ans->fetchAll(PDO::FETCH_ASSOC);
+            $selected = $user_answers[$qid] ?? null;
+            if ($selected === null || $selected === '') {
+                $selected = null;
+            } else {
+                $selected = filter_var($selected, FILTER_VALIDATE_INT);
+                if ($selected === false) $selected = null;
+            }
+            $valid = false;
+            $correct = false;
+            foreach ($answers as $a) {
+                if ($selected !== null && (int)$a['answer_id'] === (int)$selected) {
+                    $valid = true;
+                    $correct = (int)$a['is_correct'] === 1;
+                    break;
+                }
+            }
+            if (!$valid) $selected = null;
+            if ($correct) $correct_count++;
+            $answer_rows[] = ['question_id'=>$qid, 'selected_answer_id'=>$selected, 'is_correct'=>$correct ? 1 : 0];
+        }
+        $score = round(($correct_count / $total_questions) * 10, 2);
+        $status = $score >= 5 ? 'PASSED' : 'FAILED';
+
+        // 5. Lưu kết quả vào CSDL
+        $conn->beginTransaction();
+        $insert = $conn->prepare('INSERT INTO exam_results (user_id, exam_id, score, correct_answers_count, total_questions, completion_time, status) VALUES (:uid, :eid, :score, :correct_count, :total_count, :completion_time, :status)');
+        $insert->execute([
+            'uid' => $user_id,
+            'eid' => $exam_id,
+            'score' => $score,
+            'correct_count' => $correct_count,
+            'total_count' => $total_questions,
+            'completion_time' => $completion_time,
+            'status' => $status
+        ]);
+        $result_id = (int)$conn->lastInsertId();
+
+        $insertAnswer = $conn->prepare('INSERT INTO student_answers (result_id, question_id, selected_answer_id, is_correct) VALUES (:rid, :qid, :aid, :correct)');
+        foreach ($answer_rows as $r) {
+            $insertAnswer->execute([
+                'rid' => $result_id,
+                'qid' => $r['question_id'],
+                'aid' => $r['selected_answer_id'],
+                'correct' => $r['is_correct']
+            ]);
+        }
+        $conn->commit();
+
+        // Ghi nhận session
+        $_SESSION['submitted_exam_result_' . $exam_id] = $result_id;
+        $_SESSION['exam_completed_' . $exam_id] = true;
+
+        // Trả về URL chuyển hướng dạng JSON
+        echo json_encode([
+            'success' => true,
+            'redirect_url' => 'result.php?result_id=' . $result_id
+        ]);
+        exit;
+
     } catch (Throwable $e) {
         if ($conn->inTransaction()) $conn->rollBack();
         error_log('Lỗi nộp bài thi: ' . $e->getMessage());
         http_response_code(500);
-        exit('Không thể lưu kết quả bài thi. Vui lòng kiểm tra nhật ký lỗi PHP/MySQL.');
+        echo json_encode(['success' => false, 'message' => 'Không thể lưu kết quả bài thi.']);
+        exit;
     }
 } else {
-    // Khi mở trực tiếp trang kết quả, chỉ hiển thị kết quả đã lưu của người dùng.
     $result_id = (int) ($_GET['result_id'] ?? 0);
     if ($result_id <= 0) {
         header('Location: index.php');

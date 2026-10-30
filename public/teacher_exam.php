@@ -1,4 +1,7 @@
 <?php
+// ⏱️ Thiết lập múi giờ Việt Nam để lưu start_time & end_time vào Database chuẩn giờ +7
+date_default_timezone_set('Asia/Ho_Chi_Minh');
+
 require_once __DIR__ . '/../config/database.php';
 
 $message = '';
@@ -20,6 +23,27 @@ if (
     $examPassword = trim($_POST['exam_password'] ?? ''); // Mật khẩu bài thi
     $mode = $_POST['create_mode'] ?? 'manual';
 
+    // ⏱️ Xử lý thời gian mở đề thi (start_time)
+    $startTimeRaw = trim($_POST['start_time'] ?? '');
+    $startTime = null;
+    if ($startTimeRaw !== '') {
+        $timestampStart = strtotime($startTimeRaw);
+        if ($timestampStart !== false) {
+            $startTime = date('Y-m-d H:i:s', $timestampStart);
+        }
+    }
+
+    // 🛑 Xử lý thời gian đóng đề thi (end_time)
+    $endTimeRaw = trim($_POST['end_time'] ?? '');
+    $endTime = null;
+    if ($endTimeRaw !== '') {
+        $timestampEnd = strtotime($endTimeRaw);
+        if ($timestampEnd !== false) {
+            $endTime = date('Y-m-d H:i:s', $timestampEnd);
+        }
+    }
+
+    // Validation kiểm tra hợp lệ
     if ($title === '') {
         $message = 'Vui lòng nhập tên đề thi.';
         $messageType = 'danger';
@@ -31,6 +55,9 @@ if (
         $messageType = 'danger';
     } elseif ($maxAttempts < 0) {
         $message = 'Số lần làm bài không hợp lệ.';
+        $messageType = 'danger';
+    } elseif ($startTime !== null && $endTime !== null && strtotime($endTime) <= strtotime($startTime)) {
+        $message = 'Thời gian đóng đề thi phải sau thời gian mở đề thi.';
         $messageType = 'danger';
     } elseif (!in_array($mode, ['manual', 'auto'], true)) {
         $message = 'Phương thức chọn câu hỏi không hợp lệ.';
@@ -139,17 +166,19 @@ if (
 
             $conn->beginTransaction();
 
-            // Lưu thông tin đề thi (có lưu exam_password)
+            // Lưu thông tin đề thi (có lưu start_time, end_time và exam_password)
             $stmtExam = $conn->prepare(
                 "INSERT INTO exam
-                 (title, grade, duration, max_attempts, exam_password, total_questions, is_randomized)
-                 VALUES (:title, :grade, :duration, :max_attempts, :exam_password, :total_questions, :is_randomized)"
+                 (title, grade, duration, start_time, end_time, max_attempts, exam_password, total_questions, is_randomized)
+                 VALUES (:title, :grade, :duration, :start_time, :end_time, :max_attempts, :exam_password, :total_questions, :is_randomized)"
             );
 
             $stmtExam->execute([
                 'title' => $title,
                 'grade' => $grade,
                 'duration' => $duration,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
                 'max_attempts' => $maxAttempts,
                 'exam_password' => $examPassword !== '' ? $examPassword : null,
                 'total_questions' => $totalQuestions,
@@ -205,11 +234,20 @@ $stmtQuestions = $conn->query(
 $questionsBank = $stmtQuestions->fetchAll(PDO::FETCH_ASSOC);
 $questionCounts = [6 => 0, 7 => 0, 8 => 0, 9 => 0];
 
+// Mảng rút gọn gửi qua JavaScript để tính toán số lượng khả dụng
+$jsQuestionsData = [];
+
 foreach ($questionsBank as $question) {
     $g = (int)$question['grade'];
     if (isset($questionCounts[$g])) {
         $questionCounts[$g]++;
     }
+
+    $jsQuestionsData[] = [
+        'g' => (int)$question['grade'],
+        't' => (int)$question['topic_id'],
+        'd' => strtoupper($question['difficulty'] ?? 'EASY')
+    ];
 }
 ?>
 
@@ -328,7 +366,7 @@ foreach ($questionsBank as $question) {
             font-weight: 700;
         }
 
-        input[type="text"], input[type="password"], input[type="number"], select {
+        input[type="text"], input[type="password"], input[type="number"], input[type="datetime-local"], select {
             width: 100%;
             min-height: 45px;
             padding: 11px 13px;
@@ -345,9 +383,9 @@ foreach ($questionsBank as $question) {
             box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
         }
 
-        .form-grid-4 {
+        .form-grid-3 {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 16px;
         }
 
@@ -428,6 +466,17 @@ foreach ($questionsBank as $question) {
         .badge-medium { background: #fef3c7; color: #92400e; }
         .badge-hard { background: #fee2e2; color: #991b1b; }
 
+        .avail-badge {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 6px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+        }
+
         .auto-panel {
             padding: 22px;
             border: 1px solid #bfdbfe;
@@ -464,11 +513,11 @@ foreach ($questionsBank as $question) {
         [hidden] { display: none !important; }
 
         @media (max-width: 900px) {
-            .form-grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .form-grid-3 { grid-template-columns: repeat(2, 1fr); }
         }
 
         @media (max-width: 768px) {
-            .form-grid-4, .three-columns, .mode-box { grid-template-columns: 1fr; }
+            .form-grid-3, .three-columns, .mode-box { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -482,7 +531,7 @@ foreach ($questionsBank as $question) {
             <div>
                 <h1>Tạo đề thi mới</h1>
                 <p class="page-description">
-                    Thiết lập đề thi, giới hạn số lần làm, mật khẩu bảo vệ và cấu trúc câu hỏi.
+                    Thiết lập đề thi, thời gian mở/đóng đề, lượt làm, mật khẩu bảo vệ và cấu trúc câu hỏi.
                 </p>
             </div>
         </div>
@@ -505,7 +554,7 @@ foreach ($questionsBank as $question) {
                 <div class="step-number">01</div>
                 <div>
                     <h2>Thông tin chung</h2>
-                    <p class="section-description">Tên đề thi, khối lớp, thời gian, lượt làm bài và mật khẩu truy cập.</p>
+                    <p class="section-description">Tên đề thi, khối lớp, thời gian làm bài, khung giờ mở/đóng đề và mật khẩu truy cập.</p>
                 </div>
             </div>
 
@@ -514,7 +563,7 @@ foreach ($questionsBank as $question) {
                 <input type="text" id="title" name="title" placeholder="Ví dụ: Đề thi Ôn tập Chương 1 - Lịch sử 9" required>
             </div>
 
-            <div class="form-grid-4">
+            <div class="form-grid-3">
                 <div class="form-group">
                     <label for="gradeSelect">Khối lớp</label>
                     <select name="grade" id="gradeSelect">
@@ -527,7 +576,7 @@ foreach ($questionsBank as $question) {
                 </div>
 
                 <div class="form-group">
-                    <label for="duration">Thời gian (phút)</label>
+                    <label for="duration">Thời gian làm bài (phút)</label>
                     <input type="number" id="duration" name="duration" value="15" min="1" max="300" required>
                 </div>
 
@@ -540,6 +589,20 @@ foreach ($questionsBank as $question) {
                         <option value="3">3 lần</option>
                         <option value="5">5 lần</option>
                     </select>
+                </div>
+
+                <!-- ⏱️ Ô CHỌN THỜI GIAN MỞ ĐỀ THI -->
+                <div class="form-group">
+                    <label for="startTime">📅 Thời gian mở đề thi</label>
+                    <input type="datetime-local" id="startTime" name="start_time">
+                    <small style="color: #64748b; font-size: 12px; display: block; margin-top: 4px;">Để trống nếu muốn mở đề ngay lập tức.</small>
+                </div>
+
+                <!-- 🛑 Ô CHỌN THỜI GIAN ĐÓNG ĐỀ THI -->
+                <div class="form-group">
+                    <label for="endTime">🛑 Thời gian đóng đề thi</label>
+                    <input type="datetime-local" id="endTime" name="end_time">
+                    <small style="color: #64748b; font-size: 12px; display: block; margin-top: 4px;">Quá thời gian này học sinh không thể vào thi.</small>
                 </div>
 
                 <!-- Ô NHẬP MẬT KHẨU ĐỀ THI -->
@@ -624,16 +687,25 @@ foreach ($questionsBank as $question) {
                     <label style="margin-top: 15px;">Cấu hình số lượng câu hỏi theo 3 mức độ:</label>
                     <div class="three-columns" style="margin-top: 10px;">
                         <div class="form-group">
-                            <label style="font-weight: 500; color: #166534;">🟢 Nhận biết (EASY)</label>
-                            <input type="number" class="auto-input" name="count_easy" value="5" min="0" max="50" disabled>
+                            <label style="font-weight: 600; color: #166534;">
+                                🟢 Nhận biết (EASY)
+                                <span class="avail-badge" id="availEasy">Hiện có: 0</span>
+                            </label>
+                            <input type="number" class="auto-input" id="countEasy" name="count_easy" value="5" min="0" max="50" disabled>
                         </div>
                         <div class="form-group">
-                            <label style="font-weight: 500; color: #92400e;">🟡 Thông hiểu (MEDIUM)</label>
-                            <input type="number" class="auto-input" name="count_medium" value="3" min="0" max="50" disabled>
+                            <label style="font-weight: 600; color: #92400e;">
+                                🟡 Thông hiểu (MEDIUM)
+                                <span class="avail-badge" id="availMedium">Hiện có: 0</span>
+                            </label>
+                            <input type="number" class="auto-input" id="countMedium" name="count_medium" value="3" min="0" max="50" disabled>
                         </div>
                         <div class="form-group">
-                            <label style="font-weight: 500; color: #991b1b;">🔴 Vận dụng (HARD)</label>
-                            <input type="number" class="auto-input" name="count_hard" value="2" min="0" max="50" disabled>
+                            <label style="font-weight: 600; color: #991b1b;">
+                                🔴 Vận dụng (HARD)
+                                <span class="avail-badge" id="availHard">Hiện có: 0</span>
+                            </label>
+                            <input type="number" class="auto-input" id="countHard" name="count_hard" value="2" min="0" max="50" disabled>
                         </div>
                     </div>
                 </div>
@@ -647,6 +719,9 @@ foreach ($questionsBank as $question) {
 </div>
 
 <script>
+    // Dữ liệu ngân hàng câu hỏi dùng để đếm tự động
+    const questionsData = <?= json_encode($jsQuestionsData, JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+
     const gradeSelect = document.getElementById('gradeSelect');
     const modeManual = document.getElementById('modeManual');
     const modeAuto = document.getElementById('modeAuto');
@@ -656,6 +731,46 @@ foreach ($questionsBank as $question) {
     const autoInputs = document.querySelectorAll('.auto-input');
     const questionSearch = document.getElementById('questionSearch');
     const selectedCount = document.getElementById('selectedCount');
+
+    // Các phần tử thời gian
+    const startTimeInput = document.getElementById('startTime');
+    const endTimeInput = document.getElementById('endTime');
+
+    // Thẻ hiển thị số lượng khả dụng
+    const availEasy = document.getElementById('availEasy');
+    const availMedium = document.getElementById('availMedium');
+    const availHard = document.getElementById('availHard');
+
+    const countEasyInput = document.getElementById('countEasy');
+    const countMediumInput = document.getElementById('countMedium');
+    const countHardInput = document.getElementById('countHard');
+
+    // Cập nhật đếm số câu hiện có theo Khối lớp & Chủ đề đang chọn
+    function updateAvailableCounts() {
+        const selectedGrade = parseInt(gradeSelect.value, 10);
+        const selectedTopicId = parseInt(autoTopic.value, 10);
+
+        let easyCount = 0;
+        let mediumCount = 0;
+        let hardCount = 0;
+
+        questionsData.forEach(q => {
+            if (q.g === selectedGrade && (selectedTopicId === 0 || q.t === selectedTopicId)) {
+                if (q.d === 'EASY') easyCount++;
+                else if (q.d === 'MEDIUM') mediumCount++;
+                else if (q.d === 'HARD') hardCount++;
+            }
+        });
+
+        availEasy.textContent = `Hiện có: ${easyCount}`;
+        availMedium.textContent = `Hiện có: ${mediumCount}`;
+        availHard.textContent = `Hiện có: ${hardCount}`;
+
+        // Cập nhật thuộc tính max cho ô nhập để hạn chế bốc quá số câu hiện có
+        countEasyInput.max = easyCount;
+        countMediumInput.max = mediumCount;
+        countHardInput.max = hardCount;
+    }
 
     function toggleMode() {
         const isManual = modeManual.checked;
@@ -669,6 +784,7 @@ foreach ($questionsBank as $question) {
         updateQuestionList();
         updateTopicOptions();
         updateSelectedCount();
+        updateAvailableCounts();
     }
 
     function updateQuestionList() {
@@ -699,7 +815,10 @@ foreach ($questionsBank as $question) {
     gradeSelect.addEventListener('change', () => {
         updateQuestionList();
         updateTopicOptions();
+        updateAvailableCounts();
     });
+
+    autoTopic.addEventListener('change', updateAvailableCounts);
 
     questionSearch.addEventListener('input', updateQuestionList);
     modeManual.addEventListener('change', toggleMode);
@@ -710,9 +829,23 @@ foreach ($questionsBank as $question) {
     });
 
     document.getElementById('examForm').addEventListener('submit', function(e) {
+        // Kiểm tra chọn câu hỏi ở chế độ thủ công
         if (modeManual.checked && selectedCount.textContent === '0') {
             e.preventDefault();
             alert('Vui lòng chọn ít nhất 1 câu hỏi.');
+            return;
+        }
+
+        // Kiểm tra Logic thời gian mở/đóng đề thi
+        if (startTimeInput.value && endTimeInput.value) {
+            const startVal = new Date(startTimeInput.value);
+            const endVal = new Date(endTimeInput.value);
+
+            if (endVal <= startVal) {
+                e.preventDefault();
+                alert('⚠️ Thời gian đóng đề thi phải sau thời gian mở đề thi!');
+                endTimeInput.focus();
+            }
         }
     });
 

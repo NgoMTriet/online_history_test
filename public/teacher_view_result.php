@@ -20,7 +20,7 @@ $search_keyword = isset($_GET['search']) ? trim($_GET['search']) : '';
 
 /*
 |--------------------------------------------------------------------------
-| TRUY VẤN LẤY KẾT QUẢ BÀI LÀM CỦA HỌC SINH
+| TRUY VẤN LẤY KẾT QUẢ BÀI LÀM CỦA HỌC SINH (Đã thêm u.class_name, u.dob)
 |--------------------------------------------------------------------------
 */
 $sql = "
@@ -32,6 +32,8 @@ $sql = "
         er.completion_time,
         er.created_at,
         u.full_name,
+        u.class_name,
+        u.dob,
         e.title AS exam_title,
         e.grade
     FROM exam_results er
@@ -50,7 +52,7 @@ if ($selected_exam_id > 0) {
 
 // Lọc theo từ khóa tìm kiếm (Tên học sinh hoặc Lớp)
 if ($search_keyword !== '') {
-    $sql .= " AND (full_name LIKE :search OR class_name LIKE :search)";
+    $sql .= " AND (u.full_name LIKE :search OR u.class_name LIKE :search)";
     $params['search'] = '%' . $search_keyword . '%';
 }
 
@@ -231,7 +233,7 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
             color: var(--muted);
         }
 
-        .empty-state icon {
+        .empty-state span {
             font-size: 40px;
             display: block;
             margin-bottom: 10px;
@@ -259,7 +261,7 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <option value="0">-- Tất cả đề thi --</option>
                     <?php foreach ($exam_list as $e): ?>
                         <option value="<?= $e['exam_id'] ?>" <?= $selected_exam_id === (int)$e['exam_id'] ? 'selected' : '' ?>>
-                            Lớp <?= $e['grade'] ?> - <?= htmlspecialchars($e['title']) ?>
+                            Lớp <?= htmlspecialchars($e['grade']) ?> - <?= htmlspecialchars($e['title']) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -295,7 +297,7 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <?php if (!empty($results)): ?>
                         <?php foreach ($results as $index => $row): ?>
                             <?php 
-                                // Format Ngày sinh
+                                // Format Ngày sinh (d/m/Y)
                                 $dob = !empty($row['dob']) ? date('d/m/Y', strtotime($row['dob'])) : 'Chưa cập nhật';
                                 
                                 // Format Thời gian nộp bài
@@ -313,16 +315,16 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <td><?= $index + 1 ?></td>
                                 <td><strong><?= htmlspecialchars($row['full_name']) ?></strong></td>
                                 <td><span class="badge badge-class"><?= htmlspecialchars($row['class_name'] ?? 'N/A') ?></span></td>
-                                <td><?= $dob ?></td>
+                                <td><?= htmlspecialchars($dob) ?></td>
                                 <td>
                                     <span class="score-box <?= $score_class ?>"><?= number_format($score, 1) ?></span>
                                 </td>
-                                <td><small style="color: var(--muted);"><?= $submitted_at ?></small></td>
+                                <td><small style="color: var(--muted);"><?= htmlspecialchars($submitted_at) ?></small></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="9">
+                            <td colspan="6">
                                 <div class="empty-state">
                                     <span>📭</span>
                                     <p>Chưa có lượt làm bài nào phù hợp với bộ lọc.</p>
