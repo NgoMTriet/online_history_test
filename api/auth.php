@@ -137,8 +137,12 @@ try {
             $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $user['role'];
 
-        // Tất cả vai trò đều về trang chủ sau khi đăng nhập
-redirectTo('/index.php');
+            // Admin vào trang quản trị, các vai trò khác về trang chủ
+            if ($user['role'] === 'ADMIN') {
+                redirectTo('/admin_dashboard.php');
+            }
+
+            redirectTo('/index.php');
 
         // =========================
         // ĐĂNG XUẤT
@@ -428,4 +432,3 @@ break;
     );
     echo '</pre>';
 }
-
