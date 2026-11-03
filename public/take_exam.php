@@ -816,9 +816,85 @@ header {
         flex-direction: column;
     }
 }
+
+/* ===== Cổng bắt buộc toàn màn hình ===== */
+#fs-gate {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(20, 30, 40, 0.96);
+}
+#fs-gate.show {
+    display: flex;
+}
+.fs-gate-card {
+    width: 100%;
+    max-width: 440px;
+    padding: 32px 28px;
+    border-radius: 14px;
+    background: #fff;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+.fs-gate-card h2 {
+    margin-bottom: 10px;
+    color: #2c3e50;
+    font-size: 1.35rem;
+}
+.fs-gate-card p {
+    margin-bottom: 16px;
+    color: #555;
+    line-height: 1.6;
+    font-size: 0.97rem;
+}
+.fs-gate-warn {
+    display: none;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #fdecea;
+    color: #b3261e;
+    font-weight: 600;
+}
+.fs-gate-warn.show {
+    display: block;
+}
+#fs-start-btn {
+    width: 100%;
+    min-height: 48px;
+    border: none;
+    border-radius: 8px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+#fs-start-btn:hover {
+    background: #1d4ed8;
+}
+body.fs-locked {
+    overflow: hidden;
+}
 </style>
 </head>
-<body>
+<body class="fs-locked">
+
+<div id="fs-gate" class="show" role="dialog" aria-modal="true" aria-labelledby="fs-gate-title">
+    <div class="fs-gate-card">
+        <h2 id="fs-gate-title">Bài thi yêu cầu toàn màn hình</h2>
+        <p>
+            Bấm nút bên dưới để vào chế độ toàn màn hình và bắt đầu làm bài.
+            Việc thoát toàn màn hình hoặc chuyển sang tab/cửa sổ khác sẽ được
+            hệ thống ghi lại và giáo viên có thể xem.
+        </p>
+        <p id="fs-gate-warn" class="fs-gate-warn" role="alert"></p>
+        <button type="button" id="fs-start-btn">Vào toàn màn hình &amp; làm bài</button>
+    </div>
+</div>
 
 <header>
     <div class="exam-title">
@@ -848,6 +924,13 @@ header {
         type="hidden"
         name="completion_time"
         id="completion_time_input"
+        value="0"
+    >
+
+    <input
+        type="hidden"
+        name="tab_switches"
+        id="tab_switches_input"
         value="0"
     >
 
@@ -1637,6 +1720,9 @@ btnConfirmExit.addEventListener('click', function() {
     const exitData = new FormData();
     exitData.append('action', 'abandon_exam');
     exitData.append('exam_id', examForm.elements['exam_id'].value);
+    exitData.append('tab_switches', tabSwitches);
+
+    examLeaving = true;
 
     btnConfirmExit.disabled = true;
 
@@ -1686,6 +1772,143 @@ document.addEventListener('keydown', function(event) {
     }
 
 });
+
+
+// ===== Toàn màn hình bắt buộc + đếm số lần rời khỏi bài thi =====
+const fsGate = document.getElementById('fs-gate');
+const fsGateWarn = document.getElementById('fs-gate-warn');
+const fsStartBtn = document.getElementById('fs-start-btn');
+const tabSwitchesInput = document.getElementById('tab_switches_input');
+
+// Lưu số lần theo từng lượt thi để tải lại trang (F5) không bị reset.
+const switchesStorageKey = 'exam_switches_<?= (int) $attempt_id ?>';
+
+// Trình duyệt không hỗ trợ (ví dụ iPhone): bỏ qua toàn màn hình,
+// vẫn đếm số lần chuyển tab.
+const fullscreenSupported = !!document.documentElement.requestFullscreen;
+
+let tabSwitches = 0;
+let lastLeaveAt = 0;
+let examLeaving = false;
+
+try {
+    tabSwitches = parseInt(
+        localStorage.getItem(switchesStorageKey) || '0',
+        10
+    ) || 0;
+} catch (e) {}
+
+tabSwitchesInput.value = tabSwitches;
+
+
+function showFsGate() {
+
+    if (tabSwitches > 0) {
+
+        fsGateWarn.textContent =
+            'Bạn đã rời khỏi chế độ làm bài ' + tabSwitches +
+            ' lần. Mỗi lần đều được hệ thống ghi lại.';
+
+        fsGateWarn.classList.add('show');
+
+    }
+
+    fsGate.classList.add('show');
+
+    document.body.classList.add('fs-locked');
+
+    fsStartBtn.focus();
+
+}
+
+
+function hideFsGate() {
+
+    fsGate.classList.remove('show');
+
+    document.body.classList.remove('fs-locked');
+
+}
+
+
+// Ghi nhận một lần rời bài (chuyển tab hoặc thoát toàn màn hình).
+// Gộp các sự kiện xảy ra gần nhau để không đếm trùng một hành động.
+function recordLeave() {
+
+    if (isSubmitting || examLeaving) {
+        return;
+    }
+
+    const now = Date.now();
+
+    if (now - lastLeaveAt < 1500) {
+        return;
+    }
+
+    lastLeaveAt = now;
+
+    tabSwitches++;
+
+    tabSwitchesInput.value = tabSwitches;
+
+    try {
+        localStorage.setItem(switchesStorageKey, String(tabSwitches));
+    } catch (e) {}
+
+}
+
+
+fsStartBtn.addEventListener('click', function() {
+
+    document.documentElement.requestFullscreen()
+        .then(hideFsGate)
+        .catch(function() {
+            alert(
+                'Không thể bật chế độ toàn màn hình. ' +
+                'Vui lòng cho phép toàn màn hình trong trình duyệt.'
+            );
+        });
+
+});
+
+
+// Chuyển tab, thu nhỏ cửa sổ...
+document.addEventListener('visibilitychange', function() {
+
+    if (document.hidden) {
+
+        recordLeave();
+
+    } else if (fullscreenSupported && !document.fullscreenElement) {
+
+        if (!isSubmitting && !examLeaving) {
+            showFsGate();
+        }
+
+    }
+
+});
+
+
+// Thoát toàn màn hình (Esc, F11...).
+document.addEventListener('fullscreenchange', function() {
+
+    if (!document.fullscreenElement && !isSubmitting && !examLeaving) {
+
+        recordLeave();
+
+        showFsGate();
+
+    }
+
+});
+
+
+if (!fullscreenSupported) {
+    hideFsGate();
+} else {
+    showFsGate();
+}
 
 
 // Đồng hồ đếm ngược dựa trên mốc thời gian thực.

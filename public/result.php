@@ -29,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'aban
     header('Content-Type: application/json');
 
     $exam_id = (int) ($_POST['exam_id'] ?? 0);
+    $tab_switches = max(0, min(999, (int) ($_POST['tab_switches'] ?? 0)));
 
     try {
         $attempt = $exam_id > 0 ? find_in_progress_attempt($conn, $user_id, $exam_id) : null;
@@ -41,10 +42,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['action'] ?? '') === 'aban
                      er.score = 0,
                      er.correct_answers_count = 0,
                      er.completion_time = LEAST(TIMESTAMPDIFF(SECOND, er.created_at, NOW()), e.duration * 60),
+                     er.tab_switches = :tab_switches,
                      er.submitted_at = NOW()
                  WHERE er.result_id = :rid AND er.user_id = :uid AND er.status = 'IN_PROGRESS'"
             );
-            $stmt_abandon->execute(['rid' => (int) $attempt['result_id'], 'uid' => $user_id]);
+            $stmt_abandon->execute([
+                'rid' => (int) $attempt['result_id'],
+                'uid' => $user_id,
+                'tab_switches' => $tab_switches
+            ]);
         }
 
         echo json_encode(['success' => true]);
@@ -62,6 +68,7 @@ if ($is_post_submit) {
     $exam_id = (int) ($_POST['exam_id'] ?? 0);
     $user_answers = $_POST['answers'] ?? [];
     $completion_time = max(0, (int) ($_POST['completion_time'] ?? 0));
+    $tab_switches = max(0, min(999, (int) ($_POST['tab_switches'] ?? 0)));
     
     if ($exam_id <= 0 || !is_array($user_answers)) {
         echo json_encode(['success' => false, 'message' => 'Thông tin bài thi không hợp lệ.']);
@@ -98,10 +105,14 @@ if ($is_post_submit) {
             $stmt_late = $conn->prepare(
                 "UPDATE exam_results
                  SET status = 'FAILED', score = 0, correct_answers_count = 0,
-                     completion_time = :ct, submitted_at = NOW()
+                     completion_time = :ct, tab_switches = :tab_switches, submitted_at = NOW()
                  WHERE result_id = :rid AND status = 'IN_PROGRESS'"
             );
-            $stmt_late->execute(['ct' => $duration_seconds, 'rid' => $result_id]);
+            $stmt_late->execute([
+                'ct' => $duration_seconds,
+                'tab_switches' => $tab_switches,
+                'rid' => $result_id
+            ]);
 
             $_SESSION['submitted_exam_result_' . $exam_id] = $result_id;
             $_SESSION['exam_completed_' . $exam_id] = true;
@@ -167,6 +178,7 @@ if ($is_post_submit) {
                  total_questions = :total_count,
                  completion_time = :completion_time,
                  status = :status,
+                 tab_switches = :tab_switches,
                  submitted_at = NOW()
              WHERE result_id = :rid AND user_id = :uid AND status = 'IN_PROGRESS'"
         );
@@ -176,6 +188,7 @@ if ($is_post_submit) {
             'total_count' => $total_questions,
             'completion_time' => $completion_time,
             'status' => $status,
+            'tab_switches' => $tab_switches,
             'rid' => $result_id,
             'uid' => $user_id
         ]);
@@ -225,7 +238,7 @@ if ($is_post_submit) {
 }
 
 // Đọc kết quả đã lưu và chỉ cho chính chủ xem.
-$stmt_result = $conn->prepare('SELECT er.*, e.title AS exam_title FROM exam_results er INNER JOIN exam e ON e.exam_id = er.exam_id WHERE er.result_id = :rid AND er.user_id = :uid AND er.status <> 'IN_PROGRESS' LIMIT 1');
+$stmt_result = $conn->prepare("SELECT er.*, e.title AS exam_title FROM exam_results er INNER JOIN exam e ON e.exam_id = er.exam_id WHERE er.result_id = :rid AND er.user_id = :uid AND er.status <> 'IN_PROGRESS' LIMIT 1");
 $stmt_result->execute(['rid'=>$result_id, 'uid'=>$user_id]);
 $result = $stmt_result->fetch(PDO::FETCH_ASSOC);
 if (!$result) {
