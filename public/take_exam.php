@@ -1,576 +1,1970 @@
 <?php
-// ⏱️ Thiết lập múi giờ Việt Nam để lưu start_time & end_time vào Database chuẩn giờ +7
-date_default_timezone_set('Asia/Ho_Chi_Minh');
-
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/teacher_layout.php';
-
-// Chỉ để giao diện hiển thị đúng tên người dùng ở thanh trên (không thay đổi logic)
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$message = '';
-$messageType = '';
+date_default_timezone_set('Asia/Ho_Chi_Minh');
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/exam_attempts.php';
 
-/*
-|--------------------------------------------------------------------------
-| XỬ LÝ TẠO ĐỀ THI
-|--------------------------------------------------------------------------
-*/
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST'
-    && ($_POST['action'] ?? '') === 'create_exam'
-) {
-    $title = trim($_POST['title'] ?? '');
-    $grade = (int)($_POST['grade'] ?? 9);
-    $duration = (int)($_POST['duration'] ?? 15);
-    $maxAttempts = (int)($_POST['max_attempts'] ?? 0); // 0 = Không giới hạn
-    $examPassword = trim($_POST['exam_password'] ?? ''); // Mật khẩu bài thi
-    $mode = $_POST['create_mode'] ?? 'manual';
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 
-    // ⏱️ Xử lý thời gian mở đề thi (start_time)
-    $startTimeRaw = trim($_POST['start_time'] ?? '');
-    $startTime = null;
-    if ($startTimeRaw !== '') {
-        $timestampStart = strtotime($startTimeRaw);
-        if ($timestampStart !== false) {
-            $startTime = date('Y-m-d H:i:s', $timestampStart);
-        }
-    }
+if (empty($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
 
-    // 🛑 Xử lý thời gian đóng đề thi (end_time)
-    $endTimeRaw = trim($_POST['end_time'] ?? '');
-    $endTime = null;
-    if ($endTimeRaw !== '') {
-        $timestampEnd = strtotime($endTimeRaw);
-        if ($timestampEnd !== false) {
-            $endTime = date('Y-m-d H:i:s', $timestampEnd);
-        }
-    }
+$user_id = (int) $_SESSION['user_id'];
+$exam_id = (int) ($_GET['exam_id'] ?? 0);
 
-    // Validation kiểm tra hợp lệ
-    if ($title === '') {
-        $message = 'Vui lòng nhập tên đề thi.';
-        $messageType = 'danger';
-    } elseif (!in_array($grade, [6, 7, 8, 9], true)) {
-        $message = 'Khối lớp không hợp lệ.';
-        $messageType = 'danger';
-    } elseif ($duration < 1 || $duration > 300) {
-        $message = 'Thời gian làm bài phải từ 1 đến 300 phút.';
-        $messageType = 'danger';
-    } elseif ($maxAttempts < 0) {
-        $message = 'Số lần làm bài không hợp lệ.';
-        $messageType = 'danger';
-    } elseif ($startTime !== null && $endTime !== null && strtotime($endTime) <= strtotime($startTime)) {
-        $message = 'Thời gian đóng đề thi phải sau thời gian mở đề thi.';
-        $messageType = 'danger';
-    } elseif (!in_array($mode, ['manual', 'auto'], true)) {
-        $message = 'Phương thức chọn câu hỏi không hợp lệ.';
-        $messageType = 'danger';
-    } else {
-        try {
-            $selectedQuestionIds = [];
+if ($exam_id <= 0) {
+    header('Location: index.php');
+    exit;
+}
 
-            if ($mode === 'manual') {
-                $rawIds = $_POST['question_ids'] ?? [];
+// 1. Lấy thông tin đề thi
+$stmt = $conn->prepare('SELECT * FROM exam WHERE exam_id = :id');
+$stmt->execute(['id' => $exam_id]);
+$exam = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                if (!is_array($rawIds)) {
-                    $rawIds = [];
+if (!$exam) {
+    die('Đề thi không tồn tại!');
+}
+
+// 2. Kiểm tra thời gian mở đề
+if (!empty($exam['start_time'])) {
+    $tz = new DateTimeZone('Asia/Ho_Chi_Minh');
+    $now = new DateTime('now', $tz);
+    $startTime = new DateTime($exam['start_time'], $tz);
+
+    if ($now < $startTime) {
+        $formattedStartTime = $startTime->format('H:i - d/m/Y');
+        ?>
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Chưa đến giờ làm bài</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    background: #f4f6f9;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                    margin: 0;
                 }
-
-                $selectedQuestionIds = array_values(
-                    array_unique(
-                        array_filter(
-                            array_map('intval', $rawIds),
-                            fn($id) => $id > 0
-                        )
-                    )
-                );
-
-                if (count($selectedQuestionIds) > 0) {
-                    $placeholders = implode(
-                        ',',
-                        array_fill(0, count($selectedQuestionIds), '?')
-                    );
-
-                    $stmtCheck = $conn->prepare(
-                        "SELECT q.question_id
-                         FROM questions q
-                         JOIN topics t ON q.topic_id = t.topic_id
-                         WHERE t.grade = ?
-                         AND q.question_id IN ($placeholders)"
-                    );
-
-                    $stmtCheck->execute(
-                        array_merge([$grade], $selectedQuestionIds)
-                    );
-
-                    $validIds = array_map(
-                        'intval',
-                        $stmtCheck->fetchAll(PDO::FETCH_COLUMN)
-                    );
-
-                    $selectedQuestionIds = array_values(
-                        array_intersect($selectedQuestionIds, $validIds)
-                    );
+                .card {
+                    background: white;
+                    padding: 35px;
+                    border-radius: 12px;
+                    text-align: center;
+                    max-width: 480px;
+                    width: 90%;
+                    box-sizing: border-box;
                 }
-            } else {
-                // Chế độ Bốc ngẫu nhiên theo Chủ đề & 3 Mức độ
-                $topicId = (int)($_POST['auto_topic_id'] ?? 0);
-                $countEasy = max(0, (int)($_POST['count_easy'] ?? 0));
-                $countMedium = max(0, (int)($_POST['count_medium'] ?? 0));
-                $countHard = max(0, (int)($_POST['count_hard'] ?? 0));
-
-                if ($countEasy + $countMedium + $countHard === 0) {
-                    throw new Exception('Vui lòng nhập số lượng cho ít nhất 1 mức độ câu hỏi.');
+                .btn {
+                    display: inline-block;
+                    padding: 12px 24px;
+                    background: #3498db;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 8px;
                 }
+                .submit-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    background: rgba(0, 0, 0, 0.65);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
 
-                $levelsMap = [
-                    'EASY' => $countEasy,
-                    'MEDIUM' => $countMedium,
-                    'HARD' => $countHard
-                ];
+.submit-modal.show {
+    display: flex;
+}
 
-                foreach ($levelsMap as $level => $count) {
-                    if ($count <= 0) continue;
+.submit-modal-content {
+    width: 100%;
+    max-width: 420px;
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,.2);
+}
 
-                    $sql = "SELECT q.question_id
-                            FROM questions q
-                            JOIN topics t ON q.topic_id = t.topic_id
-                            WHERE t.grade = :grade AND q.difficulty = :level";
+.submit-modal-content h2 {
+    color: #1e293b;
+    margin-bottom: 15px;
+}
 
-                    if ($topicId > 0) {
-                        $sql .= " AND q.topic_id = :topic_id";
-                    }
-
-                    $sql .= " ORDER BY RAND() LIMIT :limit";
-
-                    $stmtRandom = $conn->prepare($sql);
-                    $stmtRandom->bindValue(':grade', $grade, PDO::PARAM_INT);
-                    $stmtRandom->bindValue(':level', $level, PDO::PARAM_STR);
-                    $stmtRandom->bindValue(':limit', $count, PDO::PARAM_INT);
-
-                    if ($topicId > 0) {
-                        $stmtRandom->bindValue(':topic_id', $topicId, PDO::PARAM_INT);
-                    }
-
-                    $stmtRandom->execute();
-                    $fetchedIds = array_map('intval', $stmtRandom->fetchAll(PDO::FETCH_COLUMN));
-                    
-                    $selectedQuestionIds = array_merge($selectedQuestionIds, $fetchedIds);
-                }
-            }
-
-            $totalQuestions = count($selectedQuestionIds);
-
-            if ($totalQuestions === 0) {
-                throw new Exception(
-                    'Không tìm thấy câu hỏi phù hợp với cấu hình. Vui lòng kiểm tra lại Ngân hàng câu hỏi.'
-                );
-            }
-
-            $conn->beginTransaction();
-
-            // Lưu thông tin đề thi (có lưu start_time, end_time và exam_password)
-            $stmtExam = $conn->prepare(
-                "INSERT INTO exam
-                 (title, grade, duration, start_time, end_time, max_attempts, exam_password, total_questions, is_randomized)
-                 VALUES (:title, :grade, :duration, :start_time, :end_time, :max_attempts, :exam_password, :total_questions, :is_randomized)"
-            );
-
-            $stmtExam->execute([
-                'title' => $title,
-                'grade' => $grade,
-                'duration' => $duration,
-                'start_time' => $startTime,
-                'end_time' => $endTime,
-                'max_attempts' => $maxAttempts,
-                'exam_password' => $examPassword !== '' ? $examPassword : null,
-                'total_questions' => $totalQuestions,
-                'is_randomized' => ($mode === 'auto') ? 1 : 0
-            ]);
-
-            $examId = (int)$conn->lastInsertId();
-
-            // Lưu danh sách câu hỏi
-            $stmtLink = $conn->prepare(
-                "INSERT INTO exam_questions (exam_id, question_id)
-                 VALUES (:exam_id, :question_id)"
-            );
-
-            foreach ($selectedQuestionIds as $questionId) {
-                $stmtLink->execute([
-                    'exam_id' => $examId,
-                    'question_id' => $questionId
-                ]);
-            }
-
-            $conn->commit();
-
-            $message = "Tạo đề thi thành công! Đề thi gồm {$totalQuestions} câu hỏi.";
-            $messageType = 'success';
-
-        } catch (Throwable $e) {
-            if ($conn->inTransaction()) {
-                $conn->rollBack();
-            }
-
-            $message = $e->getMessage();
-            $messageType = 'danger';
-        }
+.submit-modal-content p {
+    color: #475569;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h2>⏳ Chưa đến thời gian làm bài!</h2>
+                <p>
+                    Đề thi
+                    <strong><?= htmlspecialchars($exam['title'] ?? 'Bài thi', ENT_QUOTES, 'UTF-8') ?></strong>
+                    sẽ mở lúc
+                    <strong><?= htmlspecialchars($formattedStartTime, ENT_QUOTES, 'UTF-8') ?></strong>.
+                </p>
+                <a href="index.php" class="btn">Quay lại trang chủ</a>
+            </div>
+        </body>
+        </html>
+        <?php
+        exit;
     }
 }
 
-/*
-|--------------------------------------------------------------------------
-| LẤY NGÂN HÀNG CÂU HỎI VÀ TẤT CẢ CHỦ ĐỀ
-|--------------------------------------------------------------------------
-*/
-$stmtTopics = $conn->query("SELECT topic_id, topic_name, grade FROM topics ORDER BY grade ASC, topic_name ASC");
-$allTopics = $stmtTopics->fetchAll(PDO::FETCH_ASSOC);
+// 3. Kiểm tra số lượt làm bài
+// max_attempts = 0: không giới hạn
+// Đóng các lượt làm dở đã quá hạn, rồi tìm lượt đang làm của học viên (nếu có).
+close_expired_attempts($conn);
+$in_progress = find_in_progress_attempt($conn, $user_id, $exam_id);
 
-$stmtQuestions = $conn->query(
-    "SELECT q.question_id, q.content, q.difficulty, t.grade, t.topic_name, t.topic_id
-     FROM questions q
-     JOIN topics t ON q.topic_id = t.topic_id
-     ORDER BY t.grade ASC, q.question_id DESC"
+$max_attempts = (int) ($exam['max_attempts'] ?? 0);
+
+$stmt_check = $conn->prepare(
+    'SELECT COUNT(*) FROM exam_results
+     WHERE user_id = :user_id AND exam_id = :exam_id'
 );
 
-$questionsBank = $stmtQuestions->fetchAll(PDO::FETCH_ASSOC);
-$questionCounts = [6 => 0, 7 => 0, 8 => 0, 9 => 0];
+$stmt_check->execute([
+    'user_id' => $user_id,
+    'exam_id' => $exam_id
+]);
 
-// Mảng rút gọn gửi qua JavaScript để tính toán số lượng khả dụng
-$jsQuestionsData = [];
+$user_attempts = (int) $stmt_check->fetchColumn();
 
-foreach ($questionsBank as $question) {
-    $g = (int)$question['grade'];
-    if (isset($questionCounts[$g])) {
-        $questionCounts[$g]++;
+// Lượt đang làm dở thì được tiếp tục, không bị chặn vì hết lượt.
+if ($max_attempts > 0 && $user_attempts >= $max_attempts && !$in_progress) {
+    unset($_SESSION['exam_auth_' . $exam_id]);
+
+    $safeTitle = htmlspecialchars(
+        (string) ($exam['title'] ?? 'Bài thi'),
+        ENT_QUOTES,
+        'UTF-8'
+    );
+    ?>
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Hết lượt làm bài</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background: #f4f6f9;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                margin: 0;
+            }
+            .card {
+                background: white;
+                padding: 35px;
+                border-radius: 12px;
+                text-align: center;
+                max-width: 480px;
+                width: 90%;
+                box-sizing: border-box;
+            }
+            .btn {
+                display: inline-block;
+                padding: 12px 24px;
+                background: #3498db;
+                color: white;
+                text-decoration: none;
+                border-radius: 8px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h2>🚫 Bạn đã hết lượt làm bài!</h2>
+            <p>
+                Đề thi <strong><?= $safeTitle ?></strong>
+                cho phép làm tối đa <strong><?= $max_attempts ?></strong> lần.
+                <br>
+                Bạn đã thực hiện
+                <strong><?= $user_attempts ?>/<?= $max_attempts ?></strong> lượt.
+            </p>
+            <a href="index.php" class="btn">Quay lại trang chủ</a>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit;
+}
+
+unset($_SESSION['exam_completed_' . $exam_id]);
+
+// 4. Kiểm tra mật khẩu đề thi
+$require_password = !empty($exam['exam_password']);
+$password_error = '';
+
+if ($require_password) {
+    $session_pass_key = 'exam_auth_' . $exam_id;
+
+    if (
+        $_SERVER['REQUEST_METHOD'] === 'POST'
+        && isset($_POST['submit_exam_password'])
+    ) {
+        $input_password = trim($_POST['input_password'] ?? '');
+
+        if ($input_password === $exam['exam_password']) {
+            $_SESSION[$session_pass_key] = true;
+        } else {
+            $password_error = 'Mật khẩu bài thi không chính xác!';
+        }
     }
 
-    $jsQuestionsData[] = [
-        'g' => (int)$question['grade'],
-        't' => (int)$question['topic_id'],
-        'd' => strtoupper($question['difficulty'] ?? 'EASY')
+    if (empty($_SESSION[$session_pass_key])) {
+        ?>
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Yêu cầu mật khẩu bài thi</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    background: #f4f6f9;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                    margin: 0;
+                }
+                .card {
+                    background: white;
+                    padding: 30px;
+                    border-radius: 12px;
+                    text-align: center;
+                    max-width: 400px;
+                    width: 90%;
+                    box-sizing: border-box;
+                }
+                .form-input {
+                    width: 100%;
+                    padding: 12px;
+                    margin-bottom: 15px;
+                    border: 1px solid #ccc;
+                    border-radius: 8px;
+                    box-sizing: border-box;
+                }
+                .btn-submit {
+                    width: 100%;
+                    padding: 12px;
+                    background: #2563eb;
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                }
+                .error-msg {
+                    color: #dc2626;
+                    margin-bottom: 12px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h2>🔒 Đề thi có mật khẩu</h2>
+                <p>
+                    Nhập mật khẩu để làm bài
+                    <strong><?= htmlspecialchars($exam['title'] ?? 'Bài thi', ENT_QUOTES, 'UTF-8') ?></strong>.
+                </p>
+
+                <?php if ($password_error !== ''): ?>
+                    <div class="error-msg">
+                        <?= htmlspecialchars($password_error, ENT_QUOTES, 'UTF-8') ?>
+                    </div>
+                <?php endif; ?>
+
+                <form method="POST">
+                    <input
+                        type="password"
+                        name="input_password"
+                        class="form-input"
+                        placeholder="Nhập mật khẩu đề thi"
+                        required
+                        autofocus
+                    >
+                    <button
+                        type="submit"
+                        name="submit_exam_password"
+                        class="btn-submit"
+                    >
+                        Xác nhận làm bài
+                    </button>
+                </form>
+
+                <p><a href="index.php">Quay lại trang chủ</a></p>
+            </div>
+        </body>
+        </html>
+        <?php
+        exit;
+    }
+}
+
+// 5. Lấy danh sách câu hỏi
+$stmt_q = $conn->prepare(
+    'SELECT q.question_id, q.content
+     FROM questions q
+     JOIN exam_questions eq ON q.question_id = eq.question_id
+     WHERE eq.exam_id = :exam_id
+     ORDER BY q.question_id'
+);
+
+$stmt_q->execute(['exam_id' => $exam_id]);
+$raw_questions = $stmt_q->fetchAll(PDO::FETCH_ASSOC);
+
+if (empty($raw_questions)) {
+    die('Đề thi này chưa có câu hỏi nào!');
+}
+
+// Tính lượt làm bài ngay khi bắt đầu (thoát giữa chừng vẫn mất lượt).
+// Nếu đang có lượt làm dở còn thời gian thì tiếp tục lượt đó.
+$duration_seconds = max(1, (int) ($exam['duration'] ?? 15) * 60);
+
+if ($in_progress) {
+    $attempt_id = (int) $in_progress['result_id'];
+    $remaining_seconds = max(1, $duration_seconds - (int) $in_progress['elapsed']);
+} else {
+    $attempt_id = start_attempt($conn, $user_id, $exam_id, count($raw_questions));
+    $remaining_seconds = $duration_seconds;
+}
+
+// Xáo trộn theo mã lượt thi: tải lại trang (F5) vẫn ra đúng thứ tự cũ,
+// còn mỗi lượt thi mới sẽ có thứ tự khác.
+mt_srand($attempt_id * 7919 + 13);
+shuffle($raw_questions);
+
+// 6. Lấy danh sách đáp án
+$stmt_ans = $conn->prepare(
+    'SELECT * FROM answers WHERE question_id = :q_id ORDER BY answer_id'
+);
+
+$questions_for_client = [];
+
+foreach ($raw_questions as $q) {
+    $stmt_ans->execute(['q_id' => $q['question_id']]);
+    $answers = $stmt_ans->fetchAll(PDO::FETCH_ASSOC);
+
+    shuffle($answers);
+
+    $options = [];
+    $labels = ['A', 'B', 'C', 'D'];
+
+    foreach ($answers as $idx => $a) {
+        $options[] = [
+            'id' => $a['answer_id'],
+            'label' => $labels[$idx] ?? (string) ($idx + 1),
+            'content' => $a['content']
+        ];
+    }
+
+    $questions_for_client[] = [
+        'id' => $q['question_id'],
+        'question' => $q['content'],
+        'options' => $options
     ];
 }
 
-teacher_layout_start([
-    'title'   => 'Tạo đề thi | TestSuViet',
-    'heading' => 'Tạo đề thi',
-    'active'  => 'exam',
-    'home'    => '../index.php',
-]);
-
-$inputCls = 'w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:ring-2 focus:ring-brand-500 focus:outline-none';
-$labelCls = 'block text-xs font-semibold text-slate-700 mb-1';
-$cardCls  = 'bg-white p-6 rounded-2xl border border-slate-100 shadow-sm';
+// Trả bộ sinh số ngẫu nhiên về trạng thái bình thường.
+mt_srand();
 ?>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><?= htmlspecialchars($exam['title'] ?? 'Làm bài thi', ENT_QUOTES, 'UTF-8') ?></title>
 
-<div class="<?= $cardCls ?>">
-    <h2 class="text-lg font-bold text-slate-800">📝 Tạo đề thi mới</h2>
-    <p class="text-xs text-slate-500 mt-0.5">Thiết lập đề thi, thời gian mở/đóng đề, lượt làm, mật khẩu bảo vệ và cấu trúc câu hỏi.</p>
+<style>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+body {
+    background: #f4f6f9;
+    color: #333;
+    padding-bottom: 80px;
+}
+
+header {
+    background: #2c3e50;
+    color: white;
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.exam-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.timer-box {
+    background: #e74c3c;
+    color: white;
+    padding: 9px 18px;
+    border-radius: 25px;
+    font-weight: bold;
+    white-space: nowrap;
+    font-size: 18px;
+    box-shadow: 0 3px 10px rgba(231, 76, 60, .2);
+}
+
+.container {
+    max-width: 1250px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+.exam-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 270px;
+    gap: 24px;
+    align-items: start;
+}
+
+.exam-main {
+    min-width: 0;
+}
+
+.question-card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px #0000000d;
+    scroll-margin-top: 90px;
+}
+
+.question-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    color: #2c3e50;
+    line-height: 1.5;
+}
+
+.options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.option-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    cursor: pointer;
+    line-height: 1.5;
+}
+
+.option-item:hover {
+    background: #f8f9fa;
+}
+
+.option-item input {
+    flex-shrink: 0;
+}
+
+.question-sidebar {
+    position: sticky;
+    top: 90px;
+    align-self: start;
+}
+
+.question-navigation {
+    background: white;
+    padding: 18px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px #00000012;
+}
+
+.question-navigation h3 {
+    margin-bottom: 14px;
+    color: #2c3e50;
+    font-size: 17px;
+}
+
+.question-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.question-number {
+    width: 100%;
+    height: 40px;
+    border: 1px solid #fca5a5;
+    border-radius: 8px;
+    background: #fee2e2;
+    color: #b91c1c;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.question-number.answered {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
+}
+
+.question-number.current {
+    outline: 3px solid #93c5fd;
+    border-color: #2563eb;
+}
+
+.question-number.unanswered-warning {
+    animation: warningPulse 1s ease-in-out 2;
+    border: 2px solid #dc2626;
+}
+
+@keyframes warningPulse {
+    50% {
+        background: #fca5a5;
+        transform: scale(1.06);
+    }
+}
+
+.question-progress {
+    font-size: 13px;
+    color: #475569;
+    margin-top: 12px;
+}
+
+.question-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin-top: 16px;
+    font-size: 13px;
+}
+
+.question-legend span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.legend-box {
+    width: 13px;
+    height: 13px;
+    display: inline-block;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+/* Nút nộp bài trong thanh danh sách câu hỏi */
+.submit-exam-container {
+    margin-top: 20px;
+}
+
+.submit-exam-btn {
+    width: 100%;
+    padding: 13px 15px;
+    background: #16a34a;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background .2s, transform .2s;
+}
+
+.submit-exam-btn:hover {
+    background: #15803d;
+    transform: translateY(-1px);
+}
+
+.submit-exam-btn:disabled {
+    opacity: .65;
+    cursor: wait;
+    transform: none;
+}
+
+/* Nút thoát bài thi */
+.btn-exit-header {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    background: #ffffff;
+    color: #dc2626;
+    border: 1px solid rgba(255,255,255,.55);
+    text-decoration: none;
+    padding: 9px 17px;
+    border-radius: 999px;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 3px 10px rgba(0,0,0,.12);
+    transition: background .2s, color .2s, transform .2s;
+}
+
+.btn-exit-header:hover {
+    background: #dc2626;
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+/* Bảng xác nhận thoát bài */
+.exit-modal,
+.submit-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, .68);
+    backdrop-filter: blur(3px);
+}
+
+.exit-modal {
+    z-index: 10000;
+}
+
+.submit-modal {
+    z-index: 11000;
+}
+
+.exit-modal.show,
+.submit-modal.show {
+    display: flex;
+}
+
+.exit-modal-content,
+.submit-modal-content {
+    width: 100%;
+    max-width: 440px;
+    padding: 30px;
+    border-radius: 18px;
+    background: #ffffff;
+    text-align: center;
+    box-shadow: 0 22px 65px rgba(0,0,0,.28);
+    animation: exitModalAppear .22s ease-out;
+}
+
+.exit-modal-icon,
+.submit-modal-icon {
+    display: grid;
+    place-items: center;
+    width: 62px;
+    height: 62px;
+    margin: 0 auto 15px;
+    border-radius: 50%;
+    font-size: 30px;
+}
+
+.exit-modal-icon {
+    background: #fff1f2;
+    color: #dc2626;
+}
+
+.submit-modal-icon {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.exit-modal-content h2,
+.submit-modal-content h2 {
+    margin: 0 0 12px;
+    color: #1e293b;
+    font-size: 22px;
+}
+
+.exit-modal-content p,
+.submit-modal-content p {
+    margin: 7px 0;
+    color: #475569;
+    line-height: 1.6;
+    font-size: 15px;
+}
+
+.exit-modal-content .exit-warning {
+    color: #dc2626;
+    font-size: 13px;
+}
+
+.exit-modal-actions,
+.submit-modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.exit-modal-actions button,
+.submit-modal-actions button {
+    flex: 1;
+    min-height: 44px;
+    padding: 10px 14px;
+    border: 0;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter .2s, transform .2s;
+}
+
+.exit-modal-actions button:hover,
+.submit-modal-actions button:hover {
+    filter: brightness(.95);
+    transform: translateY(-1px);
+}
+
+.btn-stay,
+.btn-cancel-submit {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.btn-confirm-exit {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.btn-confirm-submit {
+    background: #16a34a;
+    color: #ffffff;
+}
+
+@keyframes exitModalAppear {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (max-width: 800px) {
+    .exam-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .question-sidebar {
+        position: static;
+        grid-row: 1;
+    }
+
+    .question-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .container {
+        margin: 18px auto;
+        padding: 0 12px;
+    }
+
+    header {
+        padding: 12px 15px;
+        flex-wrap: wrap;
+    }
+
+    .exam-title {
+        font-size: 1rem;
+    }
+
+    .timer-box {
+        font-size: 13px;
+        padding: 7px 10px;
+    }
+
+    .btn-exit-header {
+        padding: 7px 10px;
+        font-size: 13px;
+    }
+
+    .exit-modal-actions,
+    .submit-modal-actions {
+        flex-direction: column;
+    }
+}
+
+/* ===== Cổng bắt buộc toàn màn hình ===== */
+#fs-gate {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(20, 30, 40, 0.96);
+}
+#fs-gate.show {
+    display: flex;
+}
+.fs-gate-card {
+    width: 100%;
+    max-width: 440px;
+    padding: 32px 28px;
+    border-radius: 14px;
+    background: #fff;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+.fs-gate-card h2 {
+    margin-bottom: 10px;
+    color: #2c3e50;
+    font-size: 1.35rem;
+}
+.fs-gate-card p {
+    margin-bottom: 16px;
+    color: #555;
+    line-height: 1.6;
+    font-size: 0.97rem;
+}
+.fs-gate-warn {
+    display: none;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #fdecea;
+    color: #b3261e;
+    font-weight: 600;
+}
+.fs-gate-warn.show {
+    display: block;
+}
+#fs-start-btn {
+    width: 100%;
+    min-height: 48px;
+    border: none;
+    border-radius: 8px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+#fs-start-btn:hover {
+    background: #1d4ed8;
+}
+body.fs-locked {
+    overflow: hidden;
+}
+</style>
+</head>
+<body class="fs-locked">
+
+<div id="fs-gate" class="show" role="dialog" aria-modal="true" aria-labelledby="fs-gate-title">
+    <div class="fs-gate-card">
+        <h2 id="fs-gate-title">Bài thi yêu cầu toàn màn hình</h2>
+        <p>
+            Bấm nút bên dưới để vào chế độ toàn màn hình và bắt đầu làm bài.
+            Việc thoát toàn màn hình hoặc chuyển sang tab/cửa sổ khác sẽ được
+            hệ thống ghi lại và giáo viên có thể xem.
+        </p>
+        <p id="fs-gate-warn" class="fs-gate-warn" role="alert"></p>
+        <button type="button" id="fs-start-btn">Vào toàn màn hình &amp; làm bài</button>
+    </div>
 </div>
 
-<?php if ($message !== ''): ?>
-    <div class="flex items-center gap-2.5 px-4 py-3 rounded-2xl text-sm font-semibold border <?= $messageType === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200' ?>">
-        <i class="fa-solid <?= $messageType === 'success' ? 'fa-circle-check text-emerald-500' : 'fa-triangle-exclamation text-rose-500' ?>"></i>
-        <span><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></span>
+<header>
+    <div class="exam-title">
+        <?= htmlspecialchars($exam['title'] ?? 'Bài thi', ENT_QUOTES, 'UTF-8') ?>
     </div>
-<?php endif; ?>
 
-<form method="POST" id="examForm" class="space-y-6">
-    <input type="hidden" name="action" value="create_exam">
-
-    <!-- PHẦN 1: THÔNG TIN CHUNG -->
-    <section class="<?= $cardCls ?> space-y-4">
-        <h3 class="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3">1. Thông tin chung</h3>
-
-        <div>
-            <label for="title" class="<?= $labelCls ?>">Tên đề thi</label>
-            <input type="text" id="title" name="title" placeholder="Ví dụ: Đề thi Ôn tập Chương 1 - Lịch sử 9" required class="<?= $inputCls ?>">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div class="timer-box">
+            ⏱️ Thời gian còn lại:
+            <span id="timer-display">00:00</span>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-                <label for="gradeSelect" class="<?= $labelCls ?>">Khối lớp</label>
-                <select name="grade" id="gradeSelect" class="<?= $inputCls ?>">
-                    <?php for ($g = 6; $g <= 9; $g++): ?>
-                        <option value="<?= $g ?>" <?= $g === 9 ? 'selected' : '' ?>>
-                            Lớp <?= $g ?> — <?= $questionCounts[$g] ?> câu
-                        </option>
-                    <?php endfor; ?>
-                </select>
-            </div>
+        <a href="index.php" id="btn-exit" class="btn-exit-header">
+            <span aria-hidden="true">↩</span> Thoát
+        </a>
+    </div>
+</header>
 
-            <div>
-                <label for="duration" class="<?= $labelCls ?>">Thời gian làm bài (phút)</label>
-                <input type="number" id="duration" name="duration" value="15" min="1" max="300" required class="<?= $inputCls ?>">
-            </div>
+<div class="container">
+<form id="exam-form" method="POST" action="result.php">
 
-            <div>
-                <label for="maxAttempts" class="<?= $labelCls ?>">Số lần làm tối đa</label>
-                <select name="max_attempts" id="maxAttempts" class="<?= $inputCls ?>">
-                    <option value="0">Không giới hạn</option>
-                    <option value="1">1 lần</option>
-                    <option value="2">2 lần</option>
-                    <option value="3">3 lần</option>
-                    <option value="5">5 lần</option>
-                </select>
-            </div>
+    <input type="hidden" name="action" value="submit_exam">
 
-            <div>
-                <label for="startTime" class="<?= $labelCls ?>">📅 Thời gian mở đề thi</label>
-                <input type="datetime-local" id="startTime" name="start_time" class="<?= $inputCls ?>">
-                <small class="text-[11px] text-slate-400 block mt-1">Để trống nếu muốn mở đề ngay lập tức.</small>
-            </div>
+    <input type="hidden" name="exam_id" value="<?= $exam_id ?>">
 
-            <div>
-                <label for="endTime" class="<?= $labelCls ?>">🛑 Thời gian đóng đề thi</label>
-                <input type="datetime-local" id="endTime" name="end_time" class="<?= $inputCls ?>">
-                <small class="text-[11px] text-slate-400 block mt-1">Quá thời gian này học sinh không thể vào thi.</small>
-            </div>
+    <input
+        type="hidden"
+        name="completion_time"
+        id="completion_time_input"
+        value="0"
+    >
 
-            <div>
-                <label for="examPassword" class="<?= $labelCls ?>">🔑 Mật khẩu đề thi</label>
-                <input type="text" id="examPassword" name="exam_password" placeholder="Để trống nếu tự do" maxlength="50" class="<?= $inputCls ?>">
-            </div>
-        </div>
-    </section>
+    <input
+        type="hidden"
+        name="tab_switches"
+        id="tab_switches_input"
+        value="0"
+    >
 
-    <!-- PHẦN 2: PHƯƠNG THỨC CHỌN CÂU HỎI -->
-    <section class="<?= $cardCls ?> space-y-4">
-        <h3 class="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3">2. Phương thức chọn câu hỏi</h3>
+    <div class="exam-layout">
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div class="flex items-start gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer has-[:checked]:bg-brand-50 has-[:checked]:border-brand-600">
-                <input type="radio" id="modeManual" name="create_mode" value="manual" checked class="mt-1 accent-teal-600">
-                <label for="modeManual" class="cursor-pointer">
-                    <strong class="block text-sm text-slate-800"><i class="fa-solid fa-list-check mr-1"></i> Chọn thủ công</strong>
-                    <small class="text-xs text-slate-500">Tự chọn từng câu hỏi đưa vào đề thi.</small>
-                </label>
-            </div>
+        <!-- Khu vực hiển thị câu hỏi -->
+        <main class="exam-main">
 
-            <div class="flex items-start gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer has-[:checked]:bg-brand-50 has-[:checked]:border-brand-600">
-                <input type="radio" id="modeAuto" name="create_mode" value="auto" class="mt-1 accent-teal-600">
-                <label for="modeAuto" class="cursor-pointer">
-                    <strong class="block text-sm text-slate-800"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Bốc câu hỏi ngẫu nhiên</strong>
-                    <small class="text-xs text-slate-500">Bốc theo chủ đề và cấu hình 3 mức độ.</small>
-                </label>
-            </div>
-        </div>
+            <?php foreach ($questions_for_client as $index => $q): ?>
 
-        <!-- 1. CHỌN THỦ CÔNG -->
-        <div id="manualSection">
-            <div class="flex items-center justify-between gap-3 mb-3">
-                <span class="px-3 py-1.5 bg-brand-100 text-brand-700 rounded-lg text-xs font-bold">Đã chọn <span id="selectedCount">0</span> câu</span>
-                <input type="text" id="questionSearch" placeholder="🔎 Tìm nội dung câu hỏi..." class="<?= $inputCls ?> max-w-xs">
-            </div>
+            <section
+                class="question-card"
+                id="question-<?= $index ?>"
+            >
 
-            <div class="max-h-96 overflow-y-auto p-2 border border-slate-200 rounded-xl bg-slate-50 space-y-2">
-                <?php foreach ($questionsBank as $q): ?>
-                    <?php
-                        $diffClass = 'bg-emerald-100 text-emerald-700';
-                        $diffText = 'Nhận biết';
-                        $diffUpper = strtoupper($q['difficulty'] ?? 'EASY');
-                        if ($diffUpper === 'MEDIUM') { $diffClass = 'bg-amber-100 text-amber-700'; $diffText = 'Thông hiểu'; }
-                        if ($diffUpper === 'HARD') { $diffClass = 'bg-rose-100 text-rose-700'; $diffText = 'Vận dụng'; }
-                    ?>
-                    <div class="question-row flex items-start gap-3 p-3 bg-white border border-slate-200/80 rounded-xl" data-grade="<?= (int)$q['grade'] ?>" data-search="<?= htmlspecialchars(mb_strtolower($q['content'] . ' ' . $q['topic_name'], 'UTF-8')) ?>">
-                        <input type="checkbox" name="question_ids[]" value="<?= (int)$q['question_id'] ?>" id="q_<?= (int)$q['question_id'] ?>" class="question-checkbox mt-1 w-4 h-4 accent-teal-600">
-                        <label for="q_<?= (int)$q['question_id'] ?>" class="text-xs text-slate-800 cursor-pointer flex-1">
-                            <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold mr-1 <?= $diffClass ?>"><?= $diffText ?></span>
-                            <strong class="text-brand-700">[<?= htmlspecialchars($q['topic_name']) ?>]</strong>
-                            <?= htmlspecialchars($q['content']) ?>
-                        </label>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-
-        <!-- 2. BỐC NGẪU NHIÊN CHỦ ĐỀ & 3 MỨC ĐỘ -->
-        <div id="autoSection" hidden>
-            <div class="p-5 bg-brand-50/60 border border-brand-100 rounded-2xl space-y-4">
-                <div>
-                    <label for="autoTopic" class="<?= $labelCls ?>">Chọn Chủ đề bài học</label>
-                    <select name="auto_topic_id" id="autoTopic" disabled class="<?= $inputCls ?>">
-                        <option value="0">-- Tất cả các chủ đề (Toàn bộ chương trình lớp) --</option>
-                        <?php foreach ($allTopics as $t): ?>
-                            <option value="<?= (int)$t['topic_id'] ?>" data-grade="<?= (int)$t['grade'] ?>">
-                                Lớp <?= (int)$t['grade'] ?> - <?= htmlspecialchars($t['topic_name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                <div class="question-title">
+                    Câu <?= $index + 1 ?>:
+                    <?= htmlspecialchars($q['question'], ENT_QUOTES, 'UTF-8') ?>
                 </div>
 
-                <p class="text-xs font-semibold text-slate-700">Cấu hình số lượng câu hỏi theo 3 mức độ:</p>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100">
-                        <label class="block text-xs font-bold text-emerald-800 mb-1">
-                            🟢 Nhận biết (EASY)
-                            <span class="ml-1 px-2 py-0.5 rounded-full bg-white border border-emerald-200 text-[10px] font-semibold" id="availEasy">Hiện có: 0</span>
-                        </label>
-                        <input type="number" class="auto-input w-full border border-emerald-200 rounded-lg px-3 py-1.5 text-sm font-bold text-emerald-900 focus:outline-none" id="countEasy" name="count_easy" value="5" min="0" max="50" disabled>
-                    </div>
-                    <div class="p-4 rounded-xl bg-amber-50 border border-amber-100">
-                        <label class="block text-xs font-bold text-amber-800 mb-1">
-                            🟡 Thông hiểu (MEDIUM)
-                            <span class="ml-1 px-2 py-0.5 rounded-full bg-white border border-amber-200 text-[10px] font-semibold" id="availMedium">Hiện có: 0</span>
-                        </label>
-                        <input type="number" class="auto-input w-full border border-amber-200 rounded-lg px-3 py-1.5 text-sm font-bold text-amber-900 focus:outline-none" id="countMedium" name="count_medium" value="3" min="0" max="50" disabled>
-                    </div>
-                    <div class="p-4 rounded-xl bg-rose-50 border border-rose-100">
-                        <label class="block text-xs font-bold text-rose-800 mb-1">
-                            🔴 Vận dụng (HARD)
-                            <span class="ml-1 px-2 py-0.5 rounded-full bg-white border border-rose-200 text-[10px] font-semibold" id="availHard">Hiện có: 0</span>
-                        </label>
-                        <input type="number" class="auto-input w-full border border-rose-200 rounded-lg px-3 py-1.5 text-sm font-bold text-rose-900 focus:outline-none" id="countHard" name="count_hard" value="2" min="0" max="50" disabled>
-                    </div>
-                </div>
-            </div>
-        </div>
+                <div class="options-list">
 
-        <div class="flex justify-end pt-2">
-            <button type="submit" class="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs rounded-xl shadow-md transition">
-                <i class="fa-solid fa-floppy-disk mr-1.5"></i> Lưu đề thi
-            </button>
-        </div>
-    </section>
+                    <?php foreach ($q['options'] as $option): ?>
+
+                    <label class="option-item">
+
+                        <input
+                            type="radio"
+                            name="answers[<?= (int) $q['id'] ?>]"
+                            value="<?= (int) $option['id'] ?>"
+                            style="margin-right:10px"
+                        >
+
+                        <strong>
+                            <?= htmlspecialchars($option['label'], ENT_QUOTES, 'UTF-8') ?>.
+                        </strong>
+
+                        &nbsp;
+
+                        <?= htmlspecialchars($option['content'], ENT_QUOTES, 'UTF-8') ?>
+
+                    </label>
+
+                    <?php endforeach; ?>
+
+                </div>
+
+            </section>
+
+            <?php endforeach; ?>
+
+        </main>
+
+        <!-- Thanh danh sách câu hỏi -->
+        <aside class="question-sidebar">
+
+            <div class="question-navigation">
+
+                <h3>Danh sách câu hỏi</h3>
+
+                <div class="question-grid">
+
+                    <?php foreach ($questions_for_client as $index => $q): ?>
+
+                    <button
+                        type="button"
+                        class="question-number"
+                        data-question="<?= $index ?>"
+                        aria-label="Đi đến câu <?= $index + 1 ?>"
+                    >
+                        <?= $index + 1 ?>
+                    </button>
+
+                    <?php endforeach; ?>
+
+                </div>
+
+                <div class="question-progress" id="question-progress">
+                    Đã làm 0/<?= count($questions_for_client) ?> câu
+                </div>
+
+                <!-- Chú thích trạng thái câu hỏi -->
+                <div class="question-legend">
+
+                    <span>
+                        <i
+                            class="legend-box"
+                            style="background:#fee2e2"
+                        ></i>
+                        Chưa làm
+                    </span>
+
+                    <span>
+                        <i
+                            class="legend-box"
+                            style="background:#dcfce7"
+                        ></i>
+                        Đã làm
+                    </span>
+
+                    <span>
+                        <i
+                            class="legend-box"
+                            style="background:#dbeafe"
+                        ></i>
+                        Đang xem
+                    </span>
+
+                </div>
+
+                <!-- Nút nộp bài nằm trong thanh danh sách -->
+                <div class="submit-exam-container">
+
+                    <button
+                        type="button"
+                        id="submit-exam-btn"
+                        class="submit-exam-btn"
+                    >
+                        Nộp bài
+                    </button>
+
+                </div>
+
+            </div>
+
+        </aside>
+
+    </div>
+
 </form>
+</div>
+
+<!-- Bảng xác nhận thoát bài thi -->
+<div
+    class="exit-modal"
+    id="exitModal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="exitModalTitle"
+    aria-hidden="true"
+>
+
+    <div class="exit-modal-content">
+
+        <div class="exit-modal-icon" aria-hidden="true">
+            ⚠️
+        </div>
+
+        <h2 id="exitModalTitle">
+            Xác nhận thoát bài thi
+        </h2>
+
+        <p>
+            Bạn có chắc chắn muốn thoát khỏi bài thi không?
+        </p>
+
+        <p class="exit-warning">
+            Lượt làm bài này sẽ được tính và bài làm chưa nộp sẽ không được chấm điểm.
+        </p>
+
+        <div class="exit-modal-actions">
+
+            <button
+                type="button"
+                class="btn-stay"
+                id="btnStay"
+            >
+                Ở lại làm bài
+            </button>
+
+            <button
+                type="button"
+                class="btn-confirm-exit"
+                id="btnConfirmExit"
+            >
+                Thoát bài thi
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Bảng xác nhận nộp bài -->
+<div
+    class="submit-modal"
+    id="submitModal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="submitModalTitle"
+    aria-hidden="true"
+>
+    <div class="submit-modal-content">
+
+        <div class="submit-modal-icon">
+            ✓
+        </div>
+
+        <h2 id="submitModalTitle">
+            Xác nhận nộp bài
+        </h2>
+
+        <p>
+            Bạn có chắc chắn muốn nộp bài thi không?
+        </p>
+
+        <p>
+            Sau khi nộp bài, bạn sẽ không thể thay đổi câu trả lời.
+        </p>
+
+        <div class="submit-modal-actions">
+
+            <button
+                type="button"
+                class="btn-cancel-submit"
+                id="btnCancelSubmit"
+            >
+                Tiếp tục làm bài
+            </button>
+
+            <button
+                type="button"
+                class="btn-confirm-submit"
+                id="btnConfirmSubmit"
+            >
+                Xác nhận nộp bài
+            </button>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- Bảng thông báo câu chưa hoàn thành -->
+<div
+    id="unansweredModal"
+    class="submit-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+>
+    <div class="submit-modal-content">
+
+        <div
+            class="submit-modal-icon"
+            style="background:#fef3c7;color:#d97706;"
+        >
+            !
+        </div>
+
+        <h2>Bạn chưa hoàn thành bài thi!</h2>
+
+        <p id="unansweredMessage">
+            Bạn vẫn còn câu hỏi chưa được trả lời.
+        </p>
+
+        <div class="submit-modal-actions">
+
+            <button
+                type="button"
+                id="btnCloseUnanswered"
+                class="btn-cancel-submit"
+            >
+                Tiếp tục làm bài
+            </button>
+
+        </div>
+
+    </div>
+</div>
 
 <script>
-    // Dữ liệu ngân hàng câu hỏi dùng để đếm tự động
-    const questionsData = <?= json_encode($jsQuestionsData, JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+let totalSeconds = <?= (int) $remaining_seconds ?>;
 
-    const gradeSelect = document.getElementById('gradeSelect');
-    const modeManual = document.getElementById('modeManual');
-    const modeAuto = document.getElementById('modeAuto');
-    const manualSection = document.getElementById('manualSection');
-    const autoSection = document.getElementById('autoSection');
-    const autoTopic = document.getElementById('autoTopic');
-    const autoInputs = document.querySelectorAll('.auto-input');
-    const questionSearch = document.getElementById('questionSearch');
-    const selectedCount = document.getElementById('selectedCount');
+// Mã lượt thi, dùng làm khóa lưu đáp án tạm trong trình duyệt.
+const answersStorageKey = 'exam_answers_<?= (int) $attempt_id ?>';
 
-    // Các phần tử thời gian
-    const startTimeInput = document.getElementById('startTime');
-    const endTimeInput = document.getElementById('endTime');
+// Các phần tử giao diện
+const timerDisplay = document.getElementById('timer-display');
 
-    // Thẻ hiển thị số lượng khả dụng
-    const availEasy = document.getElementById('availEasy');
-    const availMedium = document.getElementById('availMedium');
-    const availHard = document.getElementById('availHard');
+const examForm = document.getElementById('exam-form');
 
-    const countEasyInput = document.getElementById('countEasy');
-    const countMediumInput = document.getElementById('countMedium');
-    const countHardInput = document.getElementById('countHard');
+const completionTimeInput = document.getElementById(
+    'completion_time_input'
+);
 
-    // Cập nhật đếm số câu hiện có theo Khối lớp & Chủ đề đang chọn
-    function updateAvailableCounts() {
-        const selectedGrade = parseInt(gradeSelect.value, 10);
-        const selectedTopicId = parseInt(autoTopic.value, 10);
+// Các phần tử bảng thoát bài
+const btnExit = document.getElementById('btn-exit');
 
-        let easyCount = 0;
-        let mediumCount = 0;
-        let hardCount = 0;
+const exitModal = document.getElementById('exitModal');
 
-        questionsData.forEach(q => {
-            if (q.g === selectedGrade && (selectedTopicId === 0 || q.t === selectedTopicId)) {
-                if (q.d === 'EASY') easyCount++;
-                else if (q.d === 'MEDIUM') mediumCount++;
-                else if (q.d === 'HARD') hardCount++;
-            }
-        });
+const btnStay = document.getElementById('btnStay');
 
-        availEasy.textContent = `Hiện có: ${easyCount}`;
-        availMedium.textContent = `Hiện có: ${mediumCount}`;
-        availHard.textContent = `Hiện có: ${hardCount}`;
+const btnConfirmExit = document.getElementById('btnConfirmExit');
 
-        // Cập nhật thuộc tính max cho ô nhập để hạn chế bốc quá số câu hiện có
-        countEasyInput.max = easyCount;
-        countMediumInput.max = mediumCount;
-        countHardInput.max = hardCount;
+// Các phần tử bảng nộp bài
+const submitBtn = document.getElementById('submit-exam-btn');
+
+const submitModal = document.getElementById('submitModal');
+
+const btnCancelSubmit = document.getElementById('btnCancelSubmit');
+
+const btnConfirmSubmit = document.getElementById('btnConfirmSubmit');
+
+// Các phần tử danh sách câu hỏi
+const questionButtons = document.querySelectorAll('.question-number');
+
+const questionCards = document.querySelectorAll('.question-card');
+
+const questionProgress = document.getElementById('question-progress');
+
+const startTime = Date.now();
+
+let currentQuestion = 0;
+
+let isSubmitting = false;
+
+let timerInterval = null;
+
+
+// Khi quay lại trang làm bài bằng nút Back của trình duyệt,
+// tải lại trang để tránh sử dụng giao diện làm bài cũ.
+window.addEventListener('pageshow', function(event) {
+
+    const navigation = performance.getEntriesByType('navigation')[0];
+
+    if (
+        event.persisted ||
+        (navigation && navigation.type === 'back_forward')
+    ) {
+        window.location.reload();
     }
 
-    function toggleMode() {
-        const isManual = modeManual.checked;
-        manualSection.hidden = !isManual;
-        autoSection.hidden = isManual;
+});
 
-        document.querySelectorAll('.question-checkbox').forEach(cb => cb.disabled = !isManual);
-        autoTopic.disabled = isManual;
-        autoInputs.forEach(input => input.disabled = isManual);
 
-        updateQuestionList();
-        updateTopicOptions();
-        updateSelectedCount();
-        updateAvailableCounts();
-    }
+// Tính thời gian đã làm bài.
+function calculateTimeSpent() {
 
-    function updateQuestionList() {
-        const grade = gradeSelect.value;
-        const kw = questionSearch.value.trim().toLowerCase();
+    completionTimeInput.value = Math.round(
+        (Date.now() - startTime) / 1000
+    );
 
-        document.querySelectorAll('.question-row').forEach(row => {
-            const sameGrade = row.dataset.grade === grade;
-            const matchSearch = row.dataset.search.includes(kw);
-            row.hidden = !(sameGrade && matchSearch);
-        });
-    }
+}
 
-    function updateTopicOptions() {
-        const grade = gradeSelect.value;
-        Array.from(autoTopic.options).forEach(opt => {
-            if (opt.value === "0") return;
-            opt.hidden = opt.dataset.grade !== grade;
-        });
-        autoTopic.value = "0";
-    }
 
-    function updateSelectedCount() {
-        const count = document.querySelectorAll('.question-checkbox:checked:not(:disabled)').length;
-        selectedCount.textContent = count;
-    }
+// Tìm những câu chưa chọn đáp án.
+function getUnansweredQuestions() {
 
-    gradeSelect.addEventListener('change', () => {
-        updateQuestionList();
-        updateTopicOptions();
-        updateAvailableCounts();
-    });
+    const unanswered = [];
 
-    autoTopic.addEventListener('change', updateAvailableCounts);
+    questionCards.forEach((card, index) => {
 
-    questionSearch.addEventListener('input', updateQuestionList);
-    modeManual.addEventListener('change', toggleMode);
-    modeAuto.addEventListener('change', toggleMode);
+        const selected = card.querySelector(
+            'input[type="radio"]:checked'
+        );
 
-    document.querySelectorAll('.question-checkbox').forEach(cb => {
-        cb.addEventListener('change', updateSelectedCount);
-    });
-
-    document.getElementById('examForm').addEventListener('submit', function(e) {
-        // Kiểm tra chọn câu hỏi ở chế độ thủ công
-        if (modeManual.checked && selectedCount.textContent === '0') {
-            e.preventDefault();
-            alert('Vui lòng chọn ít nhất 1 câu hỏi.');
-            return;
+        if (!selected) {
+            unanswered.push(index);
         }
 
-        // Kiểm tra Logic thời gian mở/đóng đề thi
-        if (startTimeInput.value && endTimeInput.value) {
-            const startVal = new Date(startTimeInput.value);
-            const endVal = new Date(endTimeInput.value);
-
-            if (endVal <= startVal) {
-                e.preventDefault();
-                alert('⚠️ Thời gian đóng đề thi phải sau thời gian mở đề thi!');
-                endTimeInput.focus();
-            }
-        }
     });
 
-    toggleMode();
+    return unanswered;
+
+}
+
+
+// Cập nhật màu sắc thanh số câu và số câu đã làm.
+function updateQuestionNavigation() {
+
+    let answeredCount = 0;
+
+    questionButtons.forEach((button, index) => {
+
+        const card = questionCards[index];
+
+        const selected = card
+            ? card.querySelector('input[type="radio"]:checked')
+            : null;
+
+        if (selected) {
+            answeredCount++;
+        }
+
+        button.classList.toggle('answered', !!selected);
+
+        button.classList.toggle(
+            'current',
+            index === currentQuestion
+        );
+
+        button.setAttribute(
+            'aria-label',
+            `Câu ${index + 1}: ${selected ? 'đã làm' : 'chưa làm'}`
+        );
+
+    });
+
+    questionProgress.textContent =
+        `Đã làm ${answeredCount}/${questionCards.length} câu`;
+
+}
+
+
+// Bấm số câu để cuộn đến câu tương ứng.
+questionButtons.forEach((button, index) => {
+
+    button.addEventListener('click', function() {
+
+        currentQuestion = index;
+
+        questionCards[index].scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+
+        updateQuestionNavigation();
+
+    });
+
+});
+
+
+// Khi chọn đáp án, cập nhật thanh câu hỏi.
+document.querySelectorAll(
+    '#exam-form input[type="radio"]'
+).forEach(radio => {
+
+    radio.addEventListener('change', function() {
+
+        const card = radio.closest('.question-card');
+
+        if (card) {
+            card.classList.remove('missing-answer');
+        }
+
+        updateQuestionNavigation();
+
+        saveAnswers();
+
+    });
+
+});
+
+
+// Lưu đáp án đã chọn vào trình duyệt để không mất khi tải lại trang.
+function saveAnswers() {
+
+    const saved = {};
+
+    document.querySelectorAll(
+        '#exam-form input[type="radio"]:checked'
+    ).forEach(radio => {
+        saved[radio.name] = radio.value;
+    });
+
+    try {
+        localStorage.setItem(answersStorageKey, JSON.stringify(saved));
+    } catch (error) {
+        // Trình duyệt chặn lưu trữ thì bỏ qua, bài thi vẫn làm bình thường.
+    }
+
+}
+
+
+// Xóa đáp án đã lưu khi lượt thi kết thúc (nộp bài hoặc thoát).
+function clearSavedAnswers() {
+
+    try {
+        localStorage.removeItem(answersStorageKey);
+    } catch (error) {
+    }
+
+}
+
+
+// Khôi phục đáp án đã chọn khi vào lại lượt thi đang làm dở.
+(function restoreAnswers() {
+
+    try {
+
+        const saved = JSON.parse(
+            localStorage.getItem(answersStorageKey) || '{}'
+        );
+
+        Object.keys(saved).forEach(name => {
+
+            const radio = document.querySelector(
+                '#exam-form input[type="radio"][name="' +
+                CSS.escape(name) + '"][value="' +
+                CSS.escape(String(saved[name])) + '"]'
+            );
+
+            if (radio) {
+                radio.checked = true;
+            }
+
+        });
+
+    } catch (error) {
+    }
+
+    updateQuestionNavigation();
+
+})();
+
+
+// Kiểm tra câu bỏ trống trước khi nộp.
+function validateAllAnswers() {
+
+    const unanswered = getUnansweredQuestions();
+
+    if (unanswered.length === 0) {
+        return true;
+    }
+
+    // Lấy số thứ tự các câu chưa làm
+    const questionNumbers = unanswered.map(index => index + 1);
+
+    // Hiển thị nội dung thông báo
+    document.getElementById('unansweredMessage').textContent =
+        `Bạn vẫn còn ${unanswered.length} câu hỏi chưa được trả lời: ` +
+        `Câu ${questionNumbers.join(', ')}. ` +
+        `Vui lòng hoàn thành các câu hỏi còn thiếu trước khi nộp bài.`;
+
+    // Hiển thị bảng thông báo
+    document.getElementById('unansweredModal').classList.add('show');
+
+    // Đánh dấu câu chưa làm
+    unanswered.forEach(index => {
+        questionButtons[index].classList.add('unanswered-warning');
+    });
+
+    return false;
+}
+// Đóng bảng xác nhận nộp bài.
+function closeSubmitModal() {
+
+    submitModal.classList.remove('show');
+
+    submitModal.setAttribute('aria-hidden', 'true');
+
+}
+
+
+// Mở bảng xác nhận nộp bài.
+function openSubmitModal() {
+
+    submitModal.classList.add('show');
+
+    submitModal.setAttribute('aria-hidden', 'false');
+
+    btnCancelSubmit.focus();
+
+}
+
+
+// Gửi bài lên result.php.
+function submitExam(forceSubmit = false) {
+
+    if (isSubmitting) {
+        return;
+    }
+
+    // Không cho nộp nếu còn câu bỏ trống,
+    // trừ trường hợp hết giờ tự động nộp.
+    if (!forceSubmit && !validateAllAnswers()) {
+        return;
+    }
+
+    isSubmitting = true;
+
+    calculateTimeSpent();
+
+    if (submitBtn) {
+
+        submitBtn.disabled = true;
+
+        submitBtn.textContent = 'Đang nộp bài...';
+
+    }
+
+    if (btnConfirmSubmit) {
+
+        btnConfirmSubmit.disabled = true;
+
+        btnConfirmSubmit.textContent = 'Đang nộp bài...';
+
+    }
+
+    fetch('result.php', {
+
+        method: 'POST',
+
+        body: new FormData(examForm)
+
+    })
+
+    .then(response => {
+
+        if (!response.ok) {
+
+            throw new Error(
+                'Máy chủ trả về lỗi HTTP ' + response.status
+            );
+
+        }
+
+        return response.json();
+
+    })
+
+    .then(data => {
+
+        if (data.success && data.redirect_url) {
+
+            clearSavedAnswers();
+
+            window.location.replace(data.redirect_url);
+
+        } else {
+
+            alert(data.message || 'Có lỗi xảy ra khi nộp bài.');
+
+            isSubmitting = false;
+
+            submitBtn.disabled = false;
+
+            submitBtn.textContent = 'Nộp bài';
+
+            btnConfirmSubmit.disabled = false;
+
+            btnConfirmSubmit.textContent = 'Xác nhận nộp bài';
+
+        }
+
+    })
+
+    .catch(error => {
+
+        console.error(error);
+
+        alert(
+            'Không thể kết nối đến máy chủ. ' +
+            'Vui lòng kiểm tra lại và thử nộp bài.'
+        );
+
+        isSubmitting = false;
+
+        submitBtn.disabled = false;
+
+        submitBtn.textContent = 'Nộp bài';
+
+        btnConfirmSubmit.disabled = false;
+
+        btnConfirmSubmit.textContent = 'Xác nhận nộp bài';
+
+    });
+
+}
+
+
+// Bấm nút Nộp bài trên thanh danh sách câu hỏi.
+submitBtn.addEventListener('click', function() {
+
+    if (isSubmitting) {
+        return;
+    }
+
+    // Nếu còn câu chưa làm, hiện bảng thông báo
+    if (!validateAllAnswers()) {
+        return;
+    }
+
+    // Nếu đã làm hết, hiện bảng xác nhận nộp bài
+    openSubmitModal();
+
+});
+// =====================================
+// XỬ LÝ BẢNG THÔNG BÁO CÂU CHƯA LÀM
+// =====================================
+
+const unansweredModal = document.getElementById('unansweredModal');
+
+const btnCloseUnanswered = document.getElementById('btnCloseUnanswered');
+
+// Bấm Tiếp tục làm bài để đóng bảng thông báo
+btnCloseUnanswered.addEventListener('click', function(event) {
+
+    event.preventDefault();
+
+    // Đóng bảng thông báo
+    unansweredModal.classList.remove('show');
+
+    unansweredModal.setAttribute('aria-hidden', 'true');
+
+    // Xóa hiệu ứng cảnh báo ở các câu chưa làm
+    questionButtons.forEach(button => {
+        button.classList.remove('unanswered-warning');
+    });
+
+    // Không nộp bài, không khóa giao diện
+    isSubmitting = false;
+
+});
+
+// Bấm Tiếp tục làm bài.
+btnCancelSubmit.addEventListener('click', function() {
+
+    closeSubmitModal();
+
+    submitBtn.focus();
+
+});
+
+
+// =====================================
+// XÁC NHẬN NỘP BÀI
+// =====================================
+
+btnConfirmSubmit.addEventListener('click', function() {
+
+    if (isSubmitting) {
+        return;
+    }
+
+    closeSubmitModal();
+
+    submitExam(false);
+
+});
+
+// Bấm vùng tối bên ngoài bảng xác nhận để đóng.
+submitModal.addEventListener('click', function(event) {
+
+    if (event.target === submitModal) {
+
+        closeSubmitModal();
+
+        submitBtn.focus();
+
+    }
+
+});
+
+
+// Mở bảng xác nhận thoát khi bấm nút Thoát.
+btnExit.addEventListener('click', function(event) {
+
+    event.preventDefault();
+
+    if (isSubmitting) {
+        return;
+    }
+
+    exitModal.classList.add('show');
+
+    exitModal.setAttribute('aria-hidden', 'false');
+
+    btnStay.focus();
+
+});
+
+
+// Đóng bảng xác nhận thoát.
+function closeExitModal() {
+
+    exitModal.classList.remove('show');
+
+    exitModal.setAttribute('aria-hidden', 'true');
+
+    btnExit.focus();
+
+}
+
+
+// Chọn ở lại: đóng bảng và tiếp tục làm bài.
+btnStay.addEventListener('click', closeExitModal);
+
+
+// Xác nhận thoát: chuyển về trang chủ, không tự nộp bài.
+btnConfirmExit.addEventListener('click', function() {
+
+    // Báo cho máy chủ kết thúc lượt làm bài (lượt vẫn được tính).
+    const exitData = new FormData();
+    exitData.append('action', 'abandon_exam');
+    exitData.append('exam_id', examForm.elements['exam_id'].value);
+    exitData.append('tab_switches', tabSwitches);
+
+    examLeaving = true;
+
+    btnConfirmExit.disabled = true;
+
+    fetch('result.php', {
+        method: 'POST',
+        body: exitData,
+        keepalive: true
+    })
+    .catch(() => {})
+    .finally(() => {
+        clearSavedAnswers();
+        window.location.href = btnExit.href;
+    });
+
+});
+
+
+// Bấm vùng tối bên ngoài bảng thoát để đóng.
+exitModal.addEventListener('click', function(event) {
+
+    if (event.target === exitModal) {
+
+        closeExitModal();
+
+    }
+
+});
+
+
+// Nhấn ESC để đóng bảng đang mở.
+document.addEventListener('keydown', function(event) {
+
+    if (event.key === 'Escape') {
+
+        if (submitModal.classList.contains('show')) {
+
+            closeSubmitModal();
+
+            submitBtn.focus();
+
+        } else if (exitModal.classList.contains('show')) {
+
+            closeExitModal();
+
+        }
+
+    }
+
+});
+
+
+// ===== Toàn màn hình bắt buộc + đếm số lần rời khỏi bài thi =====
+const fsGate = document.getElementById('fs-gate');
+const fsGateWarn = document.getElementById('fs-gate-warn');
+const fsStartBtn = document.getElementById('fs-start-btn');
+const tabSwitchesInput = document.getElementById('tab_switches_input');
+
+// Lưu số lần theo từng lượt thi để tải lại trang (F5) không bị reset.
+const switchesStorageKey = 'exam_switches_<?= (int) $attempt_id ?>';
+
+// Trình duyệt không hỗ trợ (ví dụ iPhone): bỏ qua toàn màn hình,
+// vẫn đếm số lần chuyển tab.
+const fullscreenSupported = !!document.documentElement.requestFullscreen;
+
+let tabSwitches = 0;
+let lastLeaveAt = 0;
+let examLeaving = false;
+
+try {
+    tabSwitches = parseInt(
+        localStorage.getItem(switchesStorageKey) || '0',
+        10
+    ) || 0;
+} catch (e) {}
+
+tabSwitchesInput.value = tabSwitches;
+
+
+function showFsGate() {
+
+    if (tabSwitches > 0) {
+
+        fsGateWarn.textContent =
+            'Bạn đã rời khỏi chế độ làm bài ' + tabSwitches +
+            ' lần. Mỗi lần đều được hệ thống ghi lại.';
+
+        fsGateWarn.classList.add('show');
+
+    }
+
+    fsGate.classList.add('show');
+
+    document.body.classList.add('fs-locked');
+
+    fsStartBtn.focus();
+
+}
+
+
+function hideFsGate() {
+
+    fsGate.classList.remove('show');
+
+    document.body.classList.remove('fs-locked');
+
+}
+
+
+// Ghi nhận một lần rời bài (chuyển tab hoặc thoát toàn màn hình).
+// Gộp các sự kiện xảy ra gần nhau để không đếm trùng một hành động.
+function recordLeave() {
+
+    if (isSubmitting || examLeaving) {
+        return;
+    }
+
+    const now = Date.now();
+
+    if (now - lastLeaveAt < 1500) {
+        return;
+    }
+
+    lastLeaveAt = now;
+
+    tabSwitches++;
+
+    tabSwitchesInput.value = tabSwitches;
+
+    try {
+        localStorage.setItem(switchesStorageKey, String(tabSwitches));
+    } catch (e) {}
+
+}
+
+
+fsStartBtn.addEventListener('click', function() {
+
+    document.documentElement.requestFullscreen()
+        .then(hideFsGate)
+        .catch(function() {
+            alert(
+                'Không thể bật chế độ toàn màn hình. ' +
+                'Vui lòng cho phép toàn màn hình trong trình duyệt.'
+            );
+        });
+
+});
+
+
+// Chuyển tab, thu nhỏ cửa sổ...
+document.addEventListener('visibilitychange', function() {
+
+    if (document.hidden) {
+
+        recordLeave();
+
+    } else if (fullscreenSupported && !document.fullscreenElement) {
+
+        if (!isSubmitting && !examLeaving) {
+            showFsGate();
+        }
+
+    }
+
+});
+
+
+// Thoát toàn màn hình (Esc, F11...).
+document.addEventListener('fullscreenchange', function() {
+
+    if (!document.fullscreenElement && !isSubmitting && !examLeaving) {
+
+        recordLeave();
+
+        showFsGate();
+
+    }
+
+});
+
+
+if (!fullscreenSupported) {
+    hideFsGate();
+} else {
+    showFsGate();
+}
+
+
+// Đồng hồ đếm ngược dựa trên mốc thời gian thực.
+const examDeadline = Date.now() + (totalSeconds * 1000);
+
+let timeExpiredHandled = false;
+
+
+function updateTimer() {
+
+    const remainingMilliseconds = Math.max(
+        0,
+        examDeadline - Date.now()
+    );
+
+    totalSeconds = Math.ceil(
+        remainingMilliseconds / 1000
+    );
+
+    const minutes = Math.floor(totalSeconds / 60);
+
+    const seconds = totalSeconds % 60;
+
+    timerDisplay.textContent =
+        String(minutes).padStart(2, '0') + ':' +
+        String(seconds).padStart(2, '0');
+
+    if (totalSeconds <= 0 && !timeExpiredHandled) {
+
+        timeExpiredHandled = true;
+
+        clearInterval(timerInterval);
+
+        alert(
+            'Đã hết giờ làm bài! ' +
+            'Hệ thống sẽ tự động nộp bài với các đáp án hiện có.'
+        );
+
+        // Khi hết giờ, tự động nộp kể cả còn câu chưa làm.
+        closeSubmitModal();
+
+        submitExam(true);
+
+    }
+
+}
+
+
+// Khởi tạo giao diện và đồng hồ.
+updateQuestionNavigation();
+
+updateTimer();
+
+timerInterval = setInterval(updateTimer, 250);
+
 </script>
 
-<?php teacher_layout_end(); ?>
+</body>
+</html>

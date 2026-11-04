@@ -1,0 +1,403 @@
+/* ==========================================================================
+    intro_exam.css — Giao diện trang "Thông tin đề thi" (TestSuViet)
+   Tiền tố ex- để không xung đột với style.css hoặc profile.css.
+   ========================================================================== */
+
+:root {
+  --ex-ink: #1c2233;
+  --ex-muted: #5f6678;
+  --ex-line: #e3e6ee;
+  --ex-bg: #f4f5f9;
+  --ex-surface: #ffffff;
+  --ex-indigo: #232f6b;
+  --ex-indigo-dark: #19235a;
+  --ex-indigo-soft: #e9ecf8;
+  --ex-seal: #b3261e;
+  --ex-seal-soft: #fdecea;
+  --ex-ok: #1d7a4b;
+  --ex-ok-soft: #e6f4ec;
+  --ex-warn: #7a5a14;
+  --ex-warn-soft: #fff6e0;
+  --ex-radius: 16px;
+  --ex-radius-sm: 10px;
+  --ex-font:
+    "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ex-brand-font: "Plus Jakarta Sans", "Be Vietnam Pro", system-ui, sans-serif;
+  --ex-serif: "Noto Serif", Georgia, "Times New Roman", serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body.ex-body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--ex-bg);
+  color: var(--ex-ink);
+  font-family: var(--ex-font);
+  line-height: 1.55;
+}
+
+/* ---------- Thanh đầu trang ---------- */
+.ex-topbar {
+  background: var(--ex-surface);
+  border-bottom: 1px solid var(--ex-line);
+}
+
+.ex-topbar-inner {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ex-brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-family: var(--ex-brand-font);
+  font-size: 1.45rem;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+  color: #2a3042;
+}
+
+.ex-brand-mark {
+  font-size: 0.68em;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: lowercase;
+}
+
+.ex-tagline {
+  color: var(--ex-muted);
+  font-size: 0.85rem;
+}
+
+/* ---------- Khung trang ---------- */
+.ex-page {
+  max-width: 780px;
+  margin: 32px auto 56px;
+  padding: 0 18px;
+}
+
+.ex-back {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: var(--ex-muted);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.ex-back:hover {
+  color: var(--ex-indigo);
+  text-decoration: underline;
+}
+
+.ex-card {
+  background: var(--ex-surface);
+  border: 1px solid var(--ex-line);
+  border-radius: var(--ex-radius);
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(28, 34, 51, 0.04);
+}
+
+/* ---------- Phần đầu thẻ ---------- */
+.ex-hero {
+  padding: 36px 32px 30px;
+  text-align: center;
+  background: var(--ex-indigo);
+  color: #fff;
+}
+
+/* Con dấu khối lớp */
+.ex-stamp {
+  display: inline-block;
+  margin-bottom: 18px;
+  padding: 6px 18px;
+  border-radius: 8px;
+  background: var(--ex-seal);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.28);
+  transform: rotate(-2deg);
+}
+
+.ex-title {
+  margin: 0 0 8px;
+  font-family: var(--ex-serif);
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.ex-hero p {
+  margin: 0;
+  color: #cdd3ee;
+  font-size: 0.95rem;
+}
+
+.ex-content {
+  padding: 28px 32px 32px;
+}
+
+/* ---------- Thông số đề ---------- */
+.ex-info {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 24px;
+}
+
+.ex-info-item {
+  grid-column: span 2;
+  padding: 16px 18px;
+  background: var(--ex-bg);
+  border: 1px solid var(--ex-line);
+  border-radius: var(--ex-radius-sm);
+}
+
+.ex-info-item.is-wide {
+  grid-column: span 3;
+}
+
+.ex-info-item dt {
+  margin: 0 0 4px;
+  color: var(--ex-muted);
+  font-size: 0.85rem;
+}
+
+.ex-info-item dd {
+  margin: 0;
+  font-family: var(--ex-serif);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--ex-indigo);
+  overflow-wrap: anywhere;
+}
+
+.ex-info-item dd.is-small {
+  font-family: var(--ex-font);
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+/* ---------- Thông báo trạng thái ---------- */
+.ex-notice {
+  margin-bottom: 20px;
+  padding: 13px 16px;
+  border: 1px solid;
+  border-left-width: 4px;
+  border-radius: var(--ex-radius-sm);
+  font-size: 0.93rem;
+  line-height: 1.6;
+}
+
+.ex-notice--info {
+  background: var(--ex-indigo-soft);
+  border-color: #c5ccee;
+  border-left-color: var(--ex-indigo);
+  color: var(--ex-indigo-dark);
+}
+
+.ex-notice--ok {
+  background: var(--ex-ok-soft);
+  border-color: #b9e0c9;
+  border-left-color: var(--ex-ok);
+  color: #14583a;
+}
+
+.ex-notice--error {
+  background: var(--ex-seal-soft);
+  border-color: #f3c0bb;
+  border-left-color: var(--ex-seal);
+  color: #8f1d17;
+}
+
+.ex-notice--warn {
+  background: var(--ex-warn-soft);
+  border-color: #f0dca6;
+  border-left-color: #c58a1a;
+  color: var(--ex-warn);
+}
+
+/* ---------- Lưu ý ---------- */
+.ex-section-title {
+  margin: 8px 0 14px;
+  font-family: var(--ex-serif);
+  font-size: 1.15rem;
+  color: var(--ex-ink);
+}
+
+.ex-rules {
+  margin: 0 0 22px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 14px;
+}
+
+.ex-rule {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.ex-rule::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 9px;
+  border-radius: 2px;
+  background: var(--ex-seal);
+}
+
+.ex-rule strong {
+  display: block;
+  margin-bottom: 1px;
+}
+
+.ex-rule p {
+  margin: 0;
+  color: var(--ex-muted);
+  font-size: 0.92rem;
+}
+
+/* ---------- Xác nhận & nút ---------- */
+.ex-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 4px 0 22px;
+  padding: 14px 16px;
+  border: 1px solid var(--ex-line);
+  border-radius: var(--ex-radius-sm);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+
+.ex-confirm:hover {
+  border-color: #aab1c6;
+}
+
+.ex-confirm:has(input:checked) {
+  border-color: var(--ex-indigo);
+  background: var(--ex-indigo-soft);
+}
+
+.ex-confirm input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  accent-color: var(--ex-indigo);
+}
+
+.ex-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.ex-btn {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 22px;
+  border: 1px solid transparent;
+  border-radius: var(--ex-radius-sm);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
+}
+
+.ex-btn-back {
+  flex: 1;
+  background: var(--ex-surface);
+  border-color: #cfd4e1;
+  color: var(--ex-ink);
+}
+
+.ex-btn-back:hover {
+  background: var(--ex-bg);
+}
+
+.ex-btn-start {
+  flex: 2;
+  background: var(--ex-indigo);
+  color: #fff;
+}
+
+.ex-btn-start:hover:not(:disabled) {
+  background: var(--ex-indigo-dark);
+}
+
+.ex-btn-start:disabled {
+  background: #b8bdd0;
+  cursor: not-allowed;
+}
+
+.ex-btn:focus-visible,
+.ex-back:focus-visible,
+.ex-confirm:has(input:focus-visible) {
+  outline: 3px solid rgba(35, 47, 107, 0.45);
+  outline-offset: 2px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 600px) {
+  .ex-page {
+    margin-top: 20px;
+  }
+
+  .ex-hero {
+    padding: 28px 18px 24px;
+  }
+
+  .ex-content {
+    padding: 22px 18px 24px;
+  }
+
+  .ex-info {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .ex-info-item,
+  .ex-info-item.is-wide {
+    grid-column: span 1;
+    padding: 14px;
+  }
+
+  .ex-info-item.is-full {
+    grid-column: span 2;
+  }
+
+  .ex-actions {
+    flex-direction: column-reverse;
+  }
+
+  .ex-btn {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

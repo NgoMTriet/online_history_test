@@ -16,7 +16,8 @@ $sql = "
     SELECT 
         er.result_id,
         er.score,
-        er.correct_answers,
+        er.correct_answers_count AS correct_answers,
+        er.tab_switches,
         er.total_questions,
         er.completion_time,
         er.created_at,
@@ -112,6 +113,7 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <th>Lớp</th>
                         <th>Ngày sinh</th>
                         <th>Điểm số</th>
+                        <th>Rời bài</th>
                         <th>Ngày nộp bài</th>
                     </tr>
                 </thead>
@@ -130,12 +132,19 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <td><span class="badge badge-class"><?= htmlspecialchars($row['class_name'] ?? 'N/A') ?></span></td>
                                 <td><?= htmlspecialchars($dob) ?></td>
                                 <td><span class="score-box <?= $score_class ?>"><?= number_format($score, 1) ?></span></td>
+                                <td>
+                                    <?php if ((int)$row['tab_switches'] > 0): ?>
+                                        <span style="color:#b3261e;font-weight:600;">⚠️ <?= (int)$row['tab_switches'] ?> lần</span>
+                                    <?php else: ?>
+                                        <span style="color: var(--muted);">0</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td><small style="color: var(--muted);"><?= htmlspecialchars($submitted_at) ?></small></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="6">
+                            <td colspan="7">
                                 <div class="empty-state">
                                     <span>📭</span>
                                     <p>Chưa có lượt làm bài nào phù hợp với bộ lọc.</p>

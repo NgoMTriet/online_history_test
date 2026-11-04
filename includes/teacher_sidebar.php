@@ -48,9 +48,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
     </div>
 
     <div class="et-sidebar-foot">
-        <a href="login.php">
-            <span>⇥</span>
-            Đăng xuất
-        </a>
+         <a class="btn-logout" href="../api/auth.php?action=logout">Đăng xuất</a>
     </div>
 </aside>

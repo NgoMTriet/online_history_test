@@ -13,6 +13,7 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = (int) $_SESSION['user_id'];
 $message = '';
+$is_success = false;
 $user_info = [];
 
 function getUserInfo(PDO $conn, int $userId): array
@@ -101,6 +102,7 @@ try {
 
         $user_info = getUserInfo($conn, $user_id);
         $message = 'Cập nhật thông tin cá nhân thành công.';
+        $is_success = true;
     }
 } catch (PDOException $e) {
     error_log($e->getMessage());
@@ -108,6 +110,28 @@ try {
 } catch (Exception $e) {
     $message = $e->getMessage();
 }
+
+/* ------------------------------------------------------------------
+ * Chọn khung giao diện theo vai trò
+ * ------------------------------------------------------------------ */
+$role = $user_info['role'] ?? ($_SESSION['role'] ?? 'STUDENT');
+$is_teacher = $role === 'TEACHER';
+$is_admin = $role === 'ADMIN';
+
+$role_labels = ['STUDENT' => 'Học viên', 'TEACHER' => 'Giáo viên', 'ADMIN' => 'Quản trị viên'];
+$role_label = $role_labels[$role] ?? $role;
+
+$display_name = $_SESSION['full_name'] ?? $_SESSION['username'] ?? $role_label;
+$initials = mb_strtoupper(mb_substr(trim($display_name) !== '' ? trim($display_name) : '?', 0, 1, 'UTF-8'), 'UTF-8');
+
+/* Hàm rút gọn việc escape HTML */
+function e($value): string
+{
+    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+}
+
+$class_name_value = trim((string) ($user_info['class_name'] ?? ''));
+$dob_value = $user_info['dob'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -115,10 +139,19 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thông tin cá nhân - TestSuViet</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="/../assets/css/style.css">
+    <link rel="stylesheet" href="/../assets/css/profile.css">
 </head>
 
-<body>
+<body<?= $is_teacher ? '' : ' class="pf-body"' ?>>
+
+<?php if ($is_teacher): ?>
+<!-- ================= KHUNG GIÁO VIÊN ================= -->
 <div class="et-overlay" id="etOverlay" onclick="etToggleSidebar()"></div>
 <div class="et-shell">
   <aside class="et-sidebar" id="etSidebar">
@@ -137,7 +170,7 @@ try {
         <a href="profile.php" class="active"><span>Hồ sơ cá nhân</span></a>
       </nav>
     </div>
-    <div class="et-sidebar-foot"><a href="/logout.php"><span>⇥</span> Đăng xuất</a></div>
+    <div class="et-sidebar-foot"><a href="login.php"><span>⇥</span> Đăng xuất</a></div>
   </aside>
   <div class="et-workspace">
     <header class="et-topbar">
@@ -145,80 +178,140 @@ try {
         <button type="button" class="et-mobile-toggle" onclick="etToggleSidebar()" aria-label="Mở menu">☰</button>
         <div><div class="et-crumb">TEACHER / GIÁO VIÊN</div><div class="et-top-title">Hồ sơ cá nhân</div></div>
       </div>
-      <div class="et-user"><span class="et-avatar">GV</span><span class="et-user-name"><?= htmlspecialchars($_SESSION['full_name'] ?? $_SESSION['username'] ?? 'Giáo viên', ENT_QUOTES, 'UTF-8') ?></span></div>
+      <div class="et-user"><span class="et-avatar"><?= e($initials) ?></span><span class="et-user-name"><?= e($display_name) ?></span></div>
     </header>
     <main class="et-content">
-      <div class="container">
-        <div class="topbar">
-            <h1>👤 Thông tin cá nhân</h1>
+<?php else: ?>
+<!-- ================= KHUNG HỌC VIÊN / ADMIN ================= -->
+<header class="st-topbar">
+  <div class="st-topbar-inner">
+    <div class="st-left">
+      <a class="st-brand" href="index.php">TestSuViet</a>
+      <nav class="st-nav" aria-label="Menu chính">
+        <a href="index.php">Trang chủ</a>
+        <?php if ($is_admin): ?>
+          <a href="admin_dashboard.php">Trang quản trị</a>
+        <?php else: ?>
+          <a href="history.php">Lịch sử làm bài</a>
+        <?php endif; ?>
+        <a href="profile.php" class="active" aria-current="page">Hồ sơ cá nhân</a>
+      </nav>
+    </div>
+    <div class="st-user">
+      <span><strong><?= e($display_name) ?></strong></span>
+      <a href="../api/auth.php?action=login">Đăng xuất</a>
+    </div>
+  </div>
+</header>
+<main class="st-content">
+<?php endif; ?>
+
+      <div class="pf-wrap">
+        <div class="pf-head">
+            <h1 class="pf-title">Thông tin cá nhân</h1>
+            <p class="pf-subtitle">Xem và cập nhật hồ sơ, mật khẩu của bạn.</p>
         </div>
 
         <?php if ($message !== ''): ?>
-            <div class="notice <?= (str_contains($message, 'thành công')) ? '' : 'error' ?>">
-                <?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?>
+            <div class="pf-notice <?= $is_success ? 'pf-notice--ok' : 'pf-notice--error' ?>" role="<?= $is_success ? 'status' : 'alert' ?>">
+                <?= e($message) ?>
             </div>
         <?php endif; ?>
 
-        <div class="profile">
-            <div class="card summary">
-                <div class="avatar">👤</div>
-                <h2><?= htmlspecialchars($user_info['full_name'] ?? '', ENT_QUOTES, 'UTF-8') ?></h2>
-                <p class="username">@<?= htmlspecialchars($user_info['username'], ENT_QUOTES, 'UTF-8') ?></p>
-                <span class="role"><?= htmlspecialchars($user_info['role'] ?? 'STUDENT', ENT_QUOTES, 'UTF-8') ?></span>
-                <div class="extra-info">
-                    <p><strong> Email:</strong> <?= htmlspecialchars($user_info['email'] ?? '', ENT_QUOTES, 'UTF-8') ?></p>
-                    <p><strong> Lớp:</strong> <?= htmlspecialchars($user_info['class_name'] ?? 'Chưa cập nhật', ENT_QUOTES, 'UTF-8') ?></p>
-                    <p><strong> Ngày sinh:</strong> <?= !empty($user_info['dob']) ? date('d/m/Y', strtotime($user_info['dob'])) : 'Chưa cập nhật' ?></p>
+        <div class="pf-layout">
+            <!-- ===== Thẻ tóm tắt ===== -->
+            <aside class="pf-card pf-summary">
+                <div class="pf-summary-top">
+                    <div class="pf-seal" aria-hidden="true"><?= e($initials) ?></div>
+                    <h2 class="pf-name"><?= e($user_info['full_name'] ?? '') ?></h2>
+                    <p class="pf-username">@<?= e($user_info['username'] ?? '') ?></p>
+                    <span class="pf-role"><?= e($role_label) ?></span>
                 </div>
-            </div>
+                <dl class="pf-facts">
+                    <div class="pf-fact">
+                        <dt>Email</dt>
+                        <dd><?= e($user_info['email'] ?? '') ?></dd>
+                    </div>
+                    <div class="pf-fact">
+                        <dt>Lớp</dt>
+                        <dd<?= $class_name_value === '' ? ' class="is-empty"' : '' ?>><?= $class_name_value !== '' ? e($class_name_value) : 'Chưa cập nhật' ?></dd>
+                    </div>
+                    <div class="pf-fact">
+                        <dt>Ngày sinh</dt>
+                        <dd<?= empty($dob_value) ? ' class="is-empty"' : '' ?>><?= !empty($dob_value) ? e(date('d/m/Y', strtotime($dob_value))) : 'Chưa cập nhật' ?></dd>
+                    </div>
+                </dl>
+            </aside>
 
-            <div class="card">
-                <h2>Cập nhật hồ sơ</h2>
-                <form method="POST">
-                    <input type="hidden" name="action" value="update_profile">
-                    <div class="form-group">
+            <!-- ===== Form cập nhật ===== -->
+            <form class="pf-card pf-form-card" method="POST">
+                <input type="hidden" name="action" value="update_profile">
+
+                <section class="pf-section">
+                    <h2 class="pf-section-title">Thông tin tài khoản</h2>
+                    <p class="pf-section-desc">Tên tài khoản không thể thay đổi.</p>
+
+                    <div class="pf-field">
                         <label for="username">Tên tài khoản</label>
-                        <input id="username" type="text" value="<?= htmlspecialchars($user_info['username'], ENT_QUOTES, 'UTF-8') ?>" disabled>
+                        <input id="username" type="text" value="<?= e($user_info['username'] ?? '') ?>" disabled>
                     </div>
-                    <div class="form-group">
+                    <div class="pf-field">
                         <label for="full_name">Họ và tên</label>
-                        <input id="full_name" type="text" name="full_name" value="<?= htmlspecialchars($user_info['full_name'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
+                        <input id="full_name" type="text" name="full_name" value="<?= e($user_info['full_name'] ?? '') ?>" required>
                     </div>
-                    <div class="form-group">
+                    <div class="pf-field">
                         <label for="email">Email</label>
-                        <input id="email" type="email" name="email" value="<?= htmlspecialchars($user_info['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
+                        <input id="email" type="email" name="email" value="<?= e($user_info['email'] ?? '') ?>" required>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
+                    <div class="pf-row">
+                        <div class="pf-field">
                             <label for="class_name">Lớp học</label>
-                            <input id="class_name" type="text" name="class_name" placeholder="Ví dụ: 9A1" value="<?= htmlspecialchars($user_info['class_name'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                            <input id="class_name" type="text" name="class_name" placeholder="Ví dụ: 9A1" value="<?= e($user_info['class_name'] ?? '') ?>">
                         </div>
-                        <div class="form-group">
+                        <div class="pf-field">
                             <label for="dob">Ngày sinh</label>
-                            <input id="dob" type="date" name="dob" value="<?= htmlspecialchars($user_info['dob'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                            <input id="dob" type="date" name="dob" value="<?= e($user_info['dob'] ?? '') ?>">
                         </div>
                     </div>
-                    <h3 class="section-title">Đổi mật khẩu (không bắt buộc)</h3>
-                    <div class="form-group">
+                </section>
+
+                <section class="pf-section">
+                    <h2 class="pf-section-title">Đổi mật khẩu</h2>
+                    <p class="pf-section-desc">Bỏ trống nếu bạn không muốn đổi mật khẩu.</p>
+
+                    <div class="pf-field">
                         <label for="current_password">Mật khẩu hiện tại</label>
                         <input id="current_password" type="password" name="current_password" autocomplete="current-password">
                     </div>
-                    <div class="form-group">
-                        <label for="new_password">Mật khẩu mới</label>
-                        <input id="new_password" type="password" name="new_password" minlength="8" autocomplete="new-password">
+                    <div class="pf-row">
+                        <div class="pf-field">
+                            <label for="new_password">Mật khẩu mới</label>
+                            <input id="new_password" type="password" name="new_password" minlength="8" autocomplete="new-password">
+                            <p class="pf-hint">Ít nhất 8 ký tự.</p>
+                        </div>
+                        <div class="pf-field">
+                            <label for="confirm_password">Xác nhận mật khẩu mới</label>
+                            <input id="confirm_password" type="password" name="confirm_password" minlength="8" autocomplete="new-password">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="confirm_password">Xác nhận mật khẩu mới</label>
-                        <input id="confirm_password" type="password" name="confirm_password" minlength="8" autocomplete="new-password">
-                    </div>
-                    <button class="btn btn-warning" type="submit">Lưu cập nhật</button>
-                </form>
-            </div>
+                </section>
+
+                <div class="pf-actions">
+                    <button class="pf-btn pf-btn-ghost" type="reset">Hoàn tác</button>
+                    <button class="pf-btn pf-btn-primary" type="submit">Lưu thay đổi</button>
+                </div>
+            </form>
         </div>
       </div>
+
+<?php if ($is_teacher): ?>
     </main>
   </div>
 </div>
+<?php else: ?>
+</main>
+<?php endif; ?>
+
 <script>
 function etToggleSidebar() {
   const sidebar = document.getElementById('etSidebar');

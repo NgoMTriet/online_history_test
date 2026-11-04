@@ -1,6 +1,6 @@
 
 <?php include __DIR__ . '/../includes/header.php'; ?>
-<link rel="stylesheet" href="assets/css/style.css?v=1.0">
+<link rel="stylesheet" href="assets/css/about.css?v=1.0">
 <main class="about-page">
     <section class="about-hero">
         <div class="about-hero-content">

@@ -145,424 +145,131 @@ $h = static fn($value) => htmlspecialchars(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thông tin đề thi - <?= $h($title) ?></title>
 
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
 
-        body {
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: #f3f6fb;
-            color: #203247;
-            min-height: 100vh;
-        }
-
-        .topbar {
-            background: #173653;
-            color: #fff;
-            padding: 18px 24px;
-        }
-
-        .topbar-inner {
-            max-width: 1000px;
-            margin: auto;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-        }
-
-        .brand {
-            font-size: 22px;
-            font-weight: 800;
-        }
-
-        .brand span {
-            color: #f2c879;
-        }
-
-        .topbar small {
-            display: block;
-            margin-top: 4px;
-            color: #d7e3ef;
-        }
-
-        .page {
-            max-width: 760px;
-            margin: 38px auto;
-            padding: 0 18px 40px;
-        }
-
-        .back-link {
-            display: inline-block;
-            color: #536b83;
-            text-decoration: none;
-            margin-bottom: 18px;
-            font-weight: 600;
-        }
-
-        .back-link:hover {
-            color: #173653;
-        }
-
-        .exam-card {
-            background: #fff;
-            border: 1px solid #e1e8f0;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 12px 35px rgba(23, 54, 83, .08);
-        }
-
-        .hero {
-            background: linear-gradient(135deg, #173653, #28577c);
-            color: #fff;
-            padding: 32px 28px;
-            text-align: center;
-        }
-
-        .grade-badge {
-            display: inline-block;
-            background: #fff0d4;
-            color: #805719;
-            border-radius: 30px;
-            padding: 7px 15px;
-            font-size: 14px;
-            font-weight: 700;
-            margin-bottom: 15px;
-        }
-
-        .hero h1 {
-            font-size: clamp(24px, 4vw, 32px);
-            overflow-wrap: anywhere;
-            margin-bottom: 10px;
-        }
-
-        .hero p {
-            color: #dce9f4;
-            line-height: 1.6;
-        }
-
-        .content {
-            padding: 26px;
-        }
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 15px;
-            margin-bottom: 27px;
-        }
-
-        .info-item {
-            padding: 19px;
-            background: #f5f8fc;
-            border: 1px solid #e8eef5;
-            border-radius: 14px;
-        }
-
-        .info-label {
-            color: #687c90;
-            font-size: 14px;
-            margin-bottom: 9px;
-        }
-
-        .info-value {
-            font-size: 23px;
-            font-weight: 800;
-            color: #173653;
-        }
-
-        .section-title {
-            font-size: 18px;
-            margin-bottom: 16px;
-        }
-
-        .rules {
-            display: grid;
-            gap: 17px;
-            margin-bottom: 25px;
-        }
-
-        .rule {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            line-height: 1.5;
-        }
-
-        .rule-icon {
-            width: 36px;
-            height: 36px;
-            flex: 0 0 36px;
-            border-radius: 10px;
-            display: grid;
-            place-items: center;
-            background: #eaf3ff;
-            font-size: 18px;
-        }
-
-        .rule strong {
-            display: block;
-            margin-bottom: 3px;
-        }
-
-        .rule p {
-            color: #687c90;
-            font-size: 14px;
-        }
-
-        .notice {
-            background: #fff8e9;
-            color: #785a20;
-            border: 1px solid #f2dfb6;
-            border-radius: 12px;
-            padding: 13px 15px;
-            font-size: 14px;
-            line-height: 1.6;
-            margin-bottom: 22px;
-        }
-
-        .confirm {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            line-height: 1.5;
-            margin-bottom: 22px;
-            cursor: pointer;
-        }
-
-        .confirm input {
-            width: 18px;
-            height: 18px;
-            margin-top: 2px;
-            accent-color: #173653;
-            flex-shrink: 0;
-        }
-
-        .actions {
-            display: flex;
-            gap: 12px;
-        }
-
-        .btn {
-            min-height: 49px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 11px;
-            padding: 13px 20px;
-            font-size: 15px;
-            font-weight: 700;
-            text-decoration: none;
-            cursor: pointer;
-            transition: .2s;
-        }
-
-        .btn-back {
-            flex: 1;
-            border: 1px solid #d7e0ea;
-            background: #fff;
-            color: #536b83;
-        }
-
-        .btn-start {
-            flex: 2;
-            border: none;
-            background: #173653;
-            color: #fff;
-        }
-
-        .btn-start:hover:not(:disabled) {
-            background: #245276;
-            transform: translateY(-1px);
-        }
-
-        .btn-start:disabled {
-            background: #aab8c6;
-            cursor: not-allowed;
-        }
-
-        .empty {
-            text-align: center;
-            color: #a33a3a;
-            background: #fff0f0;
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-        }
-
-        @media (max-width: 520px) {
-            .topbar-inner {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-
-            .page {
-                margin-top: 22px;
-            }
-
-            .hero {
-                padding: 26px 18px;
-            }
-
-            .content {
-                padding: 20px 17px;
-            }
-
-            .info-grid {
-                gap: 10px;
-            }
-
-            .info-item {
-                padding: 14px;
-            }
-
-            .info-value {
-                font-size: 20px;
-            }
-
-            .actions {
-                flex-direction: column-reverse;
-            }
-
-            .btn {
-                width: 100%;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="/../assets/css/intro_exam.css">
 </head>
 
-<body>
-<header class="topbar">
-    <div class="topbar-inner">
-        <div>
-            <div class="brand">Test<span>SuViet</span>.com</div>
-            <small>Hệ thống thi trắc nghiệm Lịch sử THCS</small>
-        </div>
+<body class="ex-body">
+<header class="ex-topbar">
+    <div class="ex-topbar-inner">
+        <div class="ex-brand">Test<span>SuViet</span>.com</div>
+        <small class="ex-tagline">Hệ thống thi trắc nghiệm Lịch sử THCS</small>
     </div>
 </header>
 
-<main class="page">
-    <a class="back-link" href="index.php">← Quay lại danh sách đề thi</a>
+<main class="ex-page">
+    <a class="ex-back" href="index.php">← Quay lại danh sách đề thi</a>
 
-    <section class="exam-card">
-        <div class="hero">
-            <div class="grade-badge">
+    <section class="ex-card">
+        <div class="ex-hero">
+            <div class="ex-stamp">
                 <?= $grade !== '' ? 'Lớp ' . $h($grade) : 'Đề thi Lịch sử' ?>
             </div>
 
-            <h1><?= $h($title) ?></h1>
+            <h1 class="ex-title"><?= $h($title) ?></h1>
             <p>Vui lòng kiểm tra thông tin trước khi bắt đầu làm bài.</p>
         </div>
 
-        <div class="content">
-            <div class="info-grid">
-                <div class="info-item">
-                    <div class="info-label">⏱ Thời gian làm bài</div>
-                    <div class="info-value"><?= $duration ?> phút</div>
+        <div class="ex-content">
+            <dl class="ex-info">
+                <div class="ex-info-item">
+                    <dt>Thời gian làm bài</dt>
+                    <dd><?= $duration ?> phút</dd>
                 </div>
 
-                <div class="info-item">
-                    <div class="info-label">👥 Số lượt làm tối đa</div>
-                    <div class="info-value">
-                        <?= htmlspecialchars($attemptsText, ENT_QUOTES, 'UTF-8') ?>
-                    </div>
+                <div class="ex-info-item">
+                    <dt>Số câu hỏi</dt>
+                    <dd><?= $questionCount ?> câu</dd>
                 </div>
 
-                <div class="info-item">
-                    <div class="info-label">📝 Số câu hỏi</div>
-                    <div class="info-value"><?= $questionCount ?> câu</div>
+                <div class="ex-info-item is-full">
+                    <dt>Lượt làm bài</dt>
+                    <dd class="is-small"><?= $h($attemptsText) ?></dd>
                 </div>
 
-                <div class="info-item">
-                    <div class="info-label">🟢 Thời gian mở đề</div>
-                    <div class="info-value" style="font-size: 17px;">
-                        <?= $h($startTimeText) ?>
-                    </div>
+                <div class="ex-info-item is-wide">
+                    <dt>Thời gian mở đề</dt>
+                    <dd class="is-small"><?= $h($startTimeText) ?></dd>
                 </div>
 
-                <div class="info-item">
-                    <div class="info-label">🔒 Thời gian khóa đề</div>
-                    <div class="info-value" style="font-size: 17px;">
-                        <?= $h($endTimeText) ?>
-                    </div>
+                <div class="ex-info-item is-wide">
+                    <dt>Thời gian khóa đề</dt>
+                    <dd class="is-small"><?= $h($endTimeText) ?></dd>
                 </div>
-            </div>
+            </dl>
 
             <?php if ($hasInProgress): ?>
 
-    <div class="notice">
-        Bạn đang có một lượt làm bài chưa hoàn thành. Bấm "Tiếp tục làm bài"
-        để quay lại, thời gian còn lại vẫn được tính từ lúc bạn bắt đầu.
-    </div>
+                <div class="ex-notice ex-notice--info" role="status">
+                    Bạn đang có một lượt làm bài chưa hoàn thành. Bấm "Tiếp tục làm bài"
+                    để quay lại, thời gian còn lại vẫn được tính từ lúc bạn bắt đầu.
+                </div>
 
-<?php elseif ($examNotOpened): ?>
+            <?php elseif ($examNotOpened): ?>
 
-    <div class="empty">
-        Đề thi chưa mở. Vui lòng quay lại vào lúc
-        <?= $h($startTimeText) ?>.
-    </div>
+                <div class="ex-notice ex-notice--error" role="alert">
+                    Đề thi chưa mở. Vui lòng quay lại vào lúc
+                    <?= $h($startTimeText) ?>.
+                </div>
 
-<?php elseif ($examClosed): ?>
+            <?php elseif ($examClosed): ?>
 
-    <div class="empty">
-        Đề thi đã kết thúc vào lúc
-        <?= $h($endTimeText) ?>.
-        Bạn không thể bắt đầu lượt thi mới.
-    </div>
+                <div class="ex-notice ex-notice--error" role="alert">
+                    Đề thi đã kết thúc vào lúc
+                    <?= $h($endTimeText) ?>.
+                    Bạn không thể bắt đầu lượt thi mới.
+                </div>
 
-<?php elseif (!$hasAttemptsLeft): ?>
+            <?php elseif (!$hasAttemptsLeft): ?>
 
-    <div class="empty">
-        Bạn đã sử dụng hết số lượt làm bài cho phép.
-    </div>
+                <div class="ex-notice ex-notice--error" role="alert">
+                    Bạn đã sử dụng hết số lượt làm bài cho phép.
+                </div>
 
-<?php elseif ($questionCount > 0): ?>
+            <?php elseif ($questionCount > 0): ?>
 
-    <div class="notice">
-        Đề thi hiện đang mở. Bạn có thể bắt đầu làm bài.
-    </div>
+                <div class="ex-notice ex-notice--ok" role="status">
+                    Đề thi hiện đang mở. Bạn có thể bắt đầu làm bài.
+                </div>
 
-<?php endif; ?>
+            <?php endif; ?>
 
             <?php if ($questionCount === 0): ?>
-                <div class="empty">
+                <div class="ex-notice ex-notice--error" role="alert">
                     Đề thi này chưa có câu hỏi. Vui lòng chọn đề khác hoặc liên hệ giáo viên.
                 </div>
             <?php endif; ?>
 
-            <h2 class="section-title">Lưu ý trước khi thi</h2>
+            <h2 class="ex-section-title">Lưu ý trước khi thi</h2>
 
-            <div class="rules">
-                <div class="rule">
-                    <div class="rule-icon">📖</div>
+            <ul class="ex-rules">
+                <li class="ex-rule">
                     <div>
                         <strong>Đọc kỹ từng câu hỏi</strong>
                         <p>Chọn đáp án phù hợp nhất cho mỗi câu hỏi.</p>
                     </div>
-                </div>
+                </li>
 
-                <div class="rule">
-                    <div class="rule-icon">⏳</div>
+                <li class="ex-rule">
                     <div>
                         <strong>Chú ý thời gian</strong>
                         <p>Thời gian làm bài được giới hạn theo thông tin của đề thi.</p>
                     </div>
-                </div>
+                </li>
 
-                <div class="rule">
-                    <div class="rule-icon">📨</div>
+                <li class="ex-rule">
                     <div>
                         <strong>Kiểm tra trước khi nộp</strong>
                         <p>Hãy kiểm tra các lựa chọn trước khi nộp bài thi.</p>
                     </div>
-                </div>
-            </div>
+                </li>
+            </ul>
 
-            <div class="notice">
-                ⚠️ Khi bắt đầu, bạn sẽ được chuyển đến trang làm bài.
+            <div class="ex-notice ex-notice--warn">
+                Khi bắt đầu, bạn sẽ được chuyển đến trang làm bài.
                 Hãy chỉ bắt đầu khi bạn đã sẵn sàng.
                 Lượt làm bài được tính ngay khi bắt đầu, kể cả khi bạn thoát giữa chừng.
             </div>
@@ -574,17 +281,17 @@ $h = static fn($value) => htmlspecialchars(
                     value="<?= (int) $exam['exam_id'] ?>"
                 >
 
-                <label class="confirm">
+                <label class="ex-confirm">
                     <input type="checkbox" id="ready-check">
                     <span>Tôi đã đọc thông tin và sẵn sàng làm bài thi.</span>
                 </label>
 
-                <div class="actions">
-                    <a href="index.php" class="btn btn-back">Quay lại</a>
+                <div class="ex-actions">
+                    <a href="index.php" class="ex-btn ex-btn-back">Quay lại</a>
 
                     <button
                         type="submit"
-                        class="btn btn-start"
+                        class="ex-btn ex-btn-start"
                         id="start-button"
                         disabled
                     >

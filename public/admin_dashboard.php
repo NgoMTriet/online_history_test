@@ -4,7 +4,6 @@ require_once __DIR__ . '/../config/database.php';
 
 /* ------------------------------------------------------------------
  * 1. KIỂM TRA ĐĂNG NHẬP & PHÂN QUYỀN
- *    Đổi tên các key session cho khớp với trang đăng nhập của bạn.
  * ------------------------------------------------------------------ */
 if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'ADMIN') {
     header('Location: /login.php');
@@ -21,7 +20,6 @@ function h($value): string
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 }
 
-// Đếm an toàn: lỗi truy vấn (bảng chưa có, sai tên cột...) thì trả về 0
 function safe_count(PDO $conn, string $sql, array $params = []): int
 {
     try {
@@ -47,16 +45,15 @@ if (empty($_SESSION['csrf_token'])) {
 $csrf_token = $_SESSION['csrf_token'];
 
 /* ------------------------------------------------------------------
- * 4. XỬ LÝ KHÓA / MỞ KHÓA (POST -> Redirect -> GET)
+ * 4. XỬ LÝ KHÓA / MỞ KHÓA TÀI KHOẢN (POST -> Redirect -> GET)
  * ------------------------------------------------------------------ */
 $allowed_roles    = ['STUDENT', 'TEACHER', 'ADMIN'];
-$allowed_statuses = ['ACTIVE', 'LOCKED', 'PENDING'];   // dùng cho bộ lọc
-$toggle_statuses  = ['ACTIVE', 'LOCKED'];              // trạng thái admin được phép đặt
+$allowed_statuses = ['ACTIVE', 'LOCKED', 'PENDING'];
+$toggle_statuses  = ['ACTIVE', 'LOCKED'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_status') {
     $redirect_to = 'admin_dashboard.php' . (!empty($_POST['return_query']) ? '?' . $_POST['return_query'] : '');
 
-    // Chống CSRF
     if (!hash_equals($csrf_token, $_POST['csrf_token'] ?? '')) {
         set_flash('error', 'Phiên làm việc không hợp lệ. Vui lòng thử lại.');
         header('Location: ' . $redirect_to);
@@ -83,7 +80,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggl
             $stmt = $conn->prepare("UPDATE users SET status = :status WHERE user_id = :id");
             $stmt->execute(['status' => $new_status, 'id' => $target_user_id]);
 
-            // Ghi log thao tác (bỏ qua nếu chưa có bảng admin_logs)
             try {
                 $log = $conn->prepare(
                     "INSERT INTO admin_logs (admin_id, action, target_user_id, created_at)
@@ -94,17 +90,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggl
                     'action' => $new_status === 'LOCKED' ? 'LOCK_USER' : 'UNLOCK_USER',
                     'target' => $target_user_id,
                 ]);
-            } catch (PDOException $e) {
-                // Không có bảng log thì bỏ qua
-            }
+            } catch (PDOException $e) {}
 
-            if ($new_status === 'LOCKED') {
-                $verb = 'khóa';
-            } elseif ($target['status'] === 'PENDING') {
-                $verb = 'duyệt';
-            } else {
-                $verb = 'mở khóa';
-            }
+            $verb = ($new_status === 'LOCKED') ? 'khóa' : (($target['status'] === 'PENDING') ? 'duyệt' : 'mở khóa');
             set_flash('success', 'Đã ' . $verb . ' tài khoản ' . $target['username'] . '.');
         }
     }
@@ -114,12 +102,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggl
 }
 
 /* ------------------------------------------------------------------
- * 5. TÌM KIẾM, LỌC, PHÂN TRANG
+ * 5. TÌM KIẾM, LỌC, PHÂN TRANG TÀI KHOẢN
  * ------------------------------------------------------------------ */
 $search        = trim($_GET['q'] ?? '');
 $filter_role   = in_array($_GET['role'] ?? '', $allowed_roles, true) ? $_GET['role'] : '';
 $filter_status = in_array($_GET['status'] ?? '', $allowed_statuses, true) ? $_GET['status'] : '';
-$per_page      = 15;
+$per_page      = 10;
 $page          = max(1, (int)($_GET['page'] ?? 1));
 
 $where  = [];
@@ -154,7 +142,21 @@ $stmt_users->execute($params);
 $users = $stmt_users->fetchAll(PDO::FETCH_ASSOC);
 
 /* ------------------------------------------------------------------
- * 6. THỐNG KÊ (mỗi truy vấn độc lập, lỗi một cái không ảnh hưởng cái khác)
+ * 6. LẤY DANH SÁCH ĐỀ THI KÈM TÊN NGƯỜI TẠO (GIÁO VIÊN)
+ * ------------------------------------------------------------------ */
+$stmt_exams = $conn->prepare(
+    "SELECT e.exam_id, e.title, e.grade, e.duration, e.total_questions, 
+            u.full_name AS teacher_name, u.username AS teacher_username
+     FROM exam e
+     LEFT JOIN users u ON e.user_id = u.user_id
+     ORDER BY e.exam_id DESC
+     LIMIT 15"
+);
+$stmt_exams->execute();
+$exams_list = $stmt_exams->fetchAll(PDO::FETCH_ASSOC);
+
+/* ------------------------------------------------------------------
+ * 7. THỐNG KÊ HEÂ THỐNG
  * ------------------------------------------------------------------ */
 $total_students = safe_count($conn, "SELECT COUNT(*) FROM users WHERE role = 'STUDENT'");
 $total_teachers = safe_count($conn, "SELECT COUNT(*) FROM users WHERE role = 'TEACHER'");
@@ -163,9 +165,6 @@ $total_pending  = safe_count($conn, "SELECT COUNT(*) FROM users WHERE status = '
 $total_exams    = safe_count($conn, "SELECT COUNT(*) FROM exam");
 $total_attempts = safe_count($conn, "SELECT COUNT(*) FROM exam_results");
 
-/* ------------------------------------------------------------------
- * 7. HÀM TẠO LINK PHÂN TRANG (giữ nguyên bộ lọc)
- * ------------------------------------------------------------------ */
 function page_url(int $p, string $search, string $role, string $status): string
 {
     $query = array_filter(
@@ -220,7 +219,7 @@ $role_labels = ['STUDENT' => 'Học viên', 'TEACHER' => 'Giáo viên', 'ADMIN' 
         .stat-label { color: var(--muted); font-size: 0.9rem; }
         .stat-number { font-size: 2rem; font-weight: 700; margin-top: 4px; }
 
-        .card { background: var(--surface); padding: 24px; border-radius: 8px; border: 1px solid var(--line); }
+        .card { background: var(--surface); padding: 24px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 24px; }
         .card h2 { font-size: 1.2rem; margin-bottom: 16px; }
 
         .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
@@ -263,7 +262,7 @@ $role_labels = ['STUDENT' => 'Học viên', 'TEACHER' => 'Giáo viên', 'ADMIN' 
         <h1>Quản trị hệ thống</h1>
         <div class="topbar-user">
             <span>Xin chào, <strong><?= h($current_admin_name) ?></strong></span>
-            <a class="btn-logout" href="../api/auth.php?action=logout">Đăng xuất</a>
+            <a class="btn-logout" href="../api/auth.php?action=login">Đăng xuất</a>
         </div>
     </div>
 
@@ -273,6 +272,7 @@ $role_labels = ['STUDENT' => 'Học viên', 'TEACHER' => 'Giáo viên', 'ADMIN' 
         </div>
     <?php endif; ?>
 
+    <!-- THỐNG KÊ -->
     <div class="stats-grid">
         <div class="stat-box">
             <div class="stat-label">Học viên</div>
@@ -300,6 +300,7 @@ $role_labels = ['STUDENT' => 'Học viên', 'TEACHER' => 'Giáo viên', 'ADMIN' 
         </div>
     </div>
 
+    <!-- KHỐI 1: QUẢN LÝ TÀI KHOẢN -->
     <div class="card">
         <h2>Quản lý tài khoản</h2>
 
@@ -428,6 +429,48 @@ $role_labels = ['STUDENT' => 'Học viên', 'TEACHER' => 'Giáo viên', 'ADMIN' 
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- KHỐI 2: DANH SÁCH ĐỀ THI KÈM NGƯỜI TẠO -->
+    <div class="card">
+        <h2>Danh sách đề thi gần đây</h2>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mã đề</th>
+                        <th>Tên đề thi</th>
+                        <th>Khối lớp</th>
+                        <th>Thời lượng</th>
+                        <th>Số câu</th>
+                        <th>Người tạo (Giáo viên)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($exams_list)): ?>
+                        <tr><td class="empty" colspan="6">Chưa có đề thi nào trong hệ thống.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($exams_list as $ex): ?>
+                            <tr>
+                                <td>#<?= (int)$ex['exam_id'] ?></td>
+                                <td><strong><?= h($ex['title']) ?></strong></td>
+                                <td>Lớp <?= (int)$ex['grade'] ?></td>
+                                <td><?= (int)$ex['duration'] ?> phút</td>
+                                <td><?= (int)$ex['total_questions'] ?> câu</td>
+                                <td>
+                                    <?php if (!empty($ex['teacher_name'])): ?>
+                                        <span style="color: var(--primary); font-weight: 600;"> <?= h($ex['teacher_name']) ?></span>
+                                        <span class="muted">(<?= h($ex['teacher_username']) ?>)</span>
+                                    <?php else: ?>
+                                        <span class="muted">Hệ thống / Chưa cập nhật</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 

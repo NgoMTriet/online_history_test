@@ -1,0 +1,643 @@
+/* ==========================================================================
+   auth.css — Đăng nhập · Đăng ký · Đặt lại mật khẩu
+   Một hệ thiết kế chung (xanh đồng gỉ + họa tiết trống đồng).
+   Giữ nguyên toàn bộ tên class cũ: .stack/.card/.field/... và .au-*
+   ========================================================================== */
+
+/* ---------- Biến thiết kế ---------- */
+:root {
+  --ink: #14302c;
+  --patina: #23665e;
+  --patina-dark: #184a44;
+  --patina-light: #5aa79e;
+  --patina-tint: #e4f0ed;
+  --paper: #e6ede9;
+  --paper-deep: #d5e1dc;
+  --line: #c6d2ce;
+  --text: #1d2b29;
+  --muted: #5a6a66;
+  --bronze: #b08a3e;
+  --seal: #b3261e;
+  --seal-tint: #fbe9e7;
+  --ok: #1e6b3c;
+  --ok-tint: #ddf1e3;
+
+  --radius: 16px;
+  --radius-sm: 10px;
+  --font:
+    "Be Vietnam Pro", "Segoe UI", system-ui, -apple-system, Tahoma, sans-serif;
+  --serif: "Noto Serif", Georgia, "Times New Roman", serif;
+
+  --shadow-card:
+    0 1px 2px rgba(20, 48, 44, 0.06), 0 12px 32px -8px rgba(20, 48, 44, 0.18),
+    0 32px 64px -24px rgba(20, 48, 44, 0.16);
+
+  /* Bí danh cho trang đặt lại mật khẩu (class au-*) */
+  --au-ink: var(--ink);
+  --au-muted: var(--muted);
+  --au-line: var(--line);
+  --au-bg: var(--paper);
+  --au-surface: #fff;
+  --au-indigo: var(--patina);
+  --au-indigo-dark: var(--patina-dark);
+  --au-indigo-soft: var(--patina-tint);
+  --au-seal: var(--seal);
+  --au-seal-soft: var(--seal-tint);
+  --au-radius: var(--radius);
+  --au-radius-sm: var(--radius-sm);
+  --au-font: var(--font);
+  --au-serif: var(--serif);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  min-height: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ---------- Nền trang (dùng chung 3 trang) ---------- */
+body,
+body.au-body {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 40px 16px;
+  overflow-x: hidden;
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text);
+  background:
+    radial-gradient(
+      900px 520px at 50% -10%,
+      rgba(90, 167, 158, 0.22),
+      transparent 70%
+    ),
+    radial-gradient(
+      700px 480px at 100% 100%,
+      rgba(176, 138, 62, 0.1),
+      transparent 70%
+    ),
+    var(--paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 3px solid var(--patina-light);
+  outline-offset: 2px;
+}
+
+/* Họa tiết mặt trống đồng mờ phía sau thẻ */
+.backdrop {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 0;
+  width: min(1100px, 160vw);
+  height: min(1100px, 160vw);
+  transform: translate(-50%, -50%);
+  color: var(--patina);
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+/* Trang đặt lại mật khẩu không có phần tử .backdrop trong HTML,
+   nên vẽ họa tiết vòng đồng tâm (mặt trống đồng) bằng CSS thuần */
+body.au-body::before {
+  content: "";
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 0;
+  width: min(1100px, 160vw);
+  height: min(1100px, 160vw);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  opacity: 0.12;
+  pointer-events: none;
+  background:
+    radial-gradient(circle, var(--patina) 0 3.2%, transparent 3.4%),
+    repeating-radial-gradient(
+      circle,
+      transparent 0 3.6%,
+      var(--patina) 3.6% 4%,
+      transparent 4% 7.2%,
+      var(--patina) 7.2% 8.4%,
+      transparent 8.4% 11.6%
+    );
+  -webkit-mask-image: radial-gradient(circle, #000 55%, transparent 72%);
+  mask-image: radial-gradient(circle, #000 55%, transparent 72%);
+}
+
+/* ---------- Khung & thương hiệu ---------- */
+.stack {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.brand svg {
+  width: 52px;
+  height: 52px;
+  padding: 10px;
+  color: var(--patina);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  box-shadow: 0 4px 12px -4px rgba(20, 48, 44, 0.25);
+}
+.brand-name {
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: 0.01em;
+}
+
+/* ---------- Thẻ chính ---------- */
+.card,
+.au-card {
+  position: relative;
+  background: #fff;
+  border: 1px solid #d3dedb;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.card {
+  padding: 36px 32px 30px;
+}
+
+.au-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  padding: 36px 32px 30px;
+}
+
+/* Vành trống đồng: dải đồng gỉ + chỉ đồng ở mép trên thẻ */
+.card::before,
+.au-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 6px;
+  background:
+    linear-gradient(var(--bronze), var(--bronze)) 0 100% / 100% 1px no-repeat,
+    linear-gradient(
+      90deg,
+      var(--patina-dark),
+      var(--patina),
+      var(--patina-light),
+      var(--patina),
+      var(--patina-dark)
+    );
+}
+
+.card h1,
+.au-title {
+  margin-bottom: 6px;
+  font-family: var(--serif);
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.lead,
+.au-desc {
+  margin-bottom: 24px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* ---------- Thông báo ---------- */
+.alert,
+.au-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 0.93rem;
+  font-weight: 500;
+}
+.alert-error,
+.au-notice {
+  background: var(--seal-tint);
+  color: #8f1d17;
+  border-color: #f0bcb8;
+}
+.alert-success {
+  background: var(--ok-tint);
+  color: var(--ok);
+  border-color: #b7dfc3;
+}
+
+.alert::before,
+.au-notice::before {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.alert-error::before,
+.au-notice::before {
+  content: "!";
+  background: var(--seal);
+}
+.alert-success::before {
+  content: "✓";
+  background: var(--ok);
+}
+
+.au-notice-success {
+  background: var(--ok-tint);
+  color: var(--ok);
+  border-color: #b7dfc3;
+}
+.au-notice-success::before {
+  content: "✓";
+  background: var(--ok);
+}
+
+/* ---------- Ô nhập liệu ---------- */
+.field,
+.au-field {
+  margin-bottom: 18px;
+}
+
+.field label,
+.au-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.field input,
+.au-field input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fbfcfc;
+  color: var(--text);
+  font: inherit;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background-color 0.15s;
+}
+.field input::placeholder,
+.au-field input::placeholder {
+  color: #9aa8a4;
+}
+.field input:hover,
+.au-field input:hover {
+  border-color: #9db1ac;
+}
+.field input:focus,
+.au-field input:focus {
+  outline: none;
+  background: #fff;
+  border-color: var(--patina);
+  box-shadow: 0 0 0 4px rgba(35, 102, 94, 0.16);
+}
+.field input[aria-invalid="true"],
+.au-field input[aria-invalid="true"] {
+  border-color: var(--seal);
+  box-shadow: 0 0 0 4px rgba(179, 38, 30, 0.12);
+}
+
+.hint,
+.au-hint {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+/* ---------- Ô mật khẩu + nút hiện/ẩn ---------- */
+.password-box {
+  position: relative;
+}
+.password-box input {
+  padding-right: 76px;
+}
+.toggle-password {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  padding: 7px 10px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--patina);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.toggle-password:hover {
+  background: var(--patina-tint);
+}
+
+.forgot {
+  display: block;
+  margin: -6px 0 22px;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+/* ---------- Nút chính ---------- */
+.submit,
+.au-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 50px;
+  padding: 0 22px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    180deg,
+    var(--patina) 0%,
+    var(--patina-dark) 100%
+  );
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 6px 14px -6px rgba(24, 74, 68, 0.6);
+  transition:
+    filter 0.15s,
+    transform 0.1s,
+    box-shadow 0.15s;
+}
+.au-btn {
+  margin-top: 8px;
+}
+.submit:hover,
+.au-btn:hover {
+  filter: brightness(1.1);
+}
+.submit:active,
+.au-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset;
+}
+.submit:disabled,
+.au-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
+}
+
+/* ---------- Liên kết ---------- */
+.card a,
+.below a {
+  color: var(--patina);
+  font-weight: 600;
+  text-decoration: none;
+}
+.card a:hover,
+.below a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.register {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px dashed var(--line);
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.93rem;
+}
+
+.below {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 0.93rem;
+}
+.below a {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.au-brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  position: relative;
+  z-index: 1;
+  font-family: var(--font);
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.au-brand-mark {
+  display: inline-grid;
+  place-items: center;
+  align-self: center;
+  width: 2em;
+  height: 2em;
+  margin-right: 8px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 4px 12px -4px rgba(20, 48, 44, 0.25);
+  font-size: 0.7em;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: lowercase;
+  color: var(--patina);
+}
+
+.au-link {
+  display: block;
+  margin-top: 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.92rem;
+  text-decoration: none;
+}
+.au-link:hover {
+  color: var(--patina);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.au-brand:focus-visible,
+.au-link:focus-visible,
+.au-btn:focus-visible {
+  outline: 3px solid var(--patina-light);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Riêng trang đăng ký
+   ========================================================================== */
+.stack {
+  max-width: 460px;
+}
+
+.role-group {
+  margin-bottom: 22px;
+  min-width: 0;
+  border: none;
+}
+.role-group legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+.role-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.role-option {
+  position: relative;
+}
+.role-option input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.role-option label {
+  display: block;
+  padding: 12px 14px 12px 40px;
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fbfcfc;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s,
+    box-shadow 0.15s;
+}
+/* Nút radio tự vẽ */
+.role-option label::before {
+  content: "";
+  position: absolute;
+  top: 16px;
+  left: 14px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #9db1ac;
+  border-radius: 50%;
+  background: #fff;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background-color 0.15s;
+}
+.role-option label strong {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+.role-option label span {
+  display: block;
+  margin-top: 1px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.role-option:hover label {
+  border-color: #9db1ac;
+}
+.role-option input:checked + label {
+  border-color: var(--patina);
+  background: var(--patina-tint);
+  box-shadow: 0 0 0 1px var(--patina);
+}
+.role-option input:checked + label::before {
+  border-color: var(--patina);
+  background: var(--patina);
+  box-shadow: inset 0 0 0 3px #fff;
+}
+.role-option input:focus-visible + label {
+  outline: 3px solid var(--patina-light);
+  outline-offset: 2px;
+}
+
+/* ---------- Màn hình nhỏ ---------- */
+@media (max-width: 480px) {
+  body,
+  body.au-body {
+    padding: 24px 14px;
+  }
+  body:not(.au-body) {
+    justify-content: flex-start;
+  }
+  .card,
+  .au-card {
+    padding: 30px 20px 24px;
+  }
+  .card h1,
+  .au-title {
+    font-size: 1.4rem;
+  }
+  .role-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Giảm chuyển động ---------- */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

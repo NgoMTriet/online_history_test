@@ -137,9 +137,14 @@ try {
             $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $user['role'];
 
-            // Admin vào trang quản trị, các vai trò khác về trang chủ
+            // Admin vào trang quản trị, giáo viên vào trang giáo viên,
+            // học viên về trang chủ
             if ($user['role'] === 'ADMIN') {
                 redirectTo('/admin_dashboard.php');
+            }
+
+            if ($user['role'] === 'TEACHER') {
+                redirectTo('/teacher_dashboard.php');
             }
 
             redirectTo('/index.php');

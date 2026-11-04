@@ -1,12 +1,20 @@
 <?php
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
+// Bắt đầu Session nếu chưa chạy (Đảm bảo đọc được $_SESSION)
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once __DIR__ . '/../config/database.php';
 include __DIR__ . '/../includes/teacher_sidebar.php'; 
 $message = '';
 $messageType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create_exam') {
+    // 🟢 LẤY USER_ID CỦA GIÁO VIÊN ĐANG ĐĂNG NHẬP TỪ SESSION
+    $userId = $_SESSION['user_id'] ?? null;
+
     $title = trim($_POST['title'] ?? '');
     $grade = (int)($_POST['grade'] ?? 9);
     $duration = (int)($_POST['duration'] ?? 15);
@@ -128,22 +136,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
 
             $conn->beginTransaction();
 
+            // 🟢 CẬP NHẬT CÂU SQL INSERT THÊM CỘT USER_ID
             $stmtExam = $conn->prepare(
                 "INSERT INTO exam
-                 (title, grade, duration, start_time, end_time, max_attempts, exam_password, total_questions, is_randomized)
-                 VALUES (:title, :grade, :duration, :start_time, :end_time, :max_attempts, :exam_password, :total_questions, :is_randomized)"
+                 (title, grade, duration, start_time, end_time, max_attempts, exam_password, total_questions, is_randomized, user_id)
+                 VALUES (:title, :grade, :duration, :start_time, :end_time, :max_attempts, :exam_password, :total_questions, :is_randomized, :user_id)"
             );
 
             $stmtExam->execute([
-                'title' => $title,
-                'grade' => $grade,
-                'duration' => $duration,
-                'start_time' => $startTime,
-                'end_time' => $endTime,
-                'max_attempts' => $maxAttempts,
-                'exam_password' => $examPassword !== '' ? $examPassword : null,
+                'title'           => $title,
+                'grade'           => $grade,
+                'duration'        => $duration,
+                'start_time'      => $startTime,
+                'end_time'        => $endTime,
+                'max_attempts'    => $maxAttempts,
+                'exam_password'   => $examPassword !== '' ? $examPassword : null,
                 'total_questions' => $totalQuestions,
-                'is_randomized' => ($mode === 'auto') ? 1 : 0
+                'is_randomized'   => ($mode === 'auto') ? 1 : 0,
+                'user_id'         => $userId // <--- Gắn ID người dùng vào đây
             ]);
 
             $examId = (int)$conn->lastInsertId();
