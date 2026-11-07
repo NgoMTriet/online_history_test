@@ -6,6 +6,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
 
+$role = $_SESSION['role'] ?? 'STUDENT'; 
+
+// Chỉ bao gồm menu nếu KHÔNG PHẢI là trang profile của giáo viên
+if ($role !== 'TEACHER') {
+    include __DIR__ . '/../includes/menu.php'; 
+}
 if (!isset($_SESSION['user_id'])) {
     header('Location: /login.php');
     exit;
@@ -116,9 +122,8 @@ try {
  * ------------------------------------------------------------------ */
 $role = $user_info['role'] ?? ($_SESSION['role'] ?? 'STUDENT');
 $is_teacher = $role === 'TEACHER';
-$is_admin = $role === 'ADMIN';
 
-$role_labels = ['STUDENT' => 'Học viên', 'TEACHER' => 'Giáo viên', 'ADMIN' => 'Quản trị viên'];
+$role_labels = ['STUDENT' => 'Học viên', 'TEACHER' => 'Giáo viên'];
 $role_label = $role_labels[$role] ?? $role;
 
 $display_name = $_SESSION['full_name'] ?? $_SESSION['username'] ?? $role_label;
@@ -138,74 +143,44 @@ $dob_value = $user_info['dob'] ?? '';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thông tin cá nhân - TestSuViet</title>
+    <title>Thông tin cá nhân - SuViet</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
-
-    <link rel="stylesheet" href="/../assets/css/style.css">
     <link rel="stylesheet" href="/../assets/css/profile.css">
 </head>
 
 <body<?= $is_teacher ? '' : ' class="pf-body"' ?>>
 
 <?php if ($is_teacher): ?>
-<!-- ================= KHUNG GIÁO VIÊN ================= -->
-<div class="et-overlay" id="etOverlay" onclick="etToggleSidebar()"></div>
-<div class="et-shell">
-  <aside class="et-sidebar" id="etSidebar">
-    <div>
-      <a class="et-brand" href="teacher_dashboard.php">
-        <span class="et-brand-icon">VN</span>
-        <span><strong>SuVietTeacher</strong><small>Hệ thống của giáo viên</small></span>
-      </a>
-      <nav class="et-nav">
-        <div class="et-nav-label">Menu chính</div>
-        <a href="teacher_dashboard.php"><span>Tổng quan</span></a>
-        <a href="teacher_exam.php"><span>Tạo đề thi</span></a>
-        <a href="teacher_question.php"><span>Ngân hàng câu hỏi</span></a>
-        <a href="teacher_view_result.php"><span>Kết quả làm bài</span></a>
-        <div class="et-nav-label" style="margin-top:25px">Tài khoản</div>
-        <a href="profile.php" class="active"><span>Hồ sơ cá nhân</span></a>
-      </nav>
-    </div>
-    <div class="et-sidebar-foot"><a href="login.php"><span>⇥</span> Đăng xuất</a></div>
-  </aside>
-  <div class="et-workspace">
-    <header class="et-topbar">
-      <div class="et-topbar-left">
-        <button type="button" class="et-mobile-toggle" onclick="etToggleSidebar()" aria-label="Mở menu">☰</button>
-        <div><div class="et-crumb">TEACHER / GIÁO VIÊN</div><div class="et-top-title">Hồ sơ cá nhân</div></div>
-      </div>
-      <div class="et-user"><span class="et-avatar"><?= e($initials) ?></span><span class="et-user-name"><?= e($display_name) ?></span></div>
-    </header>
-    <main class="et-content">
-<?php else: ?>
-<!-- ================= KHUNG HỌC VIÊN / ADMIN ================= -->
-<header class="st-topbar">
-  <div class="st-topbar-inner">
-    <div class="st-left">
-      <a class="st-brand" href="index.php">TestSuViet</a>
-      <nav class="st-nav" aria-label="Menu chính">
-        <a href="index.php">Trang chủ</a>
-        <?php if ($is_admin): ?>
-          <a href="admin_dashboard.php">Trang quản trị</a>
-        <?php else: ?>
-          <a href="history.php">Lịch sử làm bài</a>
-        <?php endif; ?>
-        <a href="profile.php" class="active" aria-current="page">Hồ sơ cá nhân</a>
-      </nav>
-    </div>
-    <div class="st-user">
-      <span><strong><?= e($display_name) ?></strong></span>
-      <a href="../api/auth.php?action=login">Đăng xuất</a>
-    </div>
-  </div>
-</header>
-<main class="st-content">
-<?php endif; ?>
 
+    <!-- GIAO DIỆN GIÁO VIÊN -->
+    <div class="et-overlay" id="etOverlay" onclick="etToggleSidebar()"></div>
+
+    <div class="et-shell">
+
+        <?php include __DIR__ . '/../includes/teacher_sidebar.php'; ?>
+
+        <div class="et-workspace">
+
+            <header class="et-topbar">
+                <div class="et-topbar-left">
+                    <button type="button" class="et-mobile-toggle"
+                        onclick="etToggleSidebar()" aria-label="Mở menu">☰</button>
+
+                    <div>
+                        <div class="et-crumb">TEACHER / GIÁO VIÊN</div>
+                        <div class="et-top-title">Hồ sơ cá nhân</div>
+                    </div>
+                </div>
+
+                <div class="et-user">
+                    <span class="et-avatar"><?= e($initials) ?></span>
+                    <span class="et-user-name"><?= e($display_name) ?></span>
+                </div>
+            </header>
+
+<main>
+
+<?php endif; ?>
       <div class="pf-wrap">
         <div class="pf-head">
             <h1 class="pf-title">Thông tin cá nhân</h1>

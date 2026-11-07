@@ -56,7 +56,7 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kết quả làm bài thi của học sinh | TestSuViet</title>
-    <link rel="stylesheet" href="/../assets/css/style.css">
+    <link rel="stylesheet" href="/../assets/css/UI_teacher.css">
 </head>
 <body>
 <div class="et-overlay" id="etOverlay" onclick="etToggleSidebar()"></div>
@@ -64,7 +64,7 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <header class="et-topbar">
       <div class="et-topbar-left">
         <button type="button" class="et-mobile-toggle" onclick="etToggleSidebar()" aria-label="Mở menu">☰</button>
-        <div><div class="et-crumb">EDUTEACHER / GIÁO VIÊN</div><div class="et-top-title">Kết quả làm bài</div></div>
+        <div><div class="et-crumb">TEACHER / GIÁO VIÊN</div><div class="et-top-title">Kết quả làm bài</div></div>
       </div>
       <div class="et-user"><span class="et-avatar">GV</span><span class="et-user-name"><?= htmlspecialchars($_SESSION['full_name'] ?? $_SESSION['username'] ?? 'Giáo viên', ENT_QUOTES, 'UTF-8') ?></span></div>
     </header>

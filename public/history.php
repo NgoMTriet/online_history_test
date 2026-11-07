@@ -3,7 +3,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once __DIR__ . '/../config/database.php';
-
+$current_page = 'history.php';
+include __DIR__ . '/../includes/menu.php'; 
 // Yêu cầu đăng nhập để xem lịch sử của đúng tài khoản.
 if (empty($_SESSION['user_id'])) {
     header('Location: login.php');
@@ -190,245 +191,10 @@ if ($detail_attempt_id) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lịch sử làm bài - TestSuViet</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --navy: #0f2f5e;
-            --navy-hero: #102b49;
-            --blue: #2563eb;
-            --blue-dark: #1d4ed8;
-            --gold: #f5a623;
-            --bg: #f4f8fd;
-            --text: #19385f;
-            --muted: #55708f;
-            --line: #dce9f8;
-            --ok: #17744b;
-            --ok-bg: #e4f5eb;
-            --ok-line: #8fd0ae;
-            --bad: #b42318;
-            --bad-bg: #fdeceb;
-            --bad-line: #f1aaa5;
-        }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.6;
-            padding-bottom: 56px;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        a { color: inherit; }
-        :focus-visible { outline: 3px solid #93b8f7; outline-offset: 2px; }
-
-        /* ---------- Thanh trên cùng ---------- */
-        .topbar { background: linear-gradient(135deg, var(--navy-hero), var(--navy)); color: #fff; }
-        .topbar-inner {
-            max-width: 1100px; margin: 0 auto; padding: 14px 24px;
-            display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-        }
-        .brand { font-weight: 800; font-size: 1.15rem; text-decoration: none; color: #fff; }
-        .brand span { color: var(--gold); }
-        .nav { display: flex; gap: 6px; flex-wrap: wrap; }
-        .nav a {
-            padding: 8px 14px; border-radius: 8px; text-decoration: none; font-weight: 600;
-            font-size: 0.93rem; color: #cfe0f6;
-        }
-        .nav a:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
-        .nav a.current { background: rgba(255, 255, 255, 0.16); color: #fff; }
-
-        .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 0; }
-
-        .page-head { margin-bottom: 24px; }
-        .page-head h1 { font-size: clamp(1.5rem, 3vw, 1.9rem); font-weight: 800; color: var(--navy); line-height: 1.25; }
-        .page-head p { color: var(--muted); margin-top: 4px; }
-
-        /* ---------- Thống kê nhanh ---------- */
-        .stats {
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
-            background: var(--line); border: 1px solid var(--line); border-radius: 14px;
-            overflow: hidden; margin-bottom: 24px;
-        }
-        .stat { background: #fff; padding: 18px 20px; }
-        .stat-value { font-size: 1.8rem; font-weight: 800; color: var(--navy); line-height: 1.2; font-variant-numeric: tabular-nums; }
-        .stat-value small { font-size: 0.95rem; font-weight: 600; color: var(--muted); }
-        .stat-label { color: var(--muted); font-size: 0.88rem; }
-
-        /* ---------- Bảng lịch sử ---------- */
-        .panel { background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-        .panel-head { padding: 18px 22px; border-bottom: 1px solid var(--line); }
-        .panel-head h2 { font-size: 1.1rem; font-weight: 700; color: var(--navy); }
-
-        .table-wrap { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 14px 18px; text-align: left; vertical-align: middle; }
-        thead th {
-            font-size: 0.82rem; font-weight: 700; color: var(--muted);
-            background: #f6f9fd; border-bottom: 1px solid var(--line); white-space: nowrap;
-        }
-        tbody td { border-bottom: 1px solid #eaf1fa; }
-        tbody tr:last-child td { border-bottom: none; }
-        tbody tr:hover { background: #f8fbff; }
-        .col-index { color: var(--muted); font-variant-numeric: tabular-nums; width: 56px; }
-        .exam-name { font-weight: 700; color: var(--navy); }
-        .muted { color: var(--muted); font-size: 0.93rem; }
-
-        .score { font-size: 1.15rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-        .score.is-pass { color: var(--ok); }
-        .score.is-fail { color: var(--bad); }
-        .score-max { color: var(--muted); font-size: 0.88rem; margin-left: 2px; }
-
-        .badge {
-            display: inline-flex; align-items: center; gap: 7px; padding: 3px 12px; border-radius: 999px;
-            font-size: 0.82rem; font-weight: 700; white-space: nowrap;
-        }
-        .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-        .badge-pass { background: var(--ok-bg); color: var(--ok); }
-        .badge-fail { background: var(--bad-bg); color: var(--bad); }
-
-        .btn-detail {
-            display: inline-block; padding: 7px 14px; border-radius: 8px; border: 1px solid #b9d3f5;
-            background: #fff; color: var(--blue-dark); font-weight: 700; font-size: 0.86rem;
-            text-decoration: none; white-space: nowrap; transition: background 0.15s;
-        }
-        .btn-detail:hover { background: #eef5ff; }
-
-        .empty { text-align: center; padding: 52px 20px; color: var(--muted); }
-        .empty strong { display: block; color: var(--navy); font-size: 1.05rem; margin-bottom: 4px; }
-        .btn-primary {
-            display: inline-block; margin-top: 16px; padding: 10px 22px; border-radius: 10px;
-            background: var(--blue); color: #fff; font-weight: 700; text-decoration: none;
-        }
-        .btn-primary:hover { background: var(--blue-dark); }
-
-        /* ---------- Chi tiết bài làm ---------- */
-        .back-link {
-            display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px;
-            color: var(--blue-dark); font-weight: 700; text-decoration: none;
-        }
-        .back-link:hover { text-decoration: underline; }
-
-        .detail-head {
-            display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap;
-            background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 26px 28px; margin-bottom: 18px;
-        }
-        .detail-head h1 { font-size: clamp(1.3rem, 2.6vw, 1.7rem); font-weight: 800; color: var(--navy); line-height: 1.3; }
-        .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-        .chip {
-            padding: 4px 12px; border-radius: 999px; background: #eef4fc; color: var(--muted);
-            font-size: 0.86rem; font-weight: 600;
-        }
-        .chip strong { color: var(--navy); font-weight: 700; }
-
-        .score-ring {
-            --c: var(--ok);
-            width: 118px; height: 118px; border-radius: 50%; flex-shrink: 0;
-            background: conic-gradient(var(--c) calc(var(--p) * 1%), #e6eef9 0);
-            display: grid; place-items: center;
-        }
-        .score-ring.is-fail { --c: var(--bad); }
-        .score-ring-inner {
-            width: 92px; height: 92px; border-radius: 50%; background: #fff;
-            display: grid; place-content: center; text-align: center; line-height: 1.15;
-        }
-        .score-ring-inner strong { font-size: 1.75rem; font-weight: 800; color: var(--navy); }
-        .score-ring-inner span { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
-
-        .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 26px; }
-        .summary-item { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; }
-        .summary-item strong { display: block; font-size: 1.5rem; font-weight: 800; line-height: 1.2; }
-        .summary-item span { color: var(--muted); font-size: 0.88rem; }
-        .summary-item.correct strong { color: var(--ok); }
-        .summary-item.wrong strong { color: var(--bad); }
-        .summary-item.blank strong { color: var(--muted); }
-
-        .section-title { font-size: 1.15rem; font-weight: 800; color: var(--navy); margin-bottom: 14px; }
-
-        .question-card {
-            background: #fff; border: 1px solid var(--line); border-radius: 14px;
-            padding: 22px 24px; margin-bottom: 16px;
-        }
-        .question-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
-        .question-title { font-weight: 700; font-size: 1.04rem; color: var(--navy); line-height: 1.5; }
-        .question-title .num { color: var(--blue); margin-right: 6px; white-space: nowrap; }
-
-        .state { padding: 3px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
-        .state-correct { background: var(--ok-bg); color: var(--ok); }
-        .state-wrong { background: var(--bad-bg); color: var(--bad); }
-        .state-blank { background: #eef2f7; color: var(--muted); }
-
-        .options { display: flex; flex-direction: column; gap: 10px; }
-        .option {
-            display: flex; align-items: center; gap: 14px; padding: 11px 14px;
-            border: 1px solid var(--line); border-radius: 10px; background: #fff;
-        }
-        .option-key {
-            width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center;
-            background: #eef4fc; color: var(--muted); font-weight: 800; font-size: 0.88rem;
-        }
-        .option-text { flex: 1; }
-        .option-tag { font-size: 0.8rem; font-weight: 700; white-space: nowrap; }
-
-        .option.is-correct { background: var(--ok-bg); border-color: var(--ok-line); }
-        .option.is-correct .option-key { background: var(--ok); color: #fff; }
-        .option.is-correct .option-tag { color: var(--ok); }
-        .option.is-wrong { background: var(--bad-bg); border-color: var(--bad-line); }
-        .option.is-wrong .option-key { background: var(--bad); color: #fff; }
-        .option.is-wrong .option-tag { color: var(--bad); }
-
-        .explanation {
-            margin-top: 16px; padding: 12px 16px; background: #fff8eb;
-            border-left: 4px solid var(--gold); border-radius: 0 10px 10px 0;
-            color: #5b4310; font-size: 0.95rem;
-        }
-        .explanation strong { color: #7a4f00; }
-
-        /* ---------- Điện thoại ---------- */
-        @media (max-width: 760px) {
-            .wrap { padding: 24px 16px 0; }
-            .topbar-inner { padding: 12px 16px; }
-            .stats { grid-template-columns: repeat(2, 1fr); }
-            .summary { grid-template-columns: 1fr; }
-            .detail-head { padding: 20px; }
-            .question-card { padding: 18px 16px; }
-            .question-top { flex-direction: column; gap: 8px; }
-
-            .panel table, .panel tbody, .panel tr, .panel td { display: block; }
-            .panel thead { position: absolute; left: -9999px; }
-            .panel tbody tr { padding: 12px 0; border-bottom: 1px solid var(--line); }
-            .panel tbody tr:last-child { border-bottom: none; }
-            .panel tbody td {
-                border: none; padding: 5px 18px; display: flex; justify-content: space-between;
-                align-items: center; gap: 12px; text-align: right;
-            }
-            .panel tbody td::before { content: attr(data-label); color: var(--muted); font-size: 0.82rem; font-weight: 600; text-align: left; }
-            .panel tbody td.col-index { display: none; }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            * { transition: none !important; }
-        }
-    </style>
+    <link rel="stylesheet" href="/../assets/css/history.css">
 </head>
 <body>
-
-<header class="topbar">
-    <div class="topbar-inner">
-        <a class="brand" href="index.php">Test<span>Su</span>Viet</a>
-        <nav class="nav" aria-label="Menu chính">
-            <a href="index.php">Trang chủ</a>
-            <?php if ($is_teacher): ?>
-                <a href="teacher_dashboard.php">Bảng điều khiển</a>
-            <?php endif; ?>
-            <a href="history.php" class="current" aria-current="page">Lịch sử làm bài</a>
-        </nav>
-    </div>
-</header>
 
 <main class="wrap">
 
@@ -438,8 +204,6 @@ if ($detail_attempt_id) {
         $detail_pass = $detail_score >= 5;
         $ring_percent = (int)round(min(10, max(0, $detail_score)) * 10);
     ?>
-
-    <a href="history.php" class="back-link"><span aria-hidden="true">←</span> Quay lại danh sách lịch sử</a>
 
     <section class="detail-head">
         <div>

@@ -2,7 +2,9 @@
 // Xác định trang hiện tại để tô sáng menu đang chọn
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
-
+<head>
+    <link rel="stylesheet" href="/../assets/css/UI_teacher.css">
+</head>
 <aside class="et-sidebar" id="etSidebar">
     <div>
         <a class="et-brand" href="teacher_dashboard.php">
@@ -48,6 +50,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
     </div>
 
     <div class="et-sidebar-foot">
-         <a class="btn-logout" href="../api/auth.php?action=logout">Đăng xuất</a>
+         <a class="btn-logout" href="../api/auth.php?action=login">Đăng xuất</a>
     </div>
 </aside>

@@ -21,7 +21,7 @@
   --pf-radius-sm: 9px;
   --pf-font:
     "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --pf-serif: "Noto Serif", Georgia, "Times New Roman", serif;
+  --pf-serif: "Plus Jakarta Sans", Arial, sans-serif;
 }
 
 /* ---------- Nền trang ---------- */
@@ -39,99 +39,6 @@ body.pf-body {
 }
 
 /* ==========================================================================
-   Thanh điều hướng (học viên / admin)
-   ========================================================================== */
-.st-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: var(--pf-surface);
-  border-bottom: 1px solid var(--pf-line);
-}
-
-.st-topbar-inner {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 10px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.st-left {
-  display: flex;
-  align-items: center;
-  gap: 28px;
-  flex-wrap: wrap;
-}
-
-.st-brand {
-  font-family: var(--pf-serif);
-  font-weight: 700;
-  font-size: 1.2rem;
-  color: var(--pf-indigo);
-  text-decoration: none;
-  letter-spacing: 0.2px;
-}
-
-.st-nav {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.st-nav a {
-  position: relative;
-  padding: 8px 12px;
-  border-radius: var(--pf-radius-sm);
-  color: var(--pf-muted);
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-
-.st-nav a:hover {
-  background: var(--pf-bg);
-  color: var(--pf-ink);
-}
-
-.st-nav a.active {
-  color: var(--pf-indigo);
-  background: var(--pf-indigo-soft);
-  font-weight: 600;
-}
-
-.st-user {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  color: var(--pf-muted);
-  font-size: 0.95rem;
-}
-
-.st-user strong {
-  color: var(--pf-ink);
-}
-
-.st-user a {
-  color: var(--pf-seal);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.st-user a:hover {
-  text-decoration: underline;
-}
-
-.st-content {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 32px 24px 56px;
-}
-
-/* ==========================================================================
    Khung nội dung chung
    ========================================================================== */
 .pf-wrap {
@@ -143,7 +50,7 @@ body.pf-body {
 }
 
 .pf-head {
-  margin-bottom: 24px;
+  margin-bottom: 25px;
 }
 
 .pf-title {
@@ -481,7 +388,7 @@ body.pf-body {
 /* ==========================================================================
    Responsive
    ========================================================================== */
-@media (max-width: 900px) {
+@media (max-width: 1040px) {
   .pf-layout {
     grid-template-columns: 1fr;
   }
@@ -492,11 +399,6 @@ body.pf-body {
 }
 
 @media (max-width: 560px) {
-  .st-topbar-inner,
-  .st-content {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
 
   .pf-title {
     font-size: 1.45rem;

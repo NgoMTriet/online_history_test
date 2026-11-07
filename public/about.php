@@ -1,11 +1,11 @@
 
-<?php include __DIR__ . '/../includes/header.php'; ?>
+<?php include __DIR__ . '/../includes/menu.php'; ?>
 <link rel="stylesheet" href="assets/css/about.css?v=1.0">
 <main class="about-page">
     <section class="about-hero">
         <div class="about-hero-content">
             <span class="about-label">KHÁM PHÁ LỊCH SỬ</span>
-            <h1>Giới thiệu về TestSuViet</h1>
+            <h1>Giới thiệu về SuViet</h1>
             <p>
                 Học Lịch sử theo cách chủ động hơn thông qua những bài thi
                 trắc nghiệm trực tuyến, giúp bạn củng cố kiến thức và khám
@@ -73,5 +73,3 @@
         <p>Mỗi câu hỏi là một cơ hội để hiểu thêm về quá khứ dân tộc.</p>
     </section>
 </main>
-
-<?php include __DIR__ . '/../includes/footer.php'; ?>

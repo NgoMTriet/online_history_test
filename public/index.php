@@ -21,12 +21,6 @@ ob_start();
 include $headerPath;
 $headerHtml = ob_get_clean();
 
-// Loại bỏ liên kết style.css cũ để không xung đột CSS
-$headerHtml = preg_replace(
-    '~<link\b(?=[^>]*\bhref\s*=\s*["\'][^"\']*style\.css(?:\?[^"\']*)?["\'])[^>]*>\s*~i',
-    '',
-    $headerHtml
-);
 
 $styleTag = '<link rel="stylesheet" href="assets/css/index.css?v=1">' . "\n";
 if (stripos($headerHtml, '</head>') !== false) {
@@ -53,47 +47,54 @@ $isTeacher = (
             <div class="slider">
 
                 <div class="slide active">
-                    <img src="image/anh1.jpg" alt="Lịch sử Việt Nam" onerror="this.src='../image/anh1.jpg'">
-                    <div class="slide-content">
-                        <span class="subtitle">Khám phá quá khứ</span>
-                        <h2>LỊCH SỬ VIỆT NAM</h2>
-                        <p>Luyện tập trắc nghiệm, nắm vững kiến thức lịch sử Việt Nam từ lớp 6 đến lớp 9.</p>
-                        <div class="hero-buttons">
-                            <a href="#danh-muc" class="btn-hero-primary">▶ Bắt đầu thi ngay <span>›</span></a>
-                            <a href="#huong-dan" class="btn-hero-outline">▣ Khám phá đề thi</a>
-                        </div>
-                    </div>
-                    <div class="quote-box">
-                        <p>“Dân ta phải biết sử ta<br>Cho tường gốc tích nước nhà Việt Nam”</p>
-                        <span>— Hồ Chí Minh —</span>
-                    </div>
-                </div>
+    <img src="image/anh1.png" alt="Lịch sử Việt Nam" onerror="this.src='../image/anh1.png'">
+    <div class="slide-content">
+        <span class="subtitle">Khám phá quá khứ</span>
+        <h2>LỊCH SỬ VIỆT NAM</h2>
+        <div class="hero-buttons">
+            <a href="#danh-muc" class="btn-hero-primary">▶ Bắt đầu thi</a>
+            <a href="#huong-dan" class="btn-hero-outline">Khám phá đề thi</a>
+        </div>
+    </div>
+    <div class="quote-box">
+        <p>“Dân ta phải biết sử ta<br>Cho tường gốc tích nước nhà Việt Nam”</p>
+        <span>— Hồ Chí Minh —</span>
+    </div>
+</div>
 
-                <div class="slide">
-                    <img src="image/anh2.jpg" alt="Di tích lịch sử Việt Nam" onerror="this.src='../image/anh2.jpg'">
-                    <div class="slide-content">
-                        <span class="subtitle">Mỗi bài học là một hành trình</span>
-                        <h2>KHÁM PHÁ LỊCH SỬ</h2>
-                        <p>Ôn tập kiến thức lịch sử THCS một cách dễ dàng, trực quan và thú vị.</p>
-                        <div class="hero-buttons">
-                            <a href="#danh-muc" class="btn-hero-primary">▶ Bắt đầu thi ngay <span>›</span></a>
-                            <a href="#huong-dan" class="btn-hero-outline">▣ Khám phá đề thi</a>
-                        </div>
-                    </div>
-                </div>
+<div class="slide">
+    <img src="image/anh2.png" alt="Di tích lịch sử Việt Nam" onerror="this.src='../image/anh2.png'">
+    <div class="slide-content">
+        <span class="subtitle">Mỗi bài học là một hành trình</span>
+        <h2>KHÁM PHÁ LỊCH SỬ</h2>
+        <div class="hero-buttons">
+            <a href="#danh-muc" class="btn-hero-primary">▶ Bắt đầu thi</a>
+            <a href="#huong-dan" class="btn-hero-outline">Khám phá đề thi</a>
+        </div>
+    </div>
+    <!-- Đã thêm trích dẫn cho slide 2 -->
+    <div class="quote-box">
+        <p>“Nước Nam ta là một nước văn hiến<br>Đã có lịch sử lâu đời và truyền thống hào hùng”</p>
+        <span>— Nguyễn Trãi —</span>
+    </div>
+</div>
 
-                <div class="slide">
-                    <img src="image/anh3.jpg" alt="Tư liệu lịch sử Việt Nam" onerror="this.src='../image/anh3.jpg'">
-                    <div class="slide-content">
-                        <span class="subtitle">Ôn luyện và bứt phá</span>
-                        <h2>CHINH PHỤC KIẾN THỨC</h2>
-                        <p>Củng cố kiến thức Lịch sử lớp 6, 7, 8 và 9 qua những bài kiểm tra trắc nghiệm.</p>
-                        <div class="hero-buttons">
-                            <a href="#danh-muc" class="btn-hero-primary">▶ Bắt đầu thi ngay <span>›</span></a>
-                            <a href="#huong-dan" class="btn-hero-outline">▣ Khám phá đề thi</a>
-                        </div>
-                    </div>
-                </div>
+<div class="slide">
+    <img src="image/anh3.png" alt="Tư liệu lịch sử Việt Nam" onerror="this.src='../image/anh3.png'">
+    <div class="slide-content">
+        <span class="subtitle">Ôn luyện và bứt phá</span>
+        <h2>CHINH PHỤC KIẾN THỨC</h2>
+        <div class="hero-buttons">
+            <a href="#danh-muc" class="btn-hero-primary">▶ Bắt đầu thi</a>
+            <a href="#huong-dan" class="btn-hero-outline">Khám phá đề thi</a>
+        </div>
+    </div>
+    <!-- Đã thêm trích dẫn cho slide 3 -->
+    <div class="quote-box">
+        <p>“Đoàn kết, đoàn kết, đại đoàn kết<br>Thành công, thành công, đại thành công”</p>
+        <span>— Hồ Chí Minh —</span>
+    </div>
+</div>
 
                 <button class="slider-prev" type="button" onclick="changeSlide(-1)" aria-label="Ảnh trước">&#10094;</button>
                 <button class="slider-next" type="button" onclick="changeSlide(1)" aria-label="Ảnh tiếp theo">&#10095;</button>
