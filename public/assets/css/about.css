@@ -4,7 +4,27 @@
    Mọi khối nội dung dùng chung một độ rộng nên luôn thẳng lề.
    ========================================================= */
 
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap");
+
+/* Font chung cho cả trang, gồm thanh menu nằm ngoài .about-page */
+body {
+  font-family:
+    "Be Vietnam Pro",
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
 
 .about-page {
   --about-blue: #2563eb;
@@ -23,7 +43,14 @@
   max-width: none;
   margin: 0;
   padding: 0;
-  font-family: "Plus Jakarta Sans", Arial, sans-serif;
+  font-family:
+    "Be Vietnam Pro",
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    Arial,
+    sans-serif;
   background: var(--about-bg);
   color: var(--about-text);
   line-height: 1.7;
