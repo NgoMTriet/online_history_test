@@ -4,6 +4,8 @@
    để không xung đột với style.css (khung giáo viên et-*).
    ========================================================================== */
 
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap");
+
 :root {
   --pf-ink: #1c2233; /* chữ chính */
   --pf-muted: #5f6678; /* chữ phụ */
@@ -20,8 +22,9 @@
   --pf-radius: 14px;
   --pf-radius-sm: 9px;
   --pf-font:
-    "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --pf-serif: "Plus Jakarta Sans", Arial, sans-serif;
+    "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, Arial,
+    sans-serif;
+  --pf-serif: var(--pf-font); /* cùng một font với chữ thường */
 }
 
 /* ---------- Nền trang ---------- */
@@ -399,7 +402,6 @@ body.pf-body {
 }
 
 @media (max-width: 560px) {
-
   .pf-title {
     font-size: 1.45rem;
   }
@@ -426,4 +428,11 @@ body.pf-body {
   * {
     transition: none !important;
   }
+}
+
+/* Tiêu đề: khít chữ nhẹ cho gọn mắt */
+.pf-title,
+.pf-name,
+.pf-section-title {
+  letter-spacing: -0.01em;
 }
