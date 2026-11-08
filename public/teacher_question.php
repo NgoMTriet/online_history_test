@@ -248,7 +248,7 @@ $questions_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản lý ngân hàng câu hỏi | TestSuViet</title>
-    <link rel="stylesheet" href="/../assets/css/style.css">
+    <link rel="stylesheet" href="/../assets/css/UI_teacher.css">
     <script>
         function onGradeChange(select) {
             window.location.href = '?grade=' + encodeURIComponent(select.value);
@@ -265,7 +265,7 @@ $questions_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <header class="et-topbar">
       <div class="et-topbar-left">
         <button type="button" class="et-mobile-toggle" onclick="etToggleSidebar()" aria-label="Mở menu">☰</button>
-        <div><div class="et-crumb">EDUTEACHER / GIÁO VIÊN</div><div class="et-top-title">Ngân hàng câu hỏi</div></div>
+        <div><div class="et-crumb">TEACHER / GIÁO VIÊN</div><div class="et-top-title">Ngân hàng câu hỏi</div></div>
       </div>
       <div class="et-user"><span class="et-avatar">GV</span><span class="et-user-name"><?= htmlspecialchars($_SESSION['full_name'] ?? $_SESSION['username'] ?? 'Giáo viên', ENT_QUOTES, 'UTF-8') ?></span></div>
     </header>
@@ -351,6 +351,28 @@ $questions_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <input type="hidden" name="action" value="import_excel">
                 <input type="hidden" name="grade" value="<?= $selected_grade ?>">
                 <input type="hidden" name="topic_id" value="<?= $selected_topic_id ?>">
+
+                <div class="tpl-box">
+                    <div class="tpl-icon" aria-hidden="true">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
+                        <path d="M14 3v5h5"/>
+                        <path d="M9 13h6M9 17h6"/>
+                        </svg>
+                    </div>
+                    <div class="tpl-text">
+                        <strong>File Excel mẫu</strong>
+                        <span>Tải file mẫu, điền câu hỏi đúng cột rồi tải lên bên dưới.</span>
+                    </div>
+                    <a class="tpl-btn" href="/assets/templates/mau_import_cau_hoi.xlsx" download>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16"/>
+                        </svg>
+                        Tải file mẫu
+                    </a>
+                </div>
 
                 <div class="form-group">
                     <label for="excel_file">Chọn file Excel</label>
