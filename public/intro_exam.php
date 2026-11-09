@@ -155,13 +155,12 @@ $h = static fn($value) => htmlspecialchars(
 <body class="ex-body">
 <header class="ex-topbar">
     <div class="ex-topbar-inner">
-        <div class="ex-brand">Test<span>SuViet</span>.com</div>
+        <div class="ex-brand"><span>SuViet</span>.com</div>
         <small class="ex-tagline">Hệ thống thi trắc nghiệm Lịch sử THCS</small>
     </div>
 </header>
 
 <main class="ex-page">
-    <a class="ex-back" href="index.php">← Quay lại danh sách đề thi</a>
 
     <section class="ex-card">
         <div class="ex-hero">

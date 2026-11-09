@@ -1281,3 +1281,63 @@ tr:hover {
     display: none;
   }
 }
+/* ===== Khung tải file Excel mẫu ===== */
+.tpl-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: #f0fdf4;
+  border: 1px dashed #86efac;
+  border-radius: 14px;
+}
+.tpl-box .tpl-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #dcfce7;
+  color: #16a34a;
+}
+.tpl-box .tpl-text {
+  flex: 1;
+  min-width: 0;
+}
+.tpl-box .tpl-text strong {
+  display: block;
+  color: #14532d;
+  font-size: 1rem;
+}
+.tpl-box .tpl-text span {
+  display: block;
+  margin-top: 2px;
+  color: #4d6b57;
+  font-size: 0.92rem;
+}
+.tpl-box a.tpl-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 10px;
+  background: #16a34a;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 4px 12px -4px rgba(22, 163, 74, 0.6);
+  transition: background 0.15s, transform 0.1s;
+}
+.tpl-box a.tpl-btn:hover {
+  background: #15803d;
+}
+.tpl-box a.tpl-btn:active {
+  transform: translateY(1px);
+}
+@media (max-width: 640px) {
+  .tpl-box { flex-wrap: wrap; }
+  .tpl-box a.tpl-btn { width: 100%; justify-content: center; }
+}

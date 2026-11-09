@@ -46,7 +46,7 @@ if (isset($_GET['reset']) && $_GET['reset'] === 'success') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập - TestSuViet</title>
+    <title>Đăng nhập - SuViet</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="assets/css/auth.css?v=1">
@@ -75,7 +75,7 @@ if (isset($_GET['reset']) && $_GET['reset'] === 'success') {
                 <circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="1.5 2.5"/>
                 <polygon fill="currentColor" points="16,9 17.65,13.73 22.66,13.84 18.66,16.87 20.11,21.66 16,18.8 11.89,21.66 13.34,16.87 9.34,13.84 14.35,13.73"/>
             </svg>
-            <span class="brand-name">TestSuViet</span>
+            <span class="brand-name">SuViet</span>
         </a>
 
         <main class="card">

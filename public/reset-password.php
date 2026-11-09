@@ -14,7 +14,7 @@ if ($token === '' || !preg_match('/^[a-f0-9]{64}$/', $token)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đặt lại mật khẩu - TestSuViet</title>
+    <title>Đặt lại mật khẩu - SuViet</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,7 +24,7 @@ if ($token === '' || !preg_match('/^[a-f0-9]{64}$/', $token)) {
 </head>
 <body class="au-body">
 
-<a class="au-brand" href="index.php"><span class="au-brand-mark">vn</span>TestSuViet.com</a>
+<a class="au-brand" href="index.php"><span class="au-brand-mark">vn</span>SuViet.com</a>
 
 <main class="au-card">
     <h1 class="au-title">Đặt lại mật khẩu</h1>

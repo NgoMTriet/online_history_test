@@ -191,7 +191,12 @@ if ($detail_attempt_id) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lịch sử làm bài - TestSuViet</title>
+<!-- Thêm đoạn này vào thẻ <head> của includes/menu.php -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 
+<link rel="stylesheet" href="/assets/css/global_style.css">
     <link rel="stylesheet" href="/../assets/css/history.css">
 </head>
 <body>

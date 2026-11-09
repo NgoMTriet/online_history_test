@@ -1,6 +1,12 @@
 
 <?php include __DIR__ . '/../includes/menu.php'; ?>
-<link rel="stylesheet" href="assets/css/about.css?v=1.0">
+<!-- Thêm đoạn này vào thẻ <head> của includes/menu.php -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="/assets/css/global_style.css">
+<link rel="stylesheet" href="assets/css/about.css">
 <main class="about-page">
     <section class="about-hero">
         <div class="about-hero-content">

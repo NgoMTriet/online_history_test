@@ -120,7 +120,7 @@ $recent_exams = $stmt_exams->fetchAll(PDO::FETCH_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bảng điều khiển Giáo viên | TestSuViet</title>
+    <title>Bảng điều khiển Giáo viên | SuViet</title>
 
     <link rel="stylesheet" href="/../assets/css/UI_teacher.css">
 </head>
@@ -135,16 +135,6 @@ $recent_exams = $stmt_exams->fetchAll(PDO::FETCH_ASSOC);
       <div class="et-user"><span class="et-avatar">GV</span><span class="et-user-name"><?= htmlspecialchars($_SESSION['full_name'] ?? $_SESSION['username'] ?? 'Giáo viên', ENT_QUOTES, 'UTF-8') ?></span></div>
     </header>
     <main class="et-content">
-
-    <nav class="navbar">
-        <a href="index.php" class="brand">🏛️ TestSuViet Teacher</a>
-        <div class="user-menu">
-            <span class="user-badge">👨‍🏫 <?= htmlspecialchars($teacher_name) ?></span>
-            <a href="profile.php" class="btn-link">Hồ sơ</a>
-            <a href="login.php" class="back_home">Đăng xuất</a>
-        </div>
-    </nav>
-
     <div class="container">
         <?php if (!empty($flash_message)): ?>
             <div class="alert alert-<?= $flash_type === 'success' ? 'success' : 'error' ?>">

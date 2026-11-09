@@ -1,9 +1,9 @@
 /* =========================================================
    TESTSUVIET.COM - TRANG GIỚI THIỆU (v2)
-   Dùng cùng bảng màu và font với trang chủ.
-   Mọi khối nội dung dùng chung một độ rộng nên luôn thẳng lề.
+   Đồng bộ font chữ, màu sắc & thiết kế theo profile.css
    ========================================================= */
 
+<<<<<<< HEAD
 @import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap");
 
 /* Font chung cho cả trang, gồm thanh menu nằm ngoài .about-page */
@@ -24,24 +24,32 @@ input,
 select,
 textarea {
   font-family: inherit;
+=======
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap");
+
+:root {
+  --pf-ink: #1c2233;
+  --pf-muted: #5f6678;
+  --pf-line: #e3e6ee;
+  --pf-bg: #f4f5f9;
+  --pf-surface: #ffffff;
+  --pf-indigo: #232f6b;
+  --pf-indigo-dark: #19235a;
+  --pf-indigo-soft: #e9ecf8;
+  --pf-gold: #f5a623;
+  --pf-radius: 14px;
+  --pf-radius-sm: 9px;
+  --pf-font: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --pf-serif: "Plus Jakarta Sans", Arial, sans-serif;
+  --about-w: min(1040px, calc(100% - 48px));
+>>>>>>> 0f3c49a (git push)
 }
 
 .about-page {
-  --about-blue: #2563eb;
-  --about-navy: #0f2f5e;
-  --about-navy-hero: #102b49;
-  --about-gold: #f5a623;
-  --about-bg: #f7fbff;
-  --about-text: #19385f;
-  --about-muted: #5a7396;
-  --about-border: #dce9f8;
-
-  /* Độ rộng chung của mọi khối nội dung */
-  --about-w: min(1100px, calc(100% - 48px));
-
   width: 100%;
   max-width: none;
   margin: 0;
+<<<<<<< HEAD
   padding: 0;
   font-family:
     "Be Vietnam Pro",
@@ -54,6 +62,13 @@ textarea {
   background: var(--about-bg);
   color: var(--about-text);
   line-height: 1.7;
+=======
+  padding: 0 0 56px;
+  font-family: var(--pf-font);
+  background: var(--pf-bg);
+  color: var(--pf-ink);
+  line-height: 1.6;
+>>>>>>> 0f3c49a (git push)
   -webkit-font-smoothing: antialiased;
 }
 
@@ -61,6 +76,12 @@ textarea {
 .about-page *::before,
 .about-page *::after {
   box-sizing: border-box;
+}
+
+.about-page h1,
+.about-page h2,
+.about-page h3 {
+  font-family: var(--pf-serif);
 }
 
 .about-page h1,
@@ -77,11 +98,11 @@ textarea {
   border: 0;
 }
 
-/* ---------- 1. Phần đầu trang ---------- */
+/* ---------- 1. Hero Section ---------- */
 .about-page .about-hero {
   position: relative;
   overflow: hidden;
-  padding: 72px 0 80px;
+  padding: 64px 0 72px;
   color: #fff;
   background:
     repeating-radial-gradient(
@@ -89,7 +110,7 @@ textarea {
       rgba(255, 255, 255, 0.08) 0 2px,
       transparent 2px 46px
     ),
-    linear-gradient(135deg, var(--about-navy-hero) 0%, var(--about-navy) 100%);
+    linear-gradient(135deg, var(--pf-indigo-dark) 0%, var(--pf-indigo) 100%);
 }
 
 .about-page .about-hero-content {
@@ -103,18 +124,18 @@ textarea {
   padding: 5px 14px;
   border: 1px solid rgba(245, 166, 35, 0.55);
   border-radius: 999px;
-  color: var(--about-gold);
+  color: var(--pf-gold);
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
 }
 
 .about-page .about-hero h1 {
   max-width: 720px;
   margin-bottom: 16px;
-  font-size: clamp(1.9rem, 4.2vw, 3rem);
+  font-size: clamp(1.9rem, 4.2vw, 2.75rem);
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.25;
   color: #fff;
 }
 
@@ -122,50 +143,53 @@ textarea {
   max-width: 620px;
   margin-bottom: 28px;
   font-size: 1.05rem;
-  color: #c9dcf3;
+  color: var(--pf-indigo-soft);
 }
 
 .about-page .about-button {
-  display: inline-block;
-  padding: 12px 26px;
-  border-radius: 10px;
-  background: var(--about-gold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 24px;
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-gold);
   color: #3a2500;
   font-weight: 700;
+  font-size: 0.95rem;
   text-decoration: none;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    background 0.2s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
+
 .about-page .about-button:hover {
   background: #ffb840;
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
+
 .about-page .about-button:focus-visible {
   outline: 3px solid #fff;
   outline-offset: 3px;
 }
 
-/* ---------- 2. Khối chữ: tiêu đề bên trái, nội dung bên phải ---------- */
+/* ---------- 2. Grid Nội dung ---------- */
 .about-page .about-section {
   width: var(--about-w);
-  margin: 56px auto 0;
+  margin: 48px auto 0;
   display: grid;
-  grid-template-columns: minmax(200px, 300px) 1fr;
-  gap: 12px 56px;
+  grid-template-columns: minmax(200px, 280px) 1fr;
+  gap: 12px 48px;
   align-items: start;
 }
 
 .about-page .about-section h2,
 .about-page .about-features h2 {
   position: relative;
-  padding-bottom: 14px;
-  font-size: clamp(1.35rem, 2.4vw, 1.75rem);
-  font-weight: 800;
+  padding-bottom: 12px;
+  font-size: clamp(1.35rem, 2.4vw, 1.65rem);
+  font-weight: 700;
   line-height: 1.3;
-  color: var(--about-navy);
+  color: var(--pf-indigo);
 }
 
 .about-page .about-section h2::after,
@@ -174,155 +198,145 @@ textarea {
   position: absolute;
   left: 0;
   bottom: 0;
-  width: 48px;
+  width: 44px;
   height: 4px;
   border-radius: 2px;
-  background: var(--about-gold);
+  background: var(--pf-gold);
 }
 
 .about-page .about-section p {
   max-width: 720px;
-  font-size: 1.05rem;
-  color: var(--about-muted);
+  font-size: 1rem;
+  color: var(--pf-muted);
 }
 
-/* ---------- 3. Thẻ giá trị ---------- */
+/* ---------- 3. Giá trị / Cards ---------- */
 .about-page .about-features {
   width: var(--about-w);
-  margin: 56px auto 0;
+  margin: 48px auto 0;
 }
 
 .about-page .about-features h2 {
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .about-page .about-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  gap: 20px;
 }
 
 .about-page .about-card {
-  padding: 26px 26px 28px;
-  background: #fff;
-  border: 1px solid var(--about-border);
-  border-radius: 16px;
-  box-shadow: 0 3px 12px rgba(37, 99, 235, 0.055);
-  transition:
-    transform 0.25s ease,
-    box-shadow 0.25s ease,
-    border-color 0.25s ease;
+  padding: 24px;
+  background: var(--pf-surface);
+  border: 1px solid var(--pf-line);
+  border-radius: var(--pf-radius);
+  box-shadow: 0 1px 2px rgba(28, 34, 51, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
+
 .about-page .about-card:hover {
-  transform: translateY(-4px);
-  border-color: #b9d3f5;
-  box-shadow: 0 12px 28px rgba(28, 74, 130, 0.12);
+  transform: translateY(-3px);
+  border-color: #cbd2e1;
+  box-shadow: 0 8px 24px rgba(35, 47, 107, 0.08);
 }
 
 .about-page .about-icon {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   margin-bottom: 16px;
-  border-radius: 14px;
-  background: #e5f0ff;
-  font-size: 25px;
+  border-radius: var(--pf-radius-sm);
+  background: var(--pf-indigo-soft);
+  font-size: 24px;
   line-height: 1;
 }
+
 .about-page .about-card:nth-child(2) .about-icon {
   background: #fff0df;
 }
+
 .about-page .about-card:nth-child(3) .about-icon {
-  background: #e4f5eb;
+  background: #e6f4ec;
 }
 
 .about-page .about-card h3 {
   margin-bottom: 8px;
-  font-size: 1.12rem;
+  font-size: 1.1rem;
   font-weight: 700;
-  color: var(--about-navy);
+  color: var(--pf-ink);
 }
+
 .about-page .about-card p {
-  font-size: 0.96rem;
-  color: var(--about-muted);
+  font-size: 0.92rem;
+  color: var(--pf-muted);
 }
 
-/* ---------- 4. Đối tượng sử dụng (cùng khung với các khối khác) ---------- */
+/* ---------- 4. Đối tượng sử dụng ---------- */
 .about-page .about-audience {
-  padding: 36px 40px 40px;
-  background: #fff;
-  border: 1px solid var(--about-border);
-  border-radius: 18px;
-  box-shadow: 0 3px 12px rgba(37, 99, 235, 0.055);
+  padding: 28px 32px;
+  background: var(--pf-surface);
+  border: 1px solid var(--pf-line);
+  border-radius: var(--pf-radius);
+  box-shadow: 0 1px 2px rgba(28, 34, 51, 0.04);
 }
 
-/* ---------- 5. Lời kêu gọi cuối trang ---------- */
+/* ---------- 5. CTA Footer ---------- */
 .about-page .about-cta {
-  margin-top: 64px;
-  padding: 56px 24px 60px;
+  margin-top: 56px;
+  padding: 48px 24px;
   text-align: center;
   color: #fff;
-  background:
-    repeating-radial-gradient(
-      circle at 14% 50%,
-      rgba(255, 255, 255, 0.07) 0 2px,
-      transparent 2px 46px
-    ),
-    linear-gradient(135deg, var(--about-navy) 0%, var(--about-navy-hero) 100%);
+  background: linear-gradient(135deg, var(--pf-indigo) 0%, var(--pf-indigo-dark) 100%);
 }
+
 .about-page .about-cta h2 {
   margin-bottom: 8px;
-  font-size: clamp(1.4rem, 2.8vw, 2rem);
-  font-weight: 800;
+  font-size: clamp(1.4rem, 2.8vw, 1.85rem);
+  font-weight: 700;
   color: #fff;
 }
+
 .about-page .about-cta p {
   max-width: 560px;
   margin: 0 auto;
-  font-size: 1.03rem;
-  color: #c9dcf3;
+  font-size: 1rem;
+  color: var(--pf-indigo-soft);
 }
 
-/* ---------- Máy tính bảng và điện thoại ---------- */
+/* ---------- Responsive ---------- */
 @media (max-width: 860px) {
   .about-page {
-    --about-w: min(1100px, calc(100% - 32px));
+    --about-w: min(1040px, calc(100% - 32px));
   }
   .about-page .about-hero {
-    padding: 48px 0 56px;
+    padding: 40px 0 48px;
   }
   .about-page .about-section {
     grid-template-columns: 1fr;
-    gap: 6px;
-    margin-top: 40px;
-  }
-  .about-page .about-section h2 {
-    margin-bottom: 8px;
+    gap: 8px;
+    margin-top: 36px;
   }
   .about-page .about-features {
-    margin-top: 40px;
+    margin-top: 36px;
   }
   .about-page .about-grid {
     grid-template-columns: 1fr;
     gap: 16px;
   }
   .about-page .about-audience {
-    padding: 26px 22px 30px;
+    padding: 22px 20px;
   }
   .about-page .about-cta {
-    margin-top: 48px;
-    padding: 44px 20px 48px;
+    margin-top: 40px;
+    padding: 36px 20px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .about-page .about-button,
   .about-page .about-card {
-    transition: none;
-  }
-  .about-page .about-button:hover,
-  .about-page .about-card:hover {
-    transform: none;
+    transition: none !important;
   }
 }

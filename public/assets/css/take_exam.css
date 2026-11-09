@@ -1,20 +1,112 @@
-
+/* ==========================================================================
+   1. RESET & BASE STYLES
+   ========================================================================== */
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: 'Segoe UI', Tahoma, sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
     background: #f4f6f9;
     color: #333;
     padding-bottom: 80px;
+    min-height: 100vh;
 }
 
+body.fs-locked {
+    overflow: hidden;
+}
+
+/* ==========================================================================
+   2. COMMON & AUTH CARDS (Trang nhập password / Hết lượt / Chưa đến giờ)
+   ========================================================================== */
+.card {
+    background: #ffffff;
+    padding: 35px;
+    border-radius: 12px;
+    text-align: center;
+    max-width: 440px;
+    width: 90%;
+    margin: 60px auto;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+
+.card h2 {
+    margin-bottom: 15px;
+    color: #1e293b;
+}
+
+.card p {
+    color: #475569;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.form-input:focus {
+    border-color: #2563eb;
+}
+
+.btn {
+    display: inline-block;
+    padding: 12px 24px;
+    background: #3498db;
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.btn:hover {
+    background: #2980b9;
+}
+
+.btn-submit {
+    width: 100%;
+    padding: 12px;
+    background: #2563eb;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-submit:hover {
+    background: #1d4ed8;
+}
+
+.error-msg {
+    color: #dc2626;
+    background: #fef2f2;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-size: 14px;
+    border: 1px solid #fecaca;
+}
+
+/* ==========================================================================
+   3. HEADER & TIMER
+   ========================================================================== */
 header {
     background: #2c3e50;
-    color: white;
+    color: #ffffff;
     padding: 15px 30px;
     display: flex;
     justify-content: space-between;
@@ -23,6 +115,7 @@ header {
     position: sticky;
     top: 0;
     z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .exam-title {
@@ -32,15 +125,41 @@ header {
 
 .timer-box {
     background: #e74c3c;
-    color: white;
+    color: #ffffff;
     padding: 9px 18px;
     border-radius: 25px;
     font-weight: bold;
     white-space: nowrap;
     font-size: 18px;
-    box-shadow: 0 3px 10px rgba(231, 76, 60, .2);
+    box-shadow: 0 3px 10px rgba(231, 76, 60, 0.2);
 }
 
+.btn-exit-header {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    background: #ffffff;
+    color: #dc2626;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    text-decoration: none;
+    padding: 9px 17px;
+    border-radius: 999px;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+    transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+
+.btn-exit-header:hover {
+    background: #dc2626;
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   4. EXAM LAYOUT & QUESTIONS
+   ========================================================================== */
 .container {
     max-width: 1250px;
     margin: 30px auto;
@@ -59,12 +178,17 @@ header {
 }
 
 .question-card {
-    background: white;
+    background: #ffffff;
     border-radius: 8px;
     padding: 20px;
     margin-bottom: 20px;
-    box-shadow: 0 2px 5px #0000000d;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
     scroll-margin-top: 90px;
+    transition: border-color 0.2s;
+}
+
+.question-card.missing-answer {
+    border: 1px solid #fca5a5;
 }
 
 .question-title {
@@ -89,16 +213,22 @@ header {
     border-radius: 6px;
     cursor: pointer;
     line-height: 1.5;
+    transition: background 0.2s, border-color 0.2s;
 }
 
 .option-item:hover {
     background: #f8f9fa;
+    border-color: #cbd5e1;
 }
 
 .option-item input {
     flex-shrink: 0;
+    cursor: pointer;
 }
 
+/* ==========================================================================
+   5. SIDEBAR & QUESTION NAVIGATION
+   ========================================================================== */
 .question-sidebar {
     position: sticky;
     top: 90px;
@@ -106,10 +236,10 @@ header {
 }
 
 .question-navigation {
-    background: white;
+    background: #ffffff;
     padding: 18px;
     border-radius: 12px;
-    box-shadow: 0 4px 15px #00000012;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07);
 }
 
 .question-navigation h3 {
@@ -133,6 +263,7 @@ header {
     color: #b91c1c;
     font-weight: bold;
     cursor: pointer;
+    transition: all 0.2s;
 }
 
 .question-number.answered {
@@ -186,7 +317,6 @@ header {
     flex-shrink: 0;
 }
 
-/* Nút nộp bài trong thanh danh sách câu hỏi */
 .submit-exam-container {
     margin-top: 20px;
 }
@@ -195,13 +325,13 @@ header {
     width: 100%;
     padding: 13px 15px;
     background: #16a34a;
-    color: white;
+    color: #ffffff;
     border: none;
     border-radius: 8px;
     font-size: 16px;
     font-weight: bold;
     cursor: pointer;
-    transition: background .2s, transform .2s;
+    transition: background 0.2s, transform 0.2s;
 }
 
 .submit-exam-btn:hover {
@@ -210,36 +340,14 @@ header {
 }
 
 .submit-exam-btn:disabled {
-    opacity: .65;
+    opacity: 0.65;
     cursor: wait;
     transform: none;
 }
 
-/* Nút thoát bài thi */
-.btn-exit-header {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    background: #ffffff;
-    color: #dc2626;
-    border: 1px solid rgba(255,255,255,.55);
-    text-decoration: none;
-    padding: 9px 17px;
-    border-radius: 999px;
-    font-weight: 700;
-    white-space: nowrap;
-    box-shadow: 0 3px 10px rgba(0,0,0,.12);
-    transition: background .2s, color .2s, transform .2s;
-}
-
-.btn-exit-header:hover {
-    background: #dc2626;
-    color: #ffffff;
-    transform: translateY(-1px);
-}
-
-/* Bảng xác nhận thoát bài */
+/* ==========================================================================
+   6. MODALS (Xác nhận thoát / Xác nhận nộp / Cảnh báo chưa làm)
+   ========================================================================== */
 .exit-modal,
 .submit-modal {
     display: none;
@@ -248,7 +356,7 @@ header {
     align-items: center;
     justify-content: center;
     padding: 20px;
-    background: rgba(15, 23, 42, .68);
+    background: rgba(15, 23, 42, 0.68);
     backdrop-filter: blur(3px);
 }
 
@@ -273,8 +381,8 @@ header {
     border-radius: 18px;
     background: #ffffff;
     text-align: center;
-    box-shadow: 0 22px 65px rgba(0,0,0,.28);
-    animation: exitModalAppear .22s ease-out;
+    box-shadow: 0 22px 65px rgba(0, 0, 0, 0.28);
+    animation: modalAppear 0.22s ease-out;
 }
 
 .exit-modal-icon,
@@ -335,12 +443,12 @@ header {
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
-    transition: filter .2s, transform .2s;
+    transition: filter 0.2s, transform 0.2s;
 }
 
 .exit-modal-actions button:hover,
 .submit-modal-actions button:hover {
-    filter: brightness(.95);
+    filter: brightness(0.95);
     transform: translateY(-1px);
 }
 
@@ -360,10 +468,10 @@ header {
     color: #ffffff;
 }
 
-@keyframes exitModalAppear {
+@keyframes modalAppear {
     from {
         opacity: 0;
-        transform: translateY(10px) scale(.97);
+        transform: translateY(10px) scale(0.97);
     }
     to {
         opacity: 1;
@@ -371,6 +479,80 @@ header {
     }
 }
 
+/* ==========================================================================
+   7. FULLSCREEN GATE (#fs-gate)
+   ========================================================================== */
+#fs-gate {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(20, 30, 40, 0.96);
+}
+
+#fs-gate.show {
+    display: flex;
+}
+
+.fs-gate-card {
+    width: 100%;
+    max-width: 440px;
+    padding: 32px 28px;
+    border-radius: 14px;
+    background: #ffffff;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.fs-gate-card h2 {
+    margin-bottom: 10px;
+    color: #2c3e50;
+    font-size: 1.35rem;
+}
+
+.fs-gate-card p {
+    margin-bottom: 16px;
+    color: #555;
+    line-height: 1.6;
+    font-size: 0.97rem;
+}
+
+.fs-gate-warn {
+    display: none;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #fdecea;
+    color: #b3261e;
+    font-weight: 600;
+}
+
+.fs-gate-warn.show {
+    display: block;
+}
+
+#fs-start-btn {
+    width: 100%;
+    min-height: 48px;
+    border: none;
+    border-radius: 8px;
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#fs-start-btn:hover {
+    background: #1d4ed8;
+}
+
+/* ==========================================================================
+   8. RESPONSIVE MEDIA QUERIES
+   ========================================================================== */
 @media (max-width: 800px) {
     .exam-layout {
         grid-template-columns: 1fr;
@@ -413,67 +595,4 @@ header {
     .submit-modal-actions {
         flex-direction: column;
     }
-}
-
-/* ===== Cổng bắt buộc toàn màn hình ===== */
-#fs-gate {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 99999;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    background: rgba(20, 30, 40, 0.96);
-}
-#fs-gate.show {
-    display: flex;
-}
-.fs-gate-card {
-    width: 100%;
-    max-width: 440px;
-    padding: 32px 28px;
-    border-radius: 14px;
-    background: #fff;
-    text-align: center;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-}
-.fs-gate-card h2 {
-    margin-bottom: 10px;
-    color: #2c3e50;
-    font-size: 1.35rem;
-}
-.fs-gate-card p {
-    margin-bottom: 16px;
-    color: #555;
-    line-height: 1.6;
-    font-size: 0.97rem;
-}
-.fs-gate-warn {
-    display: none;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: #fdecea;
-    color: #b3261e;
-    font-weight: 600;
-}
-.fs-gate-warn.show {
-    display: block;
-}
-#fs-start-btn {
-    width: 100%;
-    min-height: 48px;
-    border: none;
-    border-radius: 8px;
-    background: #2563eb;
-    color: #fff;
-    font-size: 1rem;
-    font-weight: 700;
-    cursor: pointer;
-}
-#fs-start-btn:hover {
-    background: #1d4ed8;
-}
-body.fs-locked {
-    overflow: hidden;
 }

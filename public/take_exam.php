@@ -103,34 +103,7 @@ if ($max_attempts > 0 && $user_attempts >= $max_attempts && !$in_progress) {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Hết lượt làm bài</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                background: #f4f6f9;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                min-height: 100vh;
-                margin: 0;
-            }
-            .card {
-                background: white;
-                padding: 35px;
-                border-radius: 12px;
-                text-align: center;
-                max-width: 480px;
-                width: 90%;
-                box-sizing: border-box;
-            }
-            .btn {
-                display: inline-block;
-                padding: 12px 24px;
-                background: #3498db;
-                color: white;
-                text-decoration: none;
-                border-radius: 8px;
-            }
-        </style>
+
     </head>
     <body>
         <div class="card">
@@ -180,47 +153,7 @@ if ($require_password) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <title>Yêu cầu mật khẩu bài thi</title>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    background: #f4f6f9;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    min-height: 100vh;
-                    margin: 0;
-                }
-                .card {
-                    background: white;
-                    padding: 30px;
-                    border-radius: 12px;
-                    text-align: center;
-                    max-width: 400px;
-                    width: 90%;
-                    box-sizing: border-box;
-                }
-                .form-input {
-                    width: 100%;
-                    padding: 12px;
-                    margin-bottom: 15px;
-                    border: 1px solid #ccc;
-                    border-radius: 8px;
-                    box-sizing: border-box;
-                }
-                .btn-submit {
-                    width: 100%;
-                    padding: 12px;
-                    background: #2563eb;
-                    color: white;
-                    border: none;
-                    border-radius: 8px;
-                    cursor: pointer;
-                }
-                .error-msg {
-                    color: #dc2626;
-                    margin-bottom: 12px;
-                }
-            </style>
+            
         </head>
         <body>
             <div class="card">
