@@ -1,11 +1,7 @@
 
 <?php include __DIR__ . '/../includes/menu.php'; ?>
-<!-- Thêm đoạn này vào thẻ <head> của includes/menu.php -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="assets/css/about.css">
+<link rel="stylesheet" href="../assets/css/about.css?v=2">
 <main class="about-page">
     <section class="about-hero">
         <div class="about-hero-content">
@@ -16,7 +12,7 @@
                 trắc nghiệm trực tuyến, giúp bạn củng cố kiến thức và khám
                 phá những dấu mốc đáng nhớ của dân tộc Việt Nam.
             </p>
-            <a href="index.php" class="about-button">
+            <a href="../index.php" class="about-button">
                 Bắt đầu ôn tập
             </a>
         </div>

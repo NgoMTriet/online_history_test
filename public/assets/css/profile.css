@@ -354,6 +354,7 @@ body.pf-body {
   border: 1px solid transparent;
   border-radius: var(--pf-radius-sm);
   font: inherit;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition:

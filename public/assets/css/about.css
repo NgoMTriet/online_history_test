@@ -1,31 +1,9 @@
 /* =========================================================
    TESTSUVIET.COM - TRANG GIỚI THIỆU (v2)
-   Đồng bộ font chữ, màu sắc & thiết kế theo profile.css
+   Đồng bộ 100% font chữ, cỡ chữ & thiết kế theo profile.css
    ========================================================= */
 
-<<<<<<< HEAD
 @import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap");
-
-/* Font chung cho cả trang, gồm thanh menu nằm ngoài .about-page */
-body {
-  font-family:
-    "Be Vietnam Pro",
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    Arial,
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-}
-
-button,
-input,
-select,
-textarea {
-  font-family: inherit;
-=======
-@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap");
 
 :root {
   --pf-ink: #1c2233;
@@ -39,36 +17,37 @@ textarea {
   --pf-gold: #f5a623;
   --pf-radius: 14px;
   --pf-radius-sm: 9px;
-  --pf-font: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --pf-serif: "Plus Jakarta Sans", Arial, sans-serif;
+  --pf-font: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --pf-serif: var(--pf-font);
   --about-w: min(1040px, calc(100% - 48px));
->>>>>>> 0f3c49a (git push)
+}
+
+body {
+  margin: 0;
+  background: var(--pf-bg);
+  color: var(--pf-ink);
+  font-family: var(--pf-font);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 .about-page {
   width: 100%;
   max-width: none;
   margin: 0;
-<<<<<<< HEAD
-  padding: 0;
-  font-family:
-    "Be Vietnam Pro",
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    Arial,
-    sans-serif;
-  background: var(--about-bg);
-  color: var(--about-text);
-  line-height: 1.7;
-=======
   padding: 0 0 56px;
   font-family: var(--pf-font);
   background: var(--pf-bg);
   color: var(--pf-ink);
-  line-height: 1.6;
->>>>>>> 0f3c49a (git push)
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -82,6 +61,7 @@ textarea {
 .about-page h2,
 .about-page h3 {
   font-family: var(--pf-serif);
+  letter-spacing: -0.01em;
 }
 
 .about-page h1,
@@ -121,20 +101,20 @@ textarea {
 .about-page .about-label {
   display: inline-block;
   margin-bottom: 16px;
-  padding: 5px 14px;
+  padding: 4px 14px;
   border: 1px solid rgba(245, 166, 35, 0.55);
   border-radius: 999px;
   color: var(--pf-gold);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
 }
 
 .about-page .about-hero h1 {
   max-width: 720px;
   margin-bottom: 16px;
-  font-size: clamp(1.9rem, 4.2vw, 2.75rem);
-  font-weight: 800;
+  font-size: clamp(1.75rem, 3.6vw, 2.35rem);
+  font-weight: 700;
   line-height: 1.25;
   color: #fff;
 }
@@ -142,7 +122,8 @@ textarea {
 .about-page .about-hero p {
   max-width: 620px;
   margin-bottom: 28px;
-  font-size: 1.05rem;
+  font-size: 1rem;
+  line-height: 1.55;
   color: var(--pf-indigo-soft);
 }
 
@@ -155,7 +136,7 @@ textarea {
   border-radius: var(--pf-radius-sm);
   background: var(--pf-gold);
   color: #3a2500;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 0.95rem;
   text-decoration: none;
   transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
@@ -186,7 +167,7 @@ textarea {
 .about-page .about-features h2 {
   position: relative;
   padding-bottom: 12px;
-  font-size: clamp(1.35rem, 2.4vw, 1.65rem);
+  font-size: 1.35rem;
   font-weight: 700;
   line-height: 1.3;
   color: var(--pf-indigo);
@@ -206,7 +187,8 @@ textarea {
 
 .about-page .about-section p {
   max-width: 720px;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
   color: var(--pf-muted);
 }
 
@@ -263,13 +245,15 @@ textarea {
 
 .about-page .about-card h3 {
   margin-bottom: 8px;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: 700;
+  line-height: 1.3;
   color: var(--pf-ink);
 }
 
 .about-page .about-card p {
-  font-size: 0.92rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
   color: var(--pf-muted);
 }
 
@@ -293,15 +277,17 @@ textarea {
 
 .about-page .about-cta h2 {
   margin-bottom: 8px;
-  font-size: clamp(1.4rem, 2.8vw, 1.85rem);
+  font-size: 1.45rem;
   font-weight: 700;
+  line-height: 1.3;
   color: #fff;
 }
 
 .about-page .about-cta p {
   max-width: 560px;
   margin: 0 auto;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
   color: var(--pf-indigo-soft);
 }
 
@@ -331,6 +317,16 @@ textarea {
   .about-page .about-cta {
     margin-top: 40px;
     padding: 36px 20px;
+  }
+}
+
+@media (max-width: 560px) {
+  .about-page .about-hero h1 {
+    font-size: 1.55rem;
+  }
+  .about-page .about-section h2,
+  .about-page .about-features h2 {
+    font-size: 1.25rem;
   }
 }
 

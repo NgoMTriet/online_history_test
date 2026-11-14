@@ -1,184 +1,5 @@
 <?php
-session_start();
-require_once __DIR__ . '/../config/database.php';
-
-/* ------------------------------------------------------------------
- * 1. KIỂM TRA ĐĂNG NHẬP & PHÂN QUYỀN
- * ------------------------------------------------------------------ */
-if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'ADMIN') {
-    header('Location: /login.php');
-    exit;
-}
-$current_admin_id   = (int)$_SESSION['user_id'];
-$current_admin_name = $_SESSION['full_name'] ?? ($_SESSION['username'] ?? 'Admin');
-
-/* ------------------------------------------------------------------
- * 2. HÀM TIỆN ÍCH
- * ------------------------------------------------------------------ */
-function h($value): string
-{
-    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
-}
-
-function safe_count(PDO $conn, string $sql, array $params = []): int
-{
-    try {
-        $stmt = $conn->prepare($sql);
-        $stmt->execute($params);
-        return (int)$stmt->fetchColumn();
-    } catch (PDOException $e) {
-        return 0;
-    }
-}
-
-function set_flash(string $type, string $message): void
-{
-    $_SESSION['flash'] = ['type' => $type, 'message' => $message];
-}
-
-/* ------------------------------------------------------------------
- * 3. CSRF TOKEN
- * ------------------------------------------------------------------ */
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-$csrf_token = $_SESSION['csrf_token'];
-
-/* ------------------------------------------------------------------
- * 4. XỬ LÝ KHÓA / MỞ KHÓA TÀI KHOẢN (POST -> Redirect -> GET)
- * ------------------------------------------------------------------ */
-$allowed_roles    = ['STUDENT', 'TEACHER', 'ADMIN'];
-$allowed_statuses = ['ACTIVE', 'LOCKED', 'PENDING'];
-$toggle_statuses  = ['ACTIVE', 'LOCKED'];
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_status') {
-    $redirect_to = 'admin_dashboard.php' . (!empty($_POST['return_query']) ? '?' . $_POST['return_query'] : '');
-
-    if (!hash_equals($csrf_token, $_POST['csrf_token'] ?? '')) {
-        set_flash('error', 'Phiên làm việc không hợp lệ. Vui lòng thử lại.');
-        header('Location: ' . $redirect_to);
-        exit;
-    }
-
-    $target_user_id = (int)($_POST['user_id'] ?? 0);
-    $new_status     = $_POST['new_status'] ?? '';
-
-    if (!in_array($new_status, $toggle_statuses, true)) {
-        set_flash('error', 'Trạng thái không hợp lệ.');
-    } elseif ($target_user_id === $current_admin_id) {
-        set_flash('error', 'Bạn không thể tự khóa tài khoản của chính mình.');
-    } else {
-        $stmt = $conn->prepare("SELECT username, role, status FROM users WHERE user_id = :id");
-        $stmt->execute(['id' => $target_user_id]);
-        $target = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$target) {
-            set_flash('error', 'Không tìm thấy người dùng.');
-        } elseif ($target['role'] === 'ADMIN') {
-            set_flash('error', 'Không thể thay đổi trạng thái của tài khoản quản trị viên.');
-        } else {
-            $stmt = $conn->prepare("UPDATE users SET status = :status WHERE user_id = :id");
-            $stmt->execute(['status' => $new_status, 'id' => $target_user_id]);
-
-            try {
-                $log = $conn->prepare(
-                    "INSERT INTO admin_logs (admin_id, action, target_user_id, created_at)
-                     VALUES (:admin, :action, :target, NOW())"
-                );
-                $log->execute([
-                    'admin'  => $current_admin_id,
-                    'action' => $new_status === 'LOCKED' ? 'LOCK_USER' : 'UNLOCK_USER',
-                    'target' => $target_user_id,
-                ]);
-            } catch (PDOException $e) {}
-
-            $verb = ($new_status === 'LOCKED') ? 'khóa' : (($target['status'] === 'PENDING') ? 'duyệt' : 'mở khóa');
-            set_flash('success', 'Đã ' . $verb . ' tài khoản ' . $target['username'] . '.');
-        }
-    }
-
-    header('Location: ' . $redirect_to);
-    exit;
-}
-
-/* ------------------------------------------------------------------
- * 5. TÌM KIẾM, LỌC, PHÂN TRANG TÀI KHOẢN
- * ------------------------------------------------------------------ */
-$search        = trim($_GET['q'] ?? '');
-$filter_role   = in_array($_GET['role'] ?? '', $allowed_roles, true) ? $_GET['role'] : '';
-$filter_status = in_array($_GET['status'] ?? '', $allowed_statuses, true) ? $_GET['status'] : '';
-$per_page      = 10;
-$page          = max(1, (int)($_GET['page'] ?? 1));
-
-$where  = [];
-$params = [];
-
-if ($search !== '') {
-    $where[] = "(full_name LIKE :q1 OR username LIKE :q2 OR email LIKE :q3)";
-    $params['q1'] = $params['q2'] = $params['q3'] = '%' . $search . '%';
-}
-if ($filter_role !== '') {
-    $where[] = "role = :role";
-    $params['role'] = $filter_role;
-}
-if ($filter_status !== '') {
-    $where[] = "status = :status";
-    $params['status'] = $filter_status;
-}
-$where_sql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
-
-$total_rows  = safe_count($conn, "SELECT COUNT(*) FROM users $where_sql", $params);
-$total_pages = max(1, (int)ceil($total_rows / $per_page));
-$page        = min($page, $total_pages);
-$offset      = ($page - 1) * $per_page;
-
-$stmt_users = $conn->prepare(
-    "SELECT user_id, username, full_name, email, role, status
-     FROM users $where_sql
-     ORDER BY user_id DESC
-     LIMIT " . (int)$per_page . " OFFSET " . (int)$offset
-);
-$stmt_users->execute($params);
-$users = $stmt_users->fetchAll(PDO::FETCH_ASSOC);
-
-/* ------------------------------------------------------------------
- * 6. LẤY DANH SÁCH ĐỀ THI KÈM TÊN NGƯỜI TẠO (GIÁO VIÊN)
- * ------------------------------------------------------------------ */
-$stmt_exams = $conn->prepare(
-    "SELECT e.exam_id, e.title, e.grade, e.duration, e.total_questions, 
-            u.full_name AS teacher_name, u.username AS teacher_username
-     FROM exam e
-     LEFT JOIN users u ON e.user_id = u.user_id
-     ORDER BY e.exam_id DESC
-     LIMIT 15"
-);
-$stmt_exams->execute();
-$exams_list = $stmt_exams->fetchAll(PDO::FETCH_ASSOC);
-
-/* ------------------------------------------------------------------
- * 7. THỐNG KÊ HEÂ THỐNG
- * ------------------------------------------------------------------ */
-$total_students = safe_count($conn, "SELECT COUNT(*) FROM users WHERE role = 'STUDENT'");
-$total_teachers = safe_count($conn, "SELECT COUNT(*) FROM users WHERE role = 'TEACHER'");
-$total_locked   = safe_count($conn, "SELECT COUNT(*) FROM users WHERE status = 'LOCKED'");
-$total_pending  = safe_count($conn, "SELECT COUNT(*) FROM users WHERE status = 'PENDING'");
-$total_exams    = safe_count($conn, "SELECT COUNT(*) FROM exam");
-$total_attempts = safe_count($conn, "SELECT COUNT(*) FROM exam_results");
-
-function page_url(int $p, string $search, string $role, string $status): string
-{
-    $query = array_filter(
-        ['q' => $search, 'role' => $role, 'status' => $status, 'page' => $p > 1 ? $p : null],
-        fn($v) => $v !== '' && $v !== null
-    );
-    return 'admin_dashboard.php' . ($query ? '?' . http_build_query($query) : '');
-}
-
-$return_query = $_SERVER['QUERY_STRING'] ?? '';
-$flash = $_SESSION['flash'] ?? null;
-unset($_SESSION['flash']);
-
-$role_labels = ['STUDENT' => 'Học viên', 'TEACHER' => 'Giáo viên', 'ADMIN' => 'Quản trị viên'];
+require_once __DIR__ . '/../api/be_admin_dashboard.php';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -187,6 +8,42 @@ $role_labels = ['STUDENT' => 'Học viên', 'TEACHER' => 'Giáo viên', 'ADMIN' 
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Quản trị hệ thống</title>
     <link rel="stylesheet" href="/../assets/css/admin.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Đổi màu nền trang */
+        :root {
+            --bg-page: #e8eef7;
+        }
+        body {
+            background: linear-gradient(135deg, #e8eef7 0%, #dde6f3 100%) !important;
+            min-height: 100vh;
+        }
+
+        /* Bố cục khu vực sơ đồ / biểu đồ */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        .chart-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+        }
+        .chart-card h2 {
+            font-size: 1.05rem;
+            margin: 0 0 14px 0;
+            color: #1e293b;
+        }
+        .chart-box {
+            position: relative;
+            height: 260px;
+            width: 100%;
+        }
+    </style>
 </head>
 <body>
 <div class="container">
@@ -195,7 +52,7 @@ $role_labels = ['STUDENT' => 'Học viên', 'TEACHER' => 'Giáo viên', 'ADMIN' 
         <h1>Quản trị hệ thống</h1>
         <div class="topbar-user">
             <span>Xin chào, <strong><?= h($current_admin_name) ?></strong></span>
-            <a class="btn-logout" href="../api/auth.php?action=login">Đăng xuất</a>
+            <a class="btn-logout" href="../api/auth.php?action=logout">Đăng xuất</a>
         </div>
     </div>
 
@@ -230,6 +87,22 @@ $role_labels = ['STUDENT' => 'Học viên', 'TEACHER' => 'Giáo viên', 'ADMIN' 
         <div class="stat-box">
             <div class="stat-label">Tài khoản bị khóa</div>
             <div class="stat-number" style="color: var(--danger);"><?= number_format($total_locked) ?></div>
+        </div>
+    </div>
+
+    <!-- SƠ ĐỒ TRỰC QUAN -->
+    <div class="charts-grid">
+        <div class="chart-card">
+            <h2>Sơ đồ trạng thái tài khoản</h2>
+            <div class="chart-box">
+                <canvas id="userStatusChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <h2>Sơ đồ đề thi theo khối lớp</h2>
+            <div class="chart-box">
+                <canvas id="examGradeChart"></canvas>
+            </div>
         </div>
     </div>
 
@@ -408,5 +281,75 @@ $role_labels = ['STUDENT' => 'Học viên', 'TEACHER' => 'Giáo viên', 'ADMIN' 
     </div>
 
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // 1. Biểu đồ tròn: Trạng thái tài khoản
+    const statusCtx = document.getElementById('userStatusChart');
+    if (statusCtx) {
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Hoạt động', 'Chờ duyệt', 'Đã khóa'],
+                datasets: [{
+                    data: [<?= (int)$total_active ?>, <?= (int)$total_pending ?>, <?= (int)$total_locked ?>],
+                    backgroundColor: ['#10b981', '#3b82f6', '#ef4444'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 16, usePointStyle: true }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Biểu đồ cột: Số lượng đề thi theo khối lớp
+    const gradeLabels = <?= json_encode($grade_labels ?: ['Chưa có dữ liệu'], JSON_UNESCAPED_UNICODE) ?>;
+    const gradeCounts = <?= json_encode($grade_counts ?: [0]) ?>;
+
+    const gradeCtx = document.getElementById('examGradeChart');
+    if (gradeCtx) {
+        new Chart(gradeCtx, {
+            type: 'bar',
+            data: {
+                labels: gradeLabels,
+                datasets: [{
+                    label: 'Số lượng đề thi',
+                    data: gradeCounts,
+                    backgroundColor: '#6366f1',
+                    borderRadius: 6,
+                    maxBarThickness: 44
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 },
+                        grid: { color: '#f1f5f9' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
 </body>
 </html>

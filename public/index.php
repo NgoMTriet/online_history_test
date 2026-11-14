@@ -1,42 +1,6 @@
 <?php
-// 🛠️ TỰ ĐỘNG XÁC ĐỊNH ĐƯỜNG DẪN TỆP HỆ THỐNG (CHUẨN HOÁ PATH)
-$configPath = file_exists(__DIR__ . '/config/database.php')
-    ? __DIR__ . '/config/database.php'
-    : __DIR__ . '/../config/database.php';
-
-$headerPath = file_exists(__DIR__ . '/includes/header.php')
-    ? __DIR__ . '/includes/header.php'
-    : __DIR__ . '/../includes/header.php';
-
-$footerPath = file_exists(__DIR__ . '/includes/footer.php')
-    ? __DIR__ . '/includes/footer.php'
-    : __DIR__ . '/../includes/footer.php';
-
-// Nạp file cấu hình Cơ sở dữ liệu
-require_once $configPath;
-
-// Nạp header và gắn file CSS riêng của trang chủ vào <head>
-
-ob_start();
-include $headerPath;
-$headerHtml = ob_get_clean();
-
-
-$styleTag = '<link rel="stylesheet" href="assets/css/index.css?v=1">' . "\n";
-if (stripos($headerHtml, '</head>') !== false) {
-    $headerHtml = preg_replace_callback('~</head>~i', function () use ($styleTag) {
-        return $styleTag . '</head>';
-    }, $headerHtml, 1);
-} else {
-    $headerHtml .= $styleTag;
-}
-
+require_once __DIR__ . '/../api/be_index.php';
 echo $headerHtml;
-
-$isTeacher = (
-    isset($_SESSION['user_id'], $_SESSION['role'])
-    && strtoupper($_SESSION['role']) === 'TEACHER'
-);
 ?>
 
 <main class="container">
@@ -47,54 +11,52 @@ $isTeacher = (
             <div class="slider">
 
                 <div class="slide active">
-    <img src="image/anh1.png" alt="Lịch sử Việt Nam" onerror="this.src='../image/anh1.png'">
-    <div class="slide-content">
-        <span class="subtitle">Khám phá quá khứ</span>
-        <h2>LỊCH SỬ VIỆT NAM</h2>
-        <div class="hero-buttons">
-            <a href="#danh-muc" class="btn-hero-primary">▶ Bắt đầu thi</a>
-            <a href="#huong-dan" class="btn-hero-outline">Khám phá đề thi</a>
-        </div>
-    </div>
-    <div class="quote-box">
-        <p>“Dân ta phải biết sử ta<br>Cho tường gốc tích nước nhà Việt Nam”</p>
-        <span>— Hồ Chí Minh —</span>
-    </div>
-</div>
+                    <img src="image/anh1.png" alt="Lịch sử Việt Nam" onerror="this.src='../image/anh1.png'">
+                    <div class="slide-content">
+                        <span class="subtitle">Khám phá quá khứ</span>
+                        <h2>LỊCH SỬ VIỆT NAM</h2>
+                        <div class="hero-buttons">
+                            <a href="#danh-muc" class="btn-hero-primary">▶ Bắt đầu thi</a>
+                            <a href="#huong-dan" class="btn-hero-outline">Khám phá đề thi</a>
+                        </div>
+                    </div>
+                    <div class="quote-box">
+                        <p>“Dân ta phải biết sử ta<br>Cho tường gốc tích nước nhà Việt Nam”</p>
+                        <span>— Hồ Chí Minh —</span>
+                    </div>
+                </div>
 
-<div class="slide">
-    <img src="image/anh2.png" alt="Di tích lịch sử Việt Nam" onerror="this.src='../image/anh2.png'">
-    <div class="slide-content">
-        <span class="subtitle">Mỗi bài học là một hành trình</span>
-        <h2>KHÁM PHÁ LỊCH SỬ</h2>
-        <div class="hero-buttons">
-            <a href="#danh-muc" class="btn-hero-primary">▶ Bắt đầu thi</a>
-            <a href="#huong-dan" class="btn-hero-outline">Khám phá đề thi</a>
-        </div>
-    </div>
-    <!-- Đã thêm trích dẫn cho slide 2 -->
-    <div class="quote-box">
-        <p>“Nước Nam ta là một nước văn hiến<br>Đã có lịch sử lâu đời và truyền thống hào hùng”</p>
-        <span>— Nguyễn Trãi —</span>
-    </div>
-</div>
+                <div class="slide">
+                    <img src="image/anh2.png" alt="Di tích lịch sử Việt Nam" onerror="this.src='../image/anh2.png'">
+                    <div class="slide-content">
+                        <span class="subtitle">Mỗi bài học là một hành trình</span>
+                        <h2>KHÁM PHÁ LỊCH SỬ</h2>
+                        <div class="hero-buttons">
+                            <a href="#danh-muc" class="btn-hero-primary">▶ Bắt đầu thi</a>
+                            <a href="#huong-dan" class="btn-hero-outline">Khám phá đề thi</a>
+                        </div>
+                    </div>
+                    <div class="quote-box">
+                        <p>“Nước Nam ta là một nước văn hiến<br>Đã có lịch sử lâu đời và truyền thống hào hùng”</p>
+                        <span>— Nguyễn Trãi —</span>
+                    </div>
+                </div>
 
-<div class="slide">
-    <img src="image/anh3.png" alt="Tư liệu lịch sử Việt Nam" onerror="this.src='../image/anh3.png'">
-    <div class="slide-content">
-        <span class="subtitle">Ôn luyện và bứt phá</span>
-        <h2>CHINH PHỤC KIẾN THỨC</h2>
-        <div class="hero-buttons">
-            <a href="#danh-muc" class="btn-hero-primary">▶ Bắt đầu thi</a>
-            <a href="#huong-dan" class="btn-hero-outline">Khám phá đề thi</a>
-        </div>
-    </div>
-    <!-- Đã thêm trích dẫn cho slide 3 -->
-    <div class="quote-box">
-        <p>“Đoàn kết, đoàn kết, đại đoàn kết<br>Thành công, thành công, đại thành công”</p>
-        <span>— Hồ Chí Minh —</span>
-    </div>
-</div>
+                <div class="slide">
+                    <img src="image/anh3.png" alt="Tư liệu lịch sử Việt Nam" onerror="this.src='../image/anh3.png'">
+                    <div class="slide-content">
+                        <span class="subtitle">Ôn luyện và bứt phá</span>
+                        <h2>CHINH PHỤC KIẾN THỨC</h2>
+                        <div class="hero-buttons">
+                            <a href="#danh-muc" class="btn-hero-primary">▶ Bắt đầu thi</a>
+                            <a href="#huong-dan" class="btn-hero-outline">Khám phá đề thi</a>
+                        </div>
+                    </div>
+                    <div class="quote-box">
+                        <p>“Đoàn kết, đoàn kết, đại đoàn kết<br>Thành công, thành công, đại thành công”</p>
+                        <span>— Hồ Chí Minh —</span>
+                    </div>
+                </div>
 
                 <button class="slider-prev" type="button" onclick="changeSlide(-1)" aria-label="Ảnh trước">&#10094;</button>
                 <button class="slider-next" type="button" onclick="changeSlide(1)" aria-label="Ảnh tiếp theo">&#10095;</button>
@@ -107,37 +69,6 @@ $isTeacher = (
             </div>
         </div>
     </section>
-
-    <?php
-    // Đọc bộ lọc tìm kiếm
-    $keyword = trim($_GET['keyword'] ?? '');
-    $grade = trim($_GET['grade'] ?? '');
-
-    // Truy vấn dữ liệu từ CSDL
-// TRUY VẤN MỚI
-// Truy vấn dữ liệu từ CSDL lấy kèm tên Giáo viên
-$sql = "SELECT e.exam_id, e.title, e.grade, e.duration, e.total_questions, u.full_name AS teacher_name 
-        FROM exam e 
-        LEFT JOIN users u ON e.user_id = u.user_id 
-        WHERE 1=1";
-$params = [];
-
-if (!empty($keyword)) {
-    $sql .= " AND e.title LIKE :keyword";
-    $params['keyword'] = '%' . $keyword . '%';
-}
-
-if (!empty($grade)) {
-    $sql .= " AND e.grade = :grade";
-    $params['grade'] = (int)$grade;
-}
-
-    $sql .= " ORDER BY exam_id DESC";
-
-    $stmt_exams = $conn->prepare($sql);
-    $stmt_exams->execute($params);
-    $filtered_exams = $stmt_exams->fetchAll();
-    ?>
 
     <!-- TÌM KIẾM VÀ LỌC ĐỀ THI -->
     <section class="exam-search" aria-label="Tìm kiếm đề thi">
@@ -157,10 +88,10 @@ if (!empty($grade)) {
                 <span class="filter-icon" aria-hidden="true">▣</span>
                 <select name="grade" id="grade" aria-label="Chọn khối lớp">
                     <option value="">Tất cả khối lớp</option>
-                    <option value="6" <?= $grade == '6' ? 'selected' : '' ?>>Lớp 6</option>
-                    <option value="7" <?= $grade == '7' ? 'selected' : '' ?>>Lớp 7</option>
-                    <option value="8" <?= $grade == '8' ? 'selected' : '' ?>>Lớp 8</option>
-                    <option value="9" <?= $grade == '9' ? 'selected' : '' ?>>Lớp 9</option>
+                    <option value="6" <?= $grade === '6' ? 'selected' : '' ?>>Lớp 6</option>
+                    <option value="7" <?= $grade === '7' ? 'selected' : '' ?>>Lớp 7</option>
+                    <option value="8" <?= $grade === '8' ? 'selected' : '' ?>>Lớp 8</option>
+                    <option value="9" <?= $grade === '9' ? 'selected' : '' ?>>Lớp 9</option>
                 </select>
             </div>
 
@@ -230,7 +161,7 @@ if (!empty($grade)) {
         </div>
     </section>
 
-    <!-- CÁC ĐỀ THI BẮT ĐƯỢC TỪ CƠ SỞ DỮ LIỆU -->
+    <!-- KẾT QUẢ ĐỀ THI TỪ CSDL -->
     <?php if ($keyword !== '' || $grade !== ''): ?>
     <section class="exam-results" id="de-thi">
         <div class="section-header">
@@ -249,23 +180,31 @@ if (!empty($grade)) {
                     <p>Hãy thử từ khóa khác hoặc chọn khối lớp khác.</p>
                 </div>
             <?php else: ?>
-                <?php foreach ($filtered_exams as $exam): ?>
-                    <article class="exam-card">
-    <div class="exam-card-top">
-        <span class="exam-tag">Lớp <?= htmlspecialchars((string)$exam['grade'], ENT_QUOTES, 'UTF-8') ?></span>
-        <span class="exam-subject">Lịch sử</span>
-    </div>
-    <h3><?= htmlspecialchars($exam['title'], ENT_QUOTES, 'UTF-8') ?></h3>
-    <div class="exam-meta">
-        <span>👤 GV: <?= htmlspecialchars($exam['teacher_name'] ?? 'Chưa cập nhật', ENT_QUOTES, 'UTF-8') ?></span>
-        <span>◷ <?= htmlspecialchars((string)$exam['duration'], ENT_QUOTES, 'UTF-8') ?> phút</span>
-        <span>▤ <?= htmlspecialchars((string)$exam['total_questions'], ENT_QUOTES, 'UTF-8') ?> câu hỏi</span>
-    </div>
-    <a href="intro_exam.php?exam_id=<?= urlencode((string)$exam['exam_id']) ?>" class="slider-btn btn-start-exam">Vào làm bài <span>→</span></a>
-</article>
+                <?php foreach ($filtered_exams as $index => $exam): ?>
+                    <article class="exam-card<?= $index >= $initial_limit ? ' exam-hidden' : '' ?>">
+                        <div class="exam-card-top">
+                            <span class="exam-tag">Lớp <?= htmlspecialchars((string)$exam['grade'], ENT_QUOTES, 'UTF-8') ?></span>
+                            <span class="exam-subject">Lịch sử</span>
+                        </div>
+                        <h3><?= htmlspecialchars($exam['title'], ENT_QUOTES, 'UTF-8') ?></h3>
+                        <div class="exam-meta">
+                            <span>👤 GV: <?= htmlspecialchars($exam['teacher_name'] ?? 'Chưa cập nhật', ENT_QUOTES, 'UTF-8') ?></span>
+                            <span>◷ <?= htmlspecialchars((string)$exam['duration'], ENT_QUOTES, 'UTF-8') ?> phút</span>
+                            <span>▤ <?= htmlspecialchars((string)$exam['total_questions'], ENT_QUOTES, 'UTF-8') ?> câu hỏi</span>
+                        </div>
+                        <a href="intro_exam.php?exam_id=<?= urlencode((string)$exam['exam_id']) ?>" class="slider-btn btn-start-exam">Vào làm bài <span>→</span></a>
+                    </article>
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
+
+        <?php if ($total_filtered > $initial_limit): ?>
+            <div class="exam-toggle-wrap">
+                <button type="button" id="toggleExamsBtn" class="btn-toggle-exams" data-total="<?= $total_filtered ?>">
+                    Hiển thị tất cả (<?= $total_filtered ?> đề) <span>↓</span>
+                </button>
+            </div>
+        <?php endif; ?>
     </section>
     <?php endif; ?>
 
@@ -307,6 +246,31 @@ if (!empty($grade)) {
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+    // 1. Xử lý nút Hiển thị tất cả / Thu gọn đề thi
+    const toggleBtn = document.getElementById("toggleExamsBtn");
+    if (toggleBtn) {
+        let isExpanded = false;
+        const totalExams = toggleBtn.getAttribute("data-total");
+        const examCards = document.querySelectorAll("#examList .exam-card");
+
+        toggleBtn.addEventListener("click", function () {
+            isExpanded = !isExpanded;
+            examCards.forEach((card, index) => {
+                if (index >= 6) {
+                    card.classList.toggle("exam-hidden", !isExpanded);
+                }
+            });
+
+            if (isExpanded) {
+                toggleBtn.innerHTML = 'Thu gọn <span>↑</span>';
+            } else {
+                toggleBtn.innerHTML = `Hiển thị tất cả (${totalExams} đề) <span>↓</span>`;
+                document.getElementById("de-thi")?.scrollIntoView({ behavior: "smooth" });
+            }
+        });
+    }
+
+    // 2. Xử lý Slider Banner
     let currentSlide = 0;
     const slides = document.querySelectorAll(".slide");
     const dots = document.querySelectorAll(".dot");

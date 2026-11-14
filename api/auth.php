@@ -12,7 +12,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 function redirectTo(string $url): never
 {
-    header("Location: " . $url);
+    header('Location: ' . $url);
     exit;
 }
 

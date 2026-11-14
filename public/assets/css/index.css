@@ -606,6 +606,34 @@ button, select { cursor: pointer; }
 .feature-info p { color: #6c83a1; font-size: 11px; line-height: 1.55; }
 
 
+    .exam-card.exam-hidden {
+        display: none;
+    }
+    .exam-toggle-wrap {
+        margin-top: 24px;
+        text-align: center;
+    }
+    .btn-toggle-exams {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 11px 24px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #1d4ed8;
+        background-color: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .btn-toggle-exams:hover {
+        background-color: #2563eb;
+        color: #ffffff;
+        border-color: #2563eb;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    }
+
 /* =========================================================
    8. RESPONSIVE
    ========================================================= */
