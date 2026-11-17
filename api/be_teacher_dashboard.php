@@ -38,7 +38,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit_
     $exam_id = (int)($_POST['exam_id'] ?? 0);
     $title = trim($_POST['title'] ?? '');
     $duration = (int)($_POST['duration'] ?? 15);
-    $maxAttempts = (int)($_POST['max_attempts'] ?? 0);
     $examPassword = trim($_POST['exam_password'] ?? '');
 
     $startTimeRaw = trim($_POST['start_time'] ?? '');$startTime = !empty($startTimeRaw) ? date('Y-m-d H:i:s', strtotime($startTimeRaw)) : null;
@@ -57,7 +56,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit_
                     duration = :duration,
                     start_time = :start_time,
                     end_time = :end_time,
-                    max_attempts = :max_attempts,
                     exam_password = :exam_password
                 WHERE exam_id = :exam_id
             ");
@@ -67,7 +65,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit_
                 'duration' => $duration,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
-                'max_attempts' => $maxAttempts,
                 'exam_password' => $examPassword !== '' ?$examPassword : null,
                 'exam_id' => $exam_id
             ]);
