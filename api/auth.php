@@ -12,7 +12,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 function redirectTo(string $url): never
 {
-    header('Location: ' . $url);
+    header("Location: " . $url);
     exit;
 }
 
@@ -137,17 +137,8 @@ try {
             $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $user['role'];
 
-            // Admin vào trang quản trị, giáo viên vào trang giáo viên,
-            // học viên về trang chủ
-            if ($user['role'] === 'ADMIN') {
-                redirectTo('/admin_dashboard.php');
-            }
-
-            if ($user['role'] === 'TEACHER') {
-                redirectTo('/teacher_dashboard.php');
-            }
-
-            redirectTo('/index.php');
+        // Tất cả vai trò đều về trang chủ sau khi đăng nhập
+redirectTo('/index.php');
 
         // =========================
         // ĐĂNG XUẤT
@@ -437,3 +428,4 @@ break;
     );
     echo '</pre>';
 }
+
