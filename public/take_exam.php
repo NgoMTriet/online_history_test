@@ -27,32 +27,6 @@ if ($gate_state === 'not_started'):
 exit;
 endif;
 
-if ($gate_state === 'max_attempts'):
-?>
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Hết lượt làm bài</title>
-</head>
-<body>
-    <div class="card">
-        <h2>🚫 Bạn đã hết lượt làm bài!</h2>
-        <p>
-            Đề thi <strong><?= $safeTitle ?></strong>
-            cho phép làm tối đa <strong><?= $max_attempts ?></strong> lần.
-            <br>
-            Bạn đã thực hiện
-            <strong><?= $user_attempts ?>/<?= $max_attempts ?></strong> lượt.
-        </p>
-        <a href="index.php" class="btn">Quay lại trang chủ</a>
-    </div>
-</body>
-</html>
-<?php
-exit;
-endif;
 
 if ($gate_state === 'password_required'):
 ?>
