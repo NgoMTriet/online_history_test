@@ -36,8 +36,7 @@ if (!$exam) {
 $gate_state = 'ready';
 $formattedStartTime = '';
 $safeTitle = htmlspecialchars((string) ($exam['title'] ?? 'Bài thi'), ENT_QUOTES, 'UTF-8');
-$max_attempts = (int) ($exam['max_attempts'] ?? 0);
-$user_attempts = 0;
+$password_error = '';
 $password_error = '';
 
 // 2. Kiểm tra thời gian mở đề
@@ -52,28 +51,11 @@ if (!empty($exam['start_time'])) {
         return;
     }
 }
-
-// 3. Kiểm tra số lượt làm bài (max_attempts = 0: không giới hạn)
+// 3. Kiểm tra lượt thi đang làm dở
 close_expired_attempts($conn);
 $in_progress = find_in_progress_attempt($conn, $user_id, $exam_id);
 
-$stmt_check = $conn->prepare(
-    'SELECT COUNT(*) FROM exam_results
-     WHERE user_id = :user_id AND exam_id = :exam_id'
-);
-$stmt_check->execute([
-    'user_id' => $user_id,
-    'exam_id' => $exam_id
-]);
-$user_attempts = (int) $stmt_check->fetchColumn();
-
-// Lượt đang làm dở thì được tiếp tục, không bị chặn vì hết lượt.
-if ($max_attempts > 0 && $user_attempts >= $max_attempts && !$in_progress) {
-    unset($_SESSION['exam_auth_' . $exam_id]);
-    $gate_state = 'max_attempts';
-    return;
-}
-
+unset($_SESSION['exam_completed_' . $exam_id]);
 unset($_SESSION['exam_completed_' . $exam_id]);
 
 // 4. Kiểm tra mật khẩu đề thi
