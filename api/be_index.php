@@ -44,11 +44,14 @@ $isTeacher = (
 // Đọc tham số tìm kiếm & lọc khối lớp từ URL
 $keyword = trim($_GET['keyword'] ?? '');
 $grade   = trim($_GET['grade'] ?? '');
+$subject = trim($_GET['subject'] ?? '');
 
 // Truy vấn danh sách đề thi kèm tên giáo viên tạo đề
-$sql = "SELECT e.exam_id, e.title, e.grade, e.duration, e.total_questions, u.full_name AS teacher_name 
-        FROM exam e 
-        LEFT JOIN users u ON e.user_id = u.user_id 
+$sql = "SELECT e.exam_id, e.title, e.grade, e.duration, e.total_questions,
+               u.full_name AS teacher_name, s.subject_name
+        FROM exam e
+        LEFT JOIN users u ON e.user_id = u.user_id
+        LEFT JOIN subjects s ON e.subject_id = s.subject_id
         WHERE 1=1";
 $params = [];
 
@@ -62,6 +65,11 @@ if ($grade !== '') {
     $params['grade'] = (int)$grade;
 }
 
+if ($subject !== '') {
+    $sql .= " AND s.subject_name = :subject";
+    $params['subject'] = $subject;
+}
+
 $sql .= " ORDER BY e.exam_id DESC";
 
 $stmt_exams = $conn->prepare($sql);
@@ -70,3 +78,15 @@ $stmt_exams->execute($params);
 $filtered_exams = $stmt_exams->fetchAll(PDO::FETCH_ASSOC);
 $total_filtered = count($filtered_exams);
 $initial_limit  = 6;
+
+// Danh sách tên môn (cho ô lọc) và các thẻ "lớp - môn" kèm số đề thi
+$subject_names = $conn->query("SELECT DISTINCT subject_name FROM subjects ORDER BY subject_name ASC")
+                      ->fetchAll(PDO::FETCH_COLUMN);
+
+$subject_cards = $conn->query(
+    "SELECT s.subject_name, s.grade, COUNT(e.exam_id) AS exam_count
+     FROM subjects s
+     LEFT JOIN exam e ON e.subject_id = s.subject_id
+     GROUP BY s.subject_id, s.subject_name, s.grade
+     ORDER BY s.grade ASC, s.subject_name ASC"
+)->fetchAll(PDO::FETCH_ASSOC);
