@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../api/be_teacher_exam.php';
+require_once __DIR__ . '/../api/be_teacher_dashboard.php';
 include __DIR__ . '/../includes/teacher_sidebar.php';
 ?>
 <!DOCTYPE html>
@@ -7,7 +7,8 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tạo đề thi | TestSuViet</title>
+    <title>Bảng điều khiển Giáo viên | SuViet</title>
+
     <link rel="stylesheet" href="/../assets/css/UI_teacher.css">
 </head>
 <body>
@@ -16,288 +17,271 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
     <header class="et-topbar">
       <div class="et-topbar-left">
         <button type="button" class="et-mobile-toggle" onclick="etToggleSidebar()" aria-label="Mở menu">☰</button>
-        <div><div class="et-crumb">TEACHER / GIÁO VIÊN</div><div class="et-top-title">Tạo đề thi</div></div>
+        <div><div class="et-crumb">TEACHER / GIÁO VIÊN</div><div class="et-top-title">Tổng quan</div></div>
       </div>
       <div class="et-user"><span class="et-avatar">GV</span><span class="et-user-name"><?= htmlspecialchars($_SESSION['full_name'] ?? $_SESSION['username'] ?? 'Giáo viên', ENT_QUOTES, 'UTF-8') ?></span></div>
     </header>
     <main class="et-content">
-<div class="container">
-    <header class="page-header">
-        <div class="page-title">
-            <div class="title-icon">📝</div>
-            <div>
-                <h2>Tạo đề thi mới</h2>
-                <p class="page-description">Thiết lập đề thi, thời gian mở/đóng đề, lượt làm, mật khẩu bảo vệ và cấu trúc câu hỏi.</p>
+    <div class="container">
+        <?php if (!empty($flash_message)): ?>
+            <div class="alert alert-<?= $flash_type === 'success' ? 'success' : 'error' ?>">
+                <?= $flash_type === 'success' ? '✅' : '⚠️' ?> <?= htmlspecialchars($flash_message) ?>
+            </div>
+        <?php endif; ?>
+
+        <header class="welcome-header">
+            <h2>Xin chào, Thầy/Cô <?= htmlspecialchars($teacher_name) ?></h2>
+            <p>Bảng điều khiển quản lý đề thi Lịch sử, ngân hàng câu hỏi và xem kết quả học sinh.</p>
+        </header>
+
+        <div class="action-grid">
+            <a href="teacher_exam.php" class="action-card">
+                <div class="action-icon bg-blue">📝</div>
+                <div class="action-info">
+                    <h3>Tạo Đề Thi Mới</h3>
+                    <p>Tạo thủ công hoặc bốc ngẫu nhiên câu hỏi theo cấu trúc</p>
+                </div>
+            </a>
+            <a href="teacher_question.php" class="action-card">
+                <div class="action-icon bg-amber">📚</div>
+                <div class="action-info">
+                    <h3>Ngân Hàng Câu Hỏi</h3>
+                    <p>Thêm mới, chỉnh sửa và quản lý câu hỏi Lịch sử các khối</p>
+                </div>
+            </a>
+            <a href="teacher_view_result.php" class="action-card">
+                <div class="action-icon bg-green">📊</div>
+                <div class="action-info">
+                    <h3>Kết Quả Làm Bài</h3>
+                    <p>Xem danh sách điểm số, lớp, ngày sinh và thời gian nộp bài</p>
+                </div>
+            </a>
+            <a href="profile.php" class="action-card">
+                <div class="action-icon bg-purple">⚙️</div>
+                <div class="action-info">
+                    <h3>Hồ Sơ Cá Nhân</h3>
+                    <p>Cập nhật thông tin tài khoản và đổi mật khẩu</p>
+                </div>
+            </a>
+        </div>
+
+        <div class="card-table chart-card">
+            <div class="table-header">
+                <div>
+                    <h2>📊 Thống kê tổng quan hệ thống</h2>
+                    <p style="color:#64748b;font-size:15px;margin-top:5px">Tổng hợp tình hình đề thi, câu hỏi và kết quả học tập</p>
+                </div>
+            </div>
+            <div style="position:relative;width:100%;height:380px">
+                <canvas id="overviewChart"></canvas>
             </div>
         </div>
-    </header>
 
-    <?php if ($message !== ''): ?>
-        <div class="alert alert-<?= htmlspecialchars($messageType) ?>">
-            <?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Tổng số đề thi</div>
+                <div class="stat-value"><?= $total_exams ?></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Ngân hàng câu hỏi</div>
+                <div class="stat-value"><?= $total_questions ?></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Lượt bài đã nộp</div>
+                <div class="stat-value"><?= $total_submissions ?></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Điểm trung bình</div>
+                <div class="stat-value"><?= $avg_score ?> <small style="font-size: 20px;">/10</small></div>
+            </div>
         </div>
-    <?php endif; ?>
 
-    <form method="POST" id="examForm">
-        <input type="hidden" name="action" value="create_exam">
-
-        <section class="card">
-            <div class="section-heading">
-                <div class="step-number">01</div>
-                <div>
-                    <h2>Thông tin chung</h2>
-                    <p class="section-description">Tên đề thi, khối lớp, thời gian làm bài, khung giờ mở/đóng đề và mật khẩu truy cập.</p>
-                </div>
+        <div class="card-table">
+            <div class="table-header">
+                <h2>📋 Danh sách đề thi đã tạo gần đây</h2>
+                <a href="teacher_exam.php" class="btn-link">+ Tạo đề mới</a>
             </div>
-
-            <div class="form-group">
-                <label for="title">Tên đề thi</label>
-                <input type="text" id="title" name="title" placeholder="Ví dụ: Đề thi Ôn tập Chương 1 - Lịch sử 9" required>
-            </div>
-
-            <div class="form-grid-3">
-                <div class="form-group">
-                    <label for="gradeSelect">Khối lớp</label>
-                    <select name="grade" id="gradeSelect">
-                        <?php for ($g = 6; $g <= 9; $g++): ?>
-                            <option value="<?= $g ?>" <?= $g === 9 ? 'selected' : '' ?>>Lớp <?= $g ?> — <?= $questionCounts[$g] ?> câu</option>
-                        <?php endfor; ?>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="duration">Thời gian làm bài (phút)</label>
-                    <input type="number" id="duration" name="duration" value="15" min="1" max="300" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="maxAttempts">Số lần làm tối đa</label>
-                    <select name="max_attempts" id="maxAttempts">
-                        <option value="0">Không giới hạn</option>
-                        <option value="1">1 lần</option>
-                        <option value="2">2 lần</option>
-                        <option value="3">3 lần</option>
-                        <option value="5">5 lần</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="startTime">Thời gian mở đề thi</label>
-                    <input type="datetime-local" id="startTime" name="start_time">
-                    <small style="color: #64748b; font-size: 12px; display: block; margin-top: 4px;">Để trống nếu muốn mở đề ngay lập tức.</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="endTime">Thời gian đóng đề thi</label>
-                    <input type="datetime-local" id="endTime" name="end_time">
-                    <small style="color: #64748b; font-size: 12px; display: block; margin-top: 4px;">Quá thời gian này học sinh không thể vào thi.</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="examPassword">Mật khẩu đề thi</label>
-                    <input type="text" id="examPassword" name="exam_password" placeholder="Để trống nếu tự do" maxlength="50">
-                </div>
-            </div>
-        </section>
-
-        <section class="card">
-            <div class="section-heading">
-                <div class="step-number">02</div>
-                <div>
-                    <h2>Phương thức chọn câu hỏi</h2>
-                    <p class="section-description">Chọn thủ công từng câu hoặc cấu hình bốc ngẫu nhiên theo chủ đề & mức độ.</p>
-                </div>
-            </div>
-
-            <div class="mode-box">
-                <div class="mode-option">
-                    <input type="radio" id="modeManual" name="create_mode" value="manual" checked>
-                    <label for="modeManual">
-                        <strong>Chọn thủ công</strong>
-                        <small>Tự chọn từng câu hỏi đưa vào đề thi.</small>
-                    </label>
-                </div>
-
-                <div class="mode-option">
-                    <input type="radio" id="modeAuto" name="create_mode" value="auto">
-                    <label for="modeAuto">
-                        <strong>Bốc câu hỏi ngẫu nhiên</strong>
-                        <small>Bốc theo chủ đề và cấu hình 3 mức độ.</small>
-                    </label>
-                </div>
-            </div>
-
-            <div id="manualSection">
-                <div class="question-toolbar">
-                    <span class="question-count">Đã chọn <span id="selectedCount">0</span> câu</span>
-                    <input type="text" id="questionSearch" style="max-width: 300px;" placeholder="🔎 Tìm nội dung câu hỏi...">
-                </div>
-
-                <div class="q-list">
-                    <?php foreach ($questionsBank as $q): ?>
-                        <?php
-                            $diffClass = 'badge-easy';
-                            $diffText = 'Nhận biết';
-                            $diffUpper = strtoupper($q['difficulty'] ?? 'EASY');
-                            if ($diffUpper === 'MEDIUM') { $diffClass = 'badge-medium'; $diffText = 'Thông hiểu'; }
-                            if ($diffUpper === 'HARD') { $diffClass = 'badge-hard'; $diffText = 'Vận dụng'; }
-                        ?>
-                        <div class="q-item question-row" data-grade="<?= (int)$q['grade'] ?>" data-search="<?= htmlspecialchars(mb_strtolower($q['content'] . ' ' . $q['topic_name'], 'UTF-8')) ?>">
-                            <input type="checkbox" name="question_ids[]" value="<?= (int)$q['question_id'] ?>" id="q_<?= (int)$q['question_id'] ?>" class="question-checkbox">
-                            <label for="q_<?= (int)$q['question_id'] ?>">
-                                <span class="q-badge <?= $diffClass ?>"><?= $diffText ?></span>
-                                <strong>[<?= htmlspecialchars($q['topic_name']) ?>]</strong>
-                                <?= htmlspecialchars($q['content']) ?>
-                            </label>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-
-            <div id="autoSection" hidden>
-                <div class="auto-panel">
-                    <div class="form-group">
-                        <label for="autoTopic">Chọn Chủ đề bài học</label>
-                        <select name="auto_topic_id" id="autoTopic" disabled>
-                            <option value="0">-- Tất cả các chủ đề (Toàn bộ chương trình lớp) --</option>
-                            <?php foreach ($allTopics as $t): ?>
-                                <option value="<?= (int)$t['topic_id'] ?>" data-grade="<?= (int)$t['grade'] ?>">
-                                    Lớp <?= (int)$t['grade'] ?> - <?= htmlspecialchars($t['topic_name']) ?>
-                                </option>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tên Đề Thi</th>
+                            <th>Khối Lớp</th>
+                            <th>Thời Gian</th>
+                            <th>Khung Giờ Thi</th>
+                            <th>Bảo Vệ</th>
+                            <th>Lượt Làm</th>
+                            <th>Hành Động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($recent_exams)): ?>
+                            <?php foreach ($recent_exams as$exam): ?>
+                                <tr>
+                                    <td>#<?= $exam['exam_id'] ?></td>
+                                    <td><strong><?= htmlspecialchars($exam['title']) ?></strong></td>
+                                    <td><span class="badge-grade">Khối <?= $exam['grade'] ?></span></td>
+                                    <td>⏱️ <?= $exam['duration'] ?> phút</td>
+                                    <td style="font-size: 14px; color: var(--muted);">
+                                        📅 Mở: <?= !empty($exam['start_time']) ? date('d/m/Y H:i', strtotime($exam['start_time'])) : 'Ngay lập tức' ?><br>
+                                        🛑 Đóng: <?= !empty($exam['end_time']) ? date('d/m/Y H:i', strtotime($exam['end_time'])) : 'Không giới hạn' ?>
+                                    </td>
+                                    
+                                    <td>
+                                        <?php if (!empty($exam['exam_password'])): ?>
+                                            <span class="badge-lock">🔒 Mật khẩu</span>
+                                        <?php else: ?>
+                                            <span style="color: var(--muted);">Công khai</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><strong><?= $exam['total_attempts'] ?></strong> lượt</td>
+                                    <td style="white-space: nowrap;">
+                                        <a href="teacher_view_result.php?exam_id=<?= $exam['exam_id'] ?>" class="btn-link">📊 Kết quả</a>
+                                        <button type="button" class="btn-edit" onclick='openEditModal(<?= json_encode($exam, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>)'>✏️ Sửa</button>
+                                        <a href="?action=delete&exam_id=<?= $exam['exam_id'] ?>" class="btn-delete" onclick="return confirm('⚠️ Bạn có chắc chắn muốn xóa đề thi: «<?= htmlspecialchars(addslashes($exam['title'])) ?>»?');">🗑️ Xóa</a>
+                                    </td>
+                                </tr>
                             <?php endforeach; ?>
-                        </select>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="8" style="text-align: center; color: var(--muted); padding: 30px;">
+                                    Chưa có đề thi nào được tạo. Hãy nhấn "Tạo đề thi mới" để bắt đầu!
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDIT -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>✏️ Chỉnh sửa Đề thi <span id="modalExamId"></span></h3>
+                <button type="button" class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form method="POST" id="editForm">
+                <input type="hidden" name="action" value="edit_exam">
+                <input type="hidden" name="exam_id" id="edit_exam_id">
+
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="edit_title">Tên đề thi</label>
+                        <input type="text" id="edit_title" name="title" required>
                     </div>
 
-                    <label style="margin-top: 15px;">Cấu hình số lượng câu hỏi theo 3 mức độ:</label>
-                    <div class="three-columns" style="margin-top: 10px;">
+                    <div class="grid-2">
                         <div class="form-group">
-                            <label style="font-weight: 600; color: #166534;">🟢 Nhận biết (EASY) <span class="avail-badge" id="availEasy">Hiện có: 0</span></label>
-                            <input type="number" class="auto-input" id="countEasy" name="count_easy" value="5" min="0" max="50" disabled>
+                            <label for="edit_duration">Thời gian làm bài (phút)</label>
+                            <input type="number" id="edit_duration" name="duration" min="1" max="300" required>
+                        </div>
+                        
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label for="edit_start_time">📅 Thời gian mở đề</label>
+                            <input type="datetime-local" id="edit_start_time" name="start_time">
                         </div>
                         <div class="form-group">
-                            <label style="font-weight: 600; color: #92400e;">🟡 Thông hiểu (MEDIUM) <span class="avail-badge" id="availMedium">Hiện có: 0</span></label>
-                            <input type="number" class="auto-input" id="countMedium" name="count_medium" value="3" min="0" max="50" disabled>
+                            <label for="edit_end_time">🛑 Thời gian đóng đề</label>
+                            <input type="datetime-local" id="edit_end_time" name="end_time">
                         </div>
-                        <div class="form-group">
-                            <label style="font-weight: 600; color: #991b1b;">🔴 Vận dụng (HARD) <span class="avail-badge" id="availHard">Hiện có: 0</span></label>
-                            <input type="number" class="auto-input" id="countHard" name="count_hard" value="2" min="0" max="50" disabled>
-                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_password">🔑 Mật khẩu bài thi</label>
+                        <input type="text" id="edit_password" name="exam_password" placeholder="Để trống nếu không đặt mật khẩu">
                     </div>
                 </div>
-            </div>
 
-            <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
-                <button type="submit" class="btn btn-submit">Lưu đề thi</button>
-            </div>
-        </section>
-    </form>
-</div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeEditModal()">Hủy</button>
+                    <button type="submit" class="btn-primary">💾 Cập nhật thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-<script>
-    const questionsData = <?= json_encode($jsQuestionsData, JSON_HEX_TAG | JSON_HEX_AMP) ?>;
-    const gradeSelect = document.getElementById('gradeSelect');
-    const modeManual = document.getElementById('modeManual');
-    const modeAuto = document.getElementById('modeAuto');
-    const manualSection = document.getElementById('manualSection');
-    const autoSection = document.getElementById('autoSection');
-    const autoTopic = document.getElementById('autoTopic');
-    const autoInputs = document.querySelectorAll('.auto-input');
-    const questionSearch = document.getElementById('questionSearch');
-    const selectedCount = document.getElementById('selectedCount');
-    const startTimeInput = document.getElementById('startTime');
-    const endTimeInput = document.getElementById('endTime');
-    const availEasy = document.getElementById('availEasy');
-    const availMedium = document.getElementById('availMedium');
-    const availHard = document.getElementById('availHard');
-    const countEasyInput = document.getElementById('countEasy');
-    const countMediumInput = document.getElementById('countMedium');
-    const countHardInput = document.getElementById('countHard');
-
-    function updateAvailableCounts() {
-        const selectedGrade = parseInt(gradeSelect.value, 10);
-        const selectedTopicId = parseInt(autoTopic.value, 10);
-        let easyCount = 0, mediumCount = 0, hardCount = 0;
-
-        questionsData.forEach(q => {
-            if (q.g === selectedGrade && (selectedTopicId === 0 || q.t === selectedTopicId)) {
-                if (q.d === 'EASY') easyCount++;
-                else if (q.d === 'MEDIUM') mediumCount++;
-                else if (q.d === 'HARD') hardCount++;
-            }
-        });
-
-        availEasy.textContent = `Hiện có: ${easyCount}`;
-        availMedium.textContent = `Hiện có: ${mediumCount}`;
-        availHard.textContent = `Hiện có: ${hardCount}`;
-
-        countEasyInput.max = easyCount;
-        countMediumInput.max = mediumCount;
-        countHardInput.max = hardCount;
-    }
-
-    function toggleMode() {
-        const isManual = modeManual.checked;
-        manualSection.hidden = !isManual;
-        autoSection.hidden = isManual;
-
-        document.querySelectorAll('.question-checkbox').forEach(cb => cb.disabled = !isManual);
-        autoTopic.disabled = isManual;
-        autoInputs.forEach(input => input.disabled = isManual);
-
-        updateQuestionList();
-        updateTopicOptions();
-        updateSelectedCount();
-        updateAvailableCounts();
-    }
-
-    function updateQuestionList() {
-        const grade = gradeSelect.value;
-        const kw = questionSearch.value.trim().toLowerCase();
-        document.querySelectorAll('.question-row').forEach(row => {
-            const sameGrade = row.dataset.grade === grade;
-            const matchSearch = row.dataset.search.includes(kw);
-            row.hidden = !(sameGrade && matchSearch);
-        });
-    }
-
-    function updateTopicOptions() {
-        const grade = gradeSelect.value;
-        Array.from(autoTopic.options).forEach(opt => {
-            if (opt.value === "0") return;
-            opt.hidden = opt.dataset.grade !== grade;
-        });
-        autoTopic.value = "0";
-    }
-
-    function updateSelectedCount() {
-        const count = document.querySelectorAll('.question-checkbox:checked:not(:disabled)').length;
-        selectedCount.textContent = count;
-    }
-
-    gradeSelect.addEventListener('change', () => { updateQuestionList(); updateTopicOptions(); updateAvailableCounts(); });
-    autoTopic.addEventListener('change', updateAvailableCounts);
-    questionSearch.addEventListener('input', updateQuestionList);
-    modeManual.addEventListener('change', toggleMode);
-    modeAuto.addEventListener('change', toggleMode);
-    document.querySelectorAll('.question-checkbox').forEach(cb => cb.addEventListener('change', updateSelectedCount));
-
-    document.getElementById('examForm').addEventListener('submit', function(e) {
-        if (modeManual.checked && selectedCount.textContent === '0') {
-            e.preventDefault();
-            alert('Vui lòng chọn ít nhất 1 câu hỏi.');
-            return;
-        }
-        if (startTimeInput.value && endTimeInput.value) {
-            if (new Date(endTimeInput.value) <= new Date(startTimeInput.value)) {
-                e.preventDefault();
-                alert('⚠️ Thời gian đóng đề thi phải sau thời gian mở đề thi!');
-                endTimeInput.focus();
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+    const ctx = document.getElementById('overviewChart');
+    new Chart(ctx, {
+        data: {
+            labels: ['Tổng số đề thi', 'Ngân hàng câu hỏi', 'Lượt bài đã nộp', 'Điểm trung bình'],
+            datasets: [
+                {
+                    type: 'bar',
+                    label: 'Số lượng',
+                    data: [<?= $total_exams ?>, <?= $total_questions ?>, <?= $total_submissions ?>, null],
+                    backgroundColor: ['#4f46e5', '#0d9488', '#f59e0b', 'transparent'],
+                    borderRadius: 9,
+                    yAxisID: 'y',
+                    barThickness: 48
+                },
+                {
+                    type: 'line',
+                    label: 'Điểm trung bình (/10)',
+                    data: [null, null, null, <?= $avg_score ?>],
+                    borderColor: '#e11d48',
+                    backgroundColor: '#e11d48',
+                    pointRadius: 7,
+                    pointHoverRadius: 10,
+                    borderWidth: 3,
+                    showLine: false,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 22 } } },
+            scales: {
+                y: { beginAtZero: true, position: 'left', title: { display: true, text: 'Số lượng' }, ticks: { precision: 0 } },
+                y1: { beginAtZero: true, min: 0, max: 10, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Điểm trung bình (/10)' } }
             }
         }
     });
 
-    toggleMode();
-</script>
+    const editModal = document.getElementById('editModal');
+    function openEditModal(exam) {
+        document.getElementById('modalExamId').textContent = '#' + exam.exam_id;
+        document.getElementById('edit_exam_id').value = exam.exam_id;
+        document.getElementById('edit_title').value = exam.title;
+        document.getElementById('edit_duration').value = exam.duration;
+        document.getElementById('edit_password').value = exam.exam_password || '';
+        document.getElementById('edit_start_time').value = exam.start_time ? formatDateTimeLocal(exam.start_time) : '';
+        document.getElementById('edit_end_time').value = exam.end_time ? formatDateTimeLocal(exam.end_time) : '';
+        editModal.classList.add('active');
+    }
+
+    function closeEditModal() { editModal.classList.remove('active'); }
+    function formatDateTimeLocal(dateTimeStr) {
+        if (!dateTimeStr) return '';
+        const dt = new Date(dateTimeStr);
+        const year = dt.getFullYear();
+        const month = String(dt.getMonth() + 1).padStart(2, '0');
+        const day = String(dt.getDate()).padStart(2, '0');
+        const hours = String(dt.getHours()).padStart(2, '0');
+        const minutes = String(dt.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    editModal.addEventListener('click', function(e) { if (e.target === editModal) closeEditModal(); });
+    document.getElementById('editForm').addEventListener('submit', function(e) {
+        const startVal = document.getElementById('edit_start_time').value;
+        const endVal = document.getElementById('edit_end_time').value;
+        if (startVal && endVal && new Date(endVal) <= new Date(startVal)) {
+            e.preventDefault();
+            alert('⚠️ Thời gian đóng đề thi phải sau thời gian mở đề thi!');
+        }
+    });
+    </script>
     </main>
   </div>
 </div>
