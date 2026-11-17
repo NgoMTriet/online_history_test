@@ -1,20 +1,27 @@
+<?php include __DIR__ . '/../includes/header.php'; ?>
+<?php require_once __DIR__ . '/../config/database.php'; ?>
+
 <?php
 require_once __DIR__ . '/../api/be_index.php';
 echo $headerHtml;
 ?>
 
+
 <main class="container">
 
-    <!-- BANNER GIỚI THIỆU -->
     <section class="hero">
+
         <div class="container">
+
             <div class="slider">
 
+                <!-- Slide 1 -->
                 <div class="slide active">
+
                     <img src="image/anh1.png" alt="Lịch sử Việt Nam" onerror="this.src='../image/anh1.png'">
                     <div class="slide-content">
-                        <span class="subtitle">Khám phá quá khứ</span>
-                        <h2>LỊCH SỬ VIỆT NAM</h2>
+                        <span class="subtitle">Học mỗi ngày</span>
+                        <h2>LUYỆN THI TRẮC NGHIỆM</h2>
                         <div class="hero-buttons">
                             <a href="#danh-muc" class="btn-hero-primary">▶ Bắt đầu thi</a>
                             <a href="#huong-dan" class="btn-hero-outline">Khám phá đề thi</a>
@@ -23,14 +30,19 @@ echo $headerHtml;
                     <div class="quote-box">
                         <p>“Dân ta phải biết sử ta<br>Cho tường gốc tích nước nhà Việt Nam”</p>
                         <span>— Hồ Chí Minh —</span>
+
                     </div>
+
                 </div>
 
+
+                <!-- Slide 2 -->
                 <div class="slide">
+
                     <img src="image/anh2.png" alt="Di tích lịch sử Việt Nam" onerror="this.src='../image/anh2.png'">
                     <div class="slide-content">
                         <span class="subtitle">Mỗi bài học là một hành trình</span>
-                        <h2>KHÁM PHÁ LỊCH SỬ</h2>
+                        <h2>KHÁM PHÁ KIẾN THỨC</h2>
                         <div class="hero-buttons">
                             <a href="#danh-muc" class="btn-hero-primary">▶ Bắt đầu thi</a>
                             <a href="#huong-dan" class="btn-hero-outline">Khám phá đề thi</a>
@@ -40,9 +52,13 @@ echo $headerHtml;
                         <p>“Nước Nam ta là một nước văn hiến<br>Đã có lịch sử lâu đời và truyền thống hào hùng”</p>
                         <span>— Nguyễn Trãi —</span>
                     </div>
+
                 </div>
 
+
+                <!-- Slide 3 -->
                 <div class="slide">
+
                     <img src="image/anh3.png" alt="Tư liệu lịch sử Việt Nam" onerror="this.src='../image/anh3.png'">
                     <div class="slide-content">
                         <span class="subtitle">Ôn luyện và bứt phá</span>
@@ -56,19 +72,52 @@ echo $headerHtml;
                         <p>“Đoàn kết, đoàn kết, đại đoàn kết<br>Thành công, thành công, đại thành công”</p>
                         <span>— Hồ Chí Minh —</span>
                     </div>
+
                 </div>
 
-                <button class="slider-prev" type="button" onclick="changeSlide(-1)" aria-label="Ảnh trước">&#10094;</button>
-                <button class="slider-next" type="button" onclick="changeSlide(1)" aria-label="Ảnh tiếp theo">&#10095;</button>
 
+                <!-- Nút chuyển -->
+                <button
+                    class="slider-prev"
+                    onclick="changeSlide(-1)"
+                >
+                    &#10094;
+                </button>
+
+                <button
+                    class="slider-next"
+                    onclick="changeSlide(1)"
+                >
+                    &#10095;
+                </button>
+
+
+                <!-- Dấu chấm -->
                 <div class="slider-dots">
-                    <span class="dot active" onclick="showSlide(0)" aria-label="Slide 1"></span>
-                    <span class="dot" onclick="showSlide(1)" aria-label="Slide 2"></span>
-                    <span class="dot" onclick="showSlide(2)" aria-label="Slide 3"></span>
+
+                    <span
+                        class="dot active"
+                        onclick="showSlide(0)"
+                    ></span>
+
+                    <span
+                        class="dot"
+                        onclick="showSlide(1)"
+                    ></span>
+
+                    <span
+                        class="dot"
+                        onclick="showSlide(2)"
+                    ></span>
+
                 </div>
+
             </div>
+
         </div>
+
     </section>
+
 
     <!-- TÌM KIẾM VÀ LỌC ĐỀ THI -->
     <section class="exam-search" aria-label="Tìm kiếm đề thi">
@@ -95,7 +144,17 @@ echo $headerHtml;
                 </select>
             </div>
 
-            <div class="exam-subject-label">📚 Môn học: <strong>Lịch sử</strong></div>
+            <div class="exam-grade-filter">
+                <span class="filter-icon" aria-hidden="true">📚</span>
+                <select name="subject" id="subject" aria-label="Chọn môn học">
+                    <option value="">Tất cả môn học</option>
+                    <?php foreach ($subject_names as $subjectName): ?>
+                        <option value="<?= htmlspecialchars($subjectName, ENT_QUOTES, 'UTF-8') ?>" <?= $subject === $subjectName ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($subjectName, ENT_QUOTES, 'UTF-8') ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
             <button type="submit" class="btn-search-submit"><span>⌕</span> Tìm kiếm</button>
         </form>
     </section>
@@ -105,86 +164,69 @@ echo $headerHtml;
         <div class="section-header">
             <div>
                 <h2><span class="section-icon">▣</span> Danh mục đề thi</h2>
-                <p>Chọn khối lớp để bắt đầu luyện tập</p>
+                <p>Chọn lớp và môn học để bắt đầu luyện tập</p>
             </div>
             <a href="#de-thi" class="section-more">Xem đề thi <span>→</span></a>
         </div>
 
         <div class="class-list">
-            <a href="index.php?grade=6" class="class-card grade-6">
-                <div class="class-card-cover" style="background-image: linear-gradient(90deg, rgba(224,242,254,.30), rgba(224,242,254,.12)), url('image/anh1.jpg')">
-                    <span class="class-badge">6</span>
-                    <span class="class-cover-title">LỊCH SỬ</span>
+            <?php
+            $gradeTints  = [6 => '224,242,254', 7 => '255,237,213', 8 => '220,252,231', 9 => '243,232,255'];
+            $coverImages = ['anh1.jpg', 'anh2.jpg', 'anh3.jpg'];
+            ?>
+            <?php if (empty($subject_cards)): ?>
+                <div class="exam-empty">
+                    <span>📚</span>
+                    <strong>Chưa có môn học nào</strong>
+                    <p>Giáo viên hãy tạo môn học trong trang Ngân hàng câu hỏi.</p>
                 </div>
-                <div class="class-card-content">
-                    <h3>Lịch sử 6</h3>
-                    <p>Từ thời nguyên thủy đến thời kỳ phong kiến Việt Nam.</p>
-                    <span class="btn-link">Luyện thi ngay <span>→</span></span>
-                </div>
-            </a>
-
-            <a href="index.php?grade=7" class="class-card grade-7">
-                <div class="class-card-cover" style="background-image: linear-gradient(90deg, rgba(255,237,213,.30), rgba(255,237,213,.12)), url('image/anh2.jpg')">
-                    <span class="class-badge">7</span>
-                    <span class="class-cover-title">LỊCH SỬ</span>
-                </div>
-                <div class="class-card-content">
-                    <h3>Lịch sử 7</h3>
-                    <p>Từ thời Trần đến thời Lê sơ và các giai đoạn tiếp theo.</p>
-                    <span class="btn-link">Luyện thi ngay <span>→</span></span>
-                </div>
-            </a>
-
-            <a href="index.php?grade=8" class="class-card grade-8">
-                <div class="class-card-cover" style="background-image: linear-gradient(90deg, rgba(220,252,231,.30), rgba(220,252,231,.12)), url('image/anh3.jpg')">
-                    <span class="class-badge">8</span>
-                    <span class="class-cover-title">LỊCH SỬ</span>
-                </div>
-                <div class="class-card-content">
-                    <h3>Lịch sử 8</h3>
-                    <p>Tìm hiểu các cuộc đấu tranh và những chuyển biến lịch sử.</p>
-                    <span class="btn-link">Luyện thi ngay <span>→</span></span>
-                </div>
-            </a>
-
-            <a href="index.php?grade=9" class="class-card grade-9">
-                <div class="class-card-cover" style="background-image: linear-gradient(90deg, rgba(243,232,255,.30), rgba(243,232,255,.12)), url('image/anh1.jpg')">
-                    <span class="class-badge">9</span>
-                    <span class="class-cover-title">LỊCH SỬ</span>
-                </div>
-                <div class="class-card-content">
-                    <h3>Lịch sử 9</h3>
-                    <p>Lịch sử Việt Nam hiện đại và những sự kiện thế kỷ XX.</p>
-                    <span class="btn-link">Luyện thi ngay <span>→</span></span>
-                </div>
-            </a>
+            <?php else: ?>
+                <?php foreach ($subject_cards as $i => $card): ?>
+                    <?php
+                        $g    = (int)$card['grade'];
+                        $tint = $gradeTints[$g] ?? '224,242,254';
+                        $img  = $coverImages[$i % count($coverImages)];
+                        $name = htmlspecialchars($card['subject_name'], ENT_QUOTES, 'UTF-8');
+                        $href = 'index.php?grade=' . $g . '&subject=' . urlencode($card['subject_name']) . '#de-thi';
+                    ?>
+                    <a href="<?= htmlspecialchars($href, ENT_QUOTES, 'UTF-8') ?>" class="class-card grade-<?= $g ?>">
+                        <div class="class-card-cover" style="background-image: linear-gradient(90deg, rgba(<?= $tint ?>,.30), rgba(<?= $tint ?>,.12)), url('image/<?= $img ?>')">
+                            <span class="class-badge"><?= $g ?></span>
+                            <span class="class-cover-title"><?= htmlspecialchars(mb_strtoupper($card['subject_name'], 'UTF-8'), ENT_QUOTES, 'UTF-8') ?></span>
+                        </div>
+                        <div class="class-card-content">
+                            <h3><?= $name ?> <?= $g ?></h3>
+                            <p>Luyện thi trắc nghiệm môn <?= $name ?> lớp <?= $g ?> · <?= (int)$card['exam_count'] ?> đề thi.</p>
+                            <span class="btn-link">Luyện thi ngay <span>→</span></span>
+                        </div>
+                    </a>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
     </section>
 
     <!-- KẾT QUẢ ĐỀ THI TỪ CSDL -->
-    <?php if ($keyword !== '' || $grade !== ''): ?>
+    <?php if ($keyword !== '' || $grade !== '' || $subject !== ''): ?>
     <section class="exam-results" id="de-thi">
         <div class="section-header">
             <div>
                 <h2><span class="section-icon">▤</span> Đề thi trắc nghiệm</h2>
-                <p>Các đề thi Lịch sử phù hợp với khối lớp bạn chọn</p>
+                <p>Các đề thi phù hợp với bộ lọc bạn chọn</p>
             </div>
             <a href="index.php#de-thi" class="section-more">Xóa bộ lọc <span>↗</span></a>
         </div>
 
         <div id="examList" class="exam-list">
+
             <?php if (empty($filtered_exams)): ?>
-                <div class="exam-empty">
-                    <span>📚</span>
-                    <strong>Chưa tìm thấy đề thi phù hợp</strong>
-                    <p>Hãy thử từ khóa khác hoặc chọn khối lớp khác.</p>
-                </div>
+                <p style="grid-column: 1 / -1; color: #7f8c8d;">Không tìm thấy đề thi phù hợp với yêu cầu tìm kiếm.</p>
             <?php else: ?>
+
                 <?php foreach ($filtered_exams as $index => $exam): ?>
                     <article class="exam-card<?= $index >= $initial_limit ? ' exam-hidden' : '' ?>">
                         <div class="exam-card-top">
                             <span class="exam-tag">Lớp <?= htmlspecialchars((string)$exam['grade'], ENT_QUOTES, 'UTF-8') ?></span>
-                            <span class="exam-subject">Lịch sử</span>
+                            <span class="exam-subject"><?= htmlspecialchars($exam['subject_name'] ?? 'Chưa phân môn', ENT_QUOTES, 'UTF-8') ?></span>
                         </div>
                         <h3><?= htmlspecialchars($exam['title'], ENT_QUOTES, 'UTF-8') ?></h3>
                         <div class="exam-meta">
@@ -215,7 +257,7 @@ echo $headerHtml;
                 <div class="feature-icon">◎</div>
                 <div class="feature-info">
                     <h4>Hệ thống đề thi đa dạng</h4>
-                    <p>Bám sát chương trình học Lịch sử lớp 6–9.</p>
+                    <p>Bám sát chương trình học THCS nhiều môn.</p>
                 </div>
             </div>
             <div class="feature-item">
@@ -239,12 +281,88 @@ echo $headerHtml;
                     <p>Xem thống kê kết quả và cải thiện điểm yếu.</p>
                 </div>
             </div>
+
         </div>
+
+    </section>
+
+
+    <!-- ================================================= -->
+    <!-- CHỌN KHỐI LỚP - CODE CŨ GIỮ NGUYÊN -->
+    <!-- ================================================= -->
+
+    <section class="classes">
+
+        <h2>
+            Chọn khối lớp
+        </h2>
+
+        <div class="class-list">
+
+            <a
+                href="index.php?grade=6"
+                class="class-card"
+            >
+                <h3>
+                    Lịch sử 6
+                </h3>
+
+                <p>
+                    Kiến thức Lịch sử lớp 6
+                </p>
+            </a>
+
+
+            <a
+                href="index.php?grade=7"
+                class="class-card"
+            >
+                <h3>
+                    Lịch sử 7
+                </h3>
+
+                <p>
+                    Kiến thức Lịch sử lớp 7
+                </p>
+            </a>
+
+
+            <a
+                href="index.php?grade=8"
+                class="class-card"
+            >
+                <h3>
+                    Lịch sử 8
+                </h3>
+
+                <p>
+                    Kiến thức Lịch sử lớp 8
+                </p>
+            </a>
+
+
+            <a
+                href="index.php?grade=9"
+                class="class-card"
+            >
+                <h3>
+                    Lịch sử 9
+                </h3>
+
+                <p>
+                    Kiến thức Lịch sử lớp 9
+                </p>
+            </a>
+
+        </div>
+
     </section>
 
 </main>
 
+<!-- ĐẶT CODE JAVASCRIPT SLIDER VÀO ĐÂY -->
 <script>
+
 document.addEventListener("DOMContentLoaded", function () {
     // 1. Xử lý nút Hiển thị tất cả / Thu gọn đề thi
     const toggleBtn = document.getElementById("toggleExamsBtn");
@@ -271,36 +389,43 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // 2. Xử lý Slider Banner
+
     let currentSlide = 0;
     const slides = document.querySelectorAll(".slide");
     const dots = document.querySelectorAll(".dot");
-    let slideTimer;
 
-    if (!slides.length) return;
+    if (slides.length === 0) return; // Nếu không có slide thì dừng
 
     function showSlide(index) {
-        currentSlide = (index + slides.length) % slides.length;
-        slides.forEach((slide, i) => slide.classList.toggle("active", i === currentSlide));
-        dots.forEach((dot, i) => dot.classList.toggle("active", i === currentSlide));
+        if (index >= slides.length) {
+            currentSlide = 0;
+        } else if (index < 0) {
+            currentSlide = slides.length - 1;
+        } else {
+            currentSlide = index;
+        }
+
+        slides.forEach(slide => slide.classList.remove("active"));
+        dots.forEach(dot => dot.classList.remove("active"));
+
+        if (slides[currentSlide]) slides[currentSlide].classList.add("active");
+        if (dots[currentSlide]) dots[currentSlide].classList.add("active");
     }
 
-    function restartTimer() {
-        clearInterval(slideTimer);
-        slideTimer = setInterval(() => showSlide(currentSlide + 1), 5000);
-    }
-
-    window.changeSlide = function (direction) {
+    // Đưa hàm ra window để các thuộc tính onclick="..." trong HTML gọi được
+    window.changeSlide = function(direction) {
         showSlide(currentSlide + direction);
-        restartTimer();
     };
 
-    window.showSlide = function (index) {
+    window.showSlide = function(index) {
         showSlide(index);
-        restartTimer();
     };
 
-    restartTimer();
+    // Tự động chuyển ảnh mỗi 5s
+    setInterval(() => {
+        window.changeSlide(1);
+    }, 5000);
 });
 </script>
 
-<?php include $footerPath; ?>
+<?php include __DIR__ . '/../includes/footer.php'; ?>
