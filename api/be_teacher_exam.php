@@ -1,25 +1,13 @@
 <?php
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-// Bắt đầu Session nếu chưa chạy (Đảm bảo đọc được $_SESSION)
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 require_once __DIR__ . '/../config/database.php';
 
-// LẤY USER_ID CỦA GIÁO VIÊN ĐANG ĐĂNG NHẬP Ở ĐẦU FILE ĐỂ DÙNG CHO TOÀN BỘ TRANG
 $userId = (int)($_SESSION['user_id'] ?? 0);
-
-// DANH SÁCH LOẠI ĐỀ / KỲ THI CHUẨN BẬC THCS
-$examTypesMap = [
-    'PRACTICE'  => 'Luyện tập / Kiểm tra 15 phút',
-    'MIDTERM_1' => 'Giữa kì 1',
-    'FINAL_1'   => 'Cuối kì 1',
-    'MIDTERM_2' => 'Giữa kì 2',
-    'FINAL_2'   => 'Cuối kì 2',
-    'GRADE_10'  => 'Ôn thi vào lớp 10',
-];
 
 $message = '';
 $messageType = '';
@@ -27,9 +15,9 @@ $messageType = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create_exam') {
     $title = trim($_POST['title'] ?? '');
     $grade = (int)($_POST['grade'] ?? 9);
-    $duration = (int)($_POST['duration'] ?? 15);
     $subjectId = (int)($_POST['subject_id'] ?? 0);
-    $examType = trim($_POST['exam_type'] ?? 'PRACTICE');
+    $examType = trim($_POST['exam_type'] ?? 'REGULAR');
+    $duration = (int)($_POST['duration'] ?? 15);
     $examPassword = trim($_POST['exam_password'] ?? '');
     $mode = $_POST['create_mode'] ?? 'manual';
 
@@ -59,6 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
         $subjectValid = (int)$stmtSubject->fetchColumn() > 0;
     }
 
+    $allowedExamTypes = ['REGULAR', 'MIDTERM_1', 'FINAL_1', 'MIDTERM_2', 'FINAL_2'];
+
     if ($userId <= 0) {
         $message = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
         $messageType = 'danger';
@@ -71,11 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     } elseif (!$subjectValid) {
         $message = 'Vui lòng chọn môn học hợp lệ cho khối lớp này.';
         $messageType = 'danger';
-    } elseif (!array_key_exists($examType, $examTypesMap)) {
-        $message = 'Loại đề / kỳ thi không hợp lệ.';
-        $messageType = 'danger';
-    } elseif ($examType === 'GRADE_10' && $grade !== 9) {
-        $message = 'Mục "Ôn thi vào lớp 10" chỉ áp dụng cho Khối lớp 9.';
+    } elseif (!in_array($examType, $allowedExamTypes, true)) {
+        $message = 'Loại kỳ thi không hợp lệ.';
         $messageType = 'danger';
     } elseif ($duration < 1 || $duration > 300) {
         $message = 'Thời gian làm bài phải từ 1 đến 300 phút.';
