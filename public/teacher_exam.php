@@ -1,7 +1,6 @@
 <?php
 require_once __DIR__ . '/../api/be_teacher_exam.php';
 include __DIR__ . '/../includes/teacher_sidebar.php';
-
 ?>
 
 <!DOCTYPE html>
@@ -12,7 +11,6 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
     <title>Tạo đề thi | TestSuViet</title>
 
     <link rel="stylesheet" href="/../assets/css/UI_teacher.css">
-
 </head>
 
 <body>
@@ -58,7 +56,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                 <div class="step-number">01</div>
                 <div>
                     <h2>Thông tin chung</h2>
-                    <p class="section-description">Tên đề thi, khối lớp, kỳ thi, thời gian làm bài, thời gian mở đề và mật khẩu truy cập.</p>
+                    <p class="section-description">Tên đề thi, khối lớp, kỳ thi, thời gian làm bài và mật khẩu truy cập.</p>
                 </div>
             </div>
 
@@ -90,15 +88,15 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                     </select>
                 </div>
 
-                <!-- Ô CHỌN LOẠI ĐỀ / KỲ THI -->
+                <!-- Ô CHỌN KỲ THI / LOẠI ĐỀ -->
                 <div class="form-group">
-                    <label for="examTypeSelect">Loại đề / Kỳ thi</label>
-                    <select name="exam_type" id="examTypeSelect" required>
-                        <?php foreach ($examTypesMap as $typeKey => $typeLabel): ?>
-                            <option value="<?= htmlspecialchars($typeKey) ?>">
-                                <?= htmlspecialchars($typeLabel) ?>
-                            </option>
-                        <?php endforeach; ?>
+                    <label for="examTypeSelect">Kỳ thi / Loại đề</label>
+                    <select name="exam_type" id="examTypeSelect">
+                        <option value="REGULAR">Luyện tập / Thường xuyên</option>
+                        <option value="MIDTERM_1">Giữa kì 1</option>
+                        <option value="FINAL_1">Cuối kì 1</option>
+                        <option value="MIDTERM_2">Giữa kì 2</option>
+                        <option value="FINAL_2">Cuối kì 2</option>
                     </select>
                 </div>
 
@@ -222,6 +220,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
     const gradeSelect = document.getElementById('gradeSelect');
     const subjectSelect = document.getElementById('subjectSelect');
     const examTypeSelect = document.getElementById('examTypeSelect');
+    const durationInput = document.getElementById('duration');
     const modeManual = document.getElementById('modeManual');
     const modeAuto = document.getElementById('modeAuto');
     const manualSection = document.getElementById('manualSection');
@@ -231,38 +230,14 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
     const questionSearch = document.getElementById('questionSearch');
     const selectedCount = document.getElementById('selectedCount');
 
-    const startTimeInput = document.getElementById('startTime');
-    const endTimeInput = document.getElementById('endTime');
-    const availEasy = document.getElementById('availEasy');
-    const availMedium = document.getElementById('availMedium');
-    const availHard = document.getElementById('availHard');
-    const countEasyInput = document.getElementById('countEasy');
-    const countMediumInput = document.getElementById('countMedium');
-    const countHardInput = document.getElementById('countHard');
-
-    function updateAvailableCounts() {
-        if (typeof questionsData === 'undefined' || !availEasy) return;
-        const selectedGrade = parseInt(gradeSelect.value, 10);
-        const selectedSubject = parseInt(subjectSelect.value, 10);
-        const selectedTopicId = parseInt(autoTopic.value, 10);
-        let easyCount = 0, mediumCount = 0, hardCount = 0;
-
-        questionsData.forEach(q => {
-            if (q.g === selectedGrade && q.s === selectedSubject && (selectedTopicId === 0 || q.t === selectedTopicId)) {
-                if (q.d === 'EASY') easyCount++;
-                else if (q.d === 'MEDIUM') mediumCount++;
-                else if (q.d === 'HARD') hardCount++;
-            }
-        });
-
-        availEasy.textContent = `Hiện có: ${easyCount}`;
-        availMedium.textContent = `Hiện có: ${mediumCount}`;
-        availHard.textContent = `Hiện có: ${hardCount}`;
-
-        countEasyInput.max = easyCount;
-        countMediumInput.max = mediumCount;
-        countHardInput.max = hardCount;
-    }
+    // Tự động gợi ý 45 phút khi chọn Giữa kì / Cuối kì
+    examTypeSelect.addEventListener('change', function() {
+        if (this.value === 'REGULAR') {
+            if (durationInput.value === '45') durationInput.value = '15';
+        } else {
+            if (durationInput.value === '15') durationInput.value = '45';
+        }
+    });
 
     // Chỉ hiện các môn thuộc khối lớp đang chọn
     function updateSubjectOptions() {
@@ -277,19 +252,6 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
         const current = subjectSelect.selectedOptions[0];
         if (!current || current.disabled) {
             subjectSelect.value = firstMatch ? firstMatch.value : '';
-        }
-    }
-
-    // Ẩn lựa chọn "Ôn thi vào lớp 10" nếu không phải Khối lớp 9
-    function updateExamTypeOptions() {
-        const isGrade9 = gradeSelect.value === '9';
-        const grade10Opt = examTypeSelect.querySelector('option[value="GRADE_10"]');
-        if (grade10Opt) {
-            grade10Opt.hidden = !isGrade9;
-            grade10Opt.disabled = !isGrade9;
-            if (!isGrade9 && examTypeSelect.value === 'GRADE_10') {
-                examTypeSelect.value = 'PRACTICE';
-            }
         }
     }
 
@@ -332,15 +294,8 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
         selectedCount.textContent = count;
     }
 
-    gradeSelect.addEventListener('change', () => {
-        updateSubjectOptions();
-        updateExamTypeOptions();
-        updateQuestionList();
-        updateTopicOptions();
-        updateAvailableCounts();
-    });
-    subjectSelect.addEventListener('change', () => { updateQuestionList(); updateTopicOptions(); updateAvailableCounts(); });
-    autoTopic.addEventListener('change', updateAvailableCounts);
+    gradeSelect.addEventListener('change', () => { updateSubjectOptions(); updateQuestionList(); updateTopicOptions(); });
+    subjectSelect.addEventListener('change', () => { updateQuestionList(); updateTopicOptions(); });
 
     questionSearch.addEventListener('input', updateQuestionList);
     modeManual.addEventListener('change', toggleMode);
@@ -358,7 +313,6 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
     });
 
     updateSubjectOptions();
-    updateExamTypeOptions();
     toggleMode();
 </script>
 </body>
