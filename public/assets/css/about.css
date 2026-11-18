@@ -1,6 +1,6 @@
 /* =========================================================
    TESTSUVIET.COM - TRANG GIỚI THIỆU (v2)
-   Đồng bộ font Be Vietnam Pro với history.css và profile.css
+   Đồng bộ 100% font Be Vietnam Pro (kể cả thanh menu & logo)
    ========================================================= */
 
 @import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap");
@@ -9,13 +9,30 @@
   --pf-font:
     "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, Arial,
     sans-serif;
+  --pf-serif: var(--pf-font); /* Đồng bộ font logo/tiêu đề với history.css & profile.css */
 }
 
-/* Font chung cho cả trang, gồm thanh menu nằm ngoài .about-page */
+/* Font chung cho cả trang, gồm thanh menu và logo nằm ngoài .about-page */
+html,
 body {
   font-family: var(--pf-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+header,
+nav,
+.st-header,
+.st-nav,
+.st-user,
+.st-brand,
+.st-brand *,
+.brand,
+.brand *,
+.logo,
+.logo *,
+.navbar-brand {
+  font-family: var(--pf-font) !important;
 }
 
 button,
