@@ -1,11 +1,5 @@
-
 <?php
 require_once __DIR__ . '/../api/be_profile.php';
-
-// Chỉ bao gồm menu nếu KHÔNG PHẢI là trang profile của giáo viên
-if (!$is_teacher) {
-    include __DIR__ . '/../includes/menu.php';
-}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -15,43 +9,53 @@ if (!$is_teacher) {
     <title>Thông tin cá nhân - SuViet</title>
 
     <link rel="stylesheet" href="../assets/css/profile.css">
+    <?php if ($is_teacher): ?>
+        <link rel="stylesheet" href="../assets/css/UI_teacher.css">
+        <style>
+            body { margin: 0; padding: 0; }
+            .et-content .pf-wrap { max-width: 100%; margin: 0; padding: 0; }
+        </style>
+    <?php endif; ?>
 </head>
 
 <body>
-
-<div class="container">
 
 <?php if ($is_teacher): ?>
 
     <!-- GIAO DIỆN GIÁO VIÊN -->
     <div class="et-overlay" id="etOverlay" onclick="etToggleSidebar()"></div>
 
-    <div class="et-shell">
+    <?php include __DIR__ . '/../includes/teacher_sidebar.php'; ?>
 
-        <?php include __DIR__ . '/../includes/teacher_sidebar.php'; ?>
+    <div class="et-workspace">
 
-        <div class="et-workspace">
+        <header class="et-topbar">
+            <div class="et-topbar-left">
+                <button type="button"
+                    class="et-mobile-toggle"
+                    onclick="etToggleSidebar()"
+                    aria-label="Mở menu">☰</button>
 
-            <header class="et-topbar">
-                <div class="et-topbar-left">
-                    <button type="button"
-                        class="et-mobile-toggle"
-                        onclick="etToggleSidebar()"
-                        aria-label="Mở menu">☰</button>
-
-                    <div>
-                        <div class="et-crumb">TEACHER / GIÁO VIÊN</div>
-                        <div class="et-top-title">Hồ sơ cá nhân</div>
-                    </div>
+                <div>
+                    <div class="et-crumb">TEACHER / GIÁO VIÊN</div>
+                    <div class="et-top-title">Hồ sơ cá nhân</div>
                 </div>
+            </div>
 
-                <div class="et-user">
-                    <span class="et-avatar"><?= e($initials) ?></span>
-                    <span class="et-user-name"><?= e($display_name) ?></span>
-                </div>
-            </header>
+            <div class="et-user">
+                <span class="et-avatar">GV</span>
+                <span class="et-user-name"><?= e($display_name) ?></span>
+            </div>
+        </header>
 
-            <main>
+        <main class="et-content">
+            <div class="container">
+
+<?php else: ?>
+
+    <!-- GIAO DIỆN HỌC SINH -->
+    <?php include __DIR__ . '/../includes/menu.php'; ?>
+    <div class="container">
 
 <?php endif; ?>
 
@@ -395,11 +399,20 @@ if (!$is_teacher) {
 </div>
 
 <?php if ($is_teacher): ?>
-
-            </main>
-        </div>
+            </div>
+        </main>
     </div>
 
+    <script>
+    function etToggleSidebar() {
+        const sidebar = document.getElementById('etSidebar');
+        const overlay = document.getElementById('etOverlay');
+        if (sidebar) sidebar.classList.toggle('open');
+        if (overlay) overlay.classList.toggle('show');
+    }
+    </script>
+<?php else: ?>
+    </div>
 <?php endif; ?>
 
 <script>
