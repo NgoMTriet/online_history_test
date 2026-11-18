@@ -6,6 +6,7 @@ if (strtoupper($_SESSION['role'] ?? '') === 'TEACHER') {
     header('Location: teacher_dashboard.php');
     exit;
 }
+
 // Xác định thư mục gốc dự án (lùi 1 cấp từ thư mục api/)
 $rootDir = dirname(__DIR__);
 
@@ -49,18 +50,24 @@ $keyword = trim($_GET['keyword'] ?? '');
 $grade   = trim($_GET['grade'] ?? '');
 $subject = trim($_GET['subject'] ?? '');
 
-// Truy vấn danh sách đề thi kèm tên giáo viên tạo đề
+// Truy vấn danh sách đề thi kèm tên giáo viên, môn học và chương/chủ đề
 $sql = "SELECT e.exam_id, e.title, e.grade, e.duration, e.total_questions,
-               u.full_name AS teacher_name, s.subject_name
+               u.full_name AS teacher_name,
+               s.subject_name,
+               GROUP_CONCAT(DISTINCT t.topic_name SEPARATOR ', ') AS topic_names
         FROM exam e
         LEFT JOIN users u ON e.user_id = u.user_id
         LEFT JOIN subjects s ON e.subject_id = s.subject_id
+        LEFT JOIN exam_questions eq ON e.exam_id = eq.exam_id
+        LEFT JOIN questions q ON eq.question_id = q.question_id
+        LEFT JOIN topics t ON q.topic_id = t.topic_id
         WHERE 1=1";
 $params = [];
 
 if ($keyword !== '') {
-    $sql .= " AND e.title LIKE :keyword";
-    $params['keyword'] = '%' . $keyword . '%';
+    $sql .= " AND (e.title LIKE :kw_title OR t.topic_name LIKE :kw_topic)";
+    $params['kw_title'] = '%' . $keyword . '%';
+    $params['kw_topic'] = '%' . $keyword . '%';
 }
 
 if ($grade !== '') {
@@ -73,7 +80,8 @@ if ($subject !== '') {
     $params['subject'] = $subject;
 }
 
-$sql .= " ORDER BY e.exam_id DESC";
+$sql .= " GROUP BY e.exam_id, e.title, e.grade, e.duration, e.total_questions, u.full_name, s.subject_name
+          ORDER BY e.exam_id DESC";
 
 $stmt_exams = $conn->prepare($sql);
 $stmt_exams->execute($params);
@@ -81,7 +89,6 @@ $stmt_exams->execute($params);
 $filtered_exams = $stmt_exams->fetchAll(PDO::FETCH_ASSOC);
 $total_filtered = count($filtered_exams);
 $initial_limit  = 6;
-
 
 // Danh sách tên môn (cho ô lọc) và các thẻ "lớp - môn" kèm số đề thi
 $subject_names = $conn->query("SELECT DISTINCT subject_name FROM subjects ORDER BY subject_name ASC")
@@ -94,21 +101,3 @@ $subject_cards = $conn->query(
      GROUP BY s.subject_id, s.subject_name, s.grade
      ORDER BY s.grade ASC, s.subject_name ASC"
 )->fetchAll(PDO::FETCH_ASSOC);
-// Trong câu SQL lấy $filtered_exams ở api/be_index.php:
-$sql = "
-    SELECT 
-        e.*,
-        s.subject_name,
-        u.full_name AS teacher_name,
-        GROUP_CONCAT(DISTINCT t.topic_name SEPARATOR ', ') AS topic_names
-    FROM exam e
-    LEFT JOIN subjects s ON e.subject_id = s.subject_id
-    LEFT JOIN users u ON e.user_id = u.user_id
-    LEFT JOIN exam_questions eq ON e.exam_id = eq.exam_id
-    LEFT JOIN questions q ON eq.question_id = q.question_id
-    LEFT JOIN topics t ON q.topic_id = t.topic_id
-    WHERE 1=1
-    /* ... giữ nguyên các điều kiện lọc $keyword, $grade, $subject của bạn ở đây ... */
-    GROUP BY e.exam_id, s.subject_name, u.full_name
-    ORDER BY e.exam_id DESC
-";
