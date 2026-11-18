@@ -189,6 +189,9 @@ echo $headerHtml;
                             <span class="exam-subject"><?= htmlspecialchars($exam['subject_name'] ?? 'Chưa phân môn', ENT_QUOTES, 'UTF-8') ?></span>
                         </div>
                         <h3><?= htmlspecialchars($exam['title'], ENT_QUOTES, 'UTF-8') ?></h3>
+                        <?php if (!empty($exam['topic_names'])): ?>
+                            <p class="exam-topic">📖 <?= htmlspecialchars($exam['topic_names'], ENT_QUOTES, 'UTF-8') ?></p>
+                        <?php endif; ?>
                         <div class="exam-meta">
                             <span>👤 GV: <?= htmlspecialchars($exam['teacher_name'] ?? 'Chưa cập nhật', ENT_QUOTES, 'UTF-8') ?></span>
                             <span>◷ <?= htmlspecialchars((string)$exam['duration'], ENT_QUOTES, 'UTF-8') ?> phút</span>
