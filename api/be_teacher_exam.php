@@ -8,13 +8,13 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once __DIR__ . '/../config/database.php';
 
+// LẤY USER_ID CỦA GIÁO VIÊN ĐANG ĐĂNG NHẬP Ở ĐẦU FILE ĐỂ DÙNG CHO TOÀN BỘ TRANG
+$userId = (int)($_SESSION['user_id'] ?? 0);
+
 $message = '';
 $messageType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create_exam') {
-    // 🟢 LẤY USER_ID CỦA GIÁO VIÊN ĐANG ĐĂNG NHẬP TỪ SESSION
-    $userId = $_SESSION['user_id'] ?? null;
-
     $title = trim($_POST['title'] ?? '');
     $grade = (int)($_POST['grade'] ?? 9);
     $duration = (int)($_POST['duration'] ?? 15);
@@ -48,7 +48,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
         $subjectValid = (int)$stmtSubject->fetchColumn() > 0;
     }
 
-    if ($title === '') {
+    if ($userId <= 0) {
+        $message = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+        $messageType = 'danger';
+    } elseif ($title === '') {
         $message = 'Vui lòng nhập tên đề thi.';
         $messageType = 'danger';
     } elseif (!in_array($grade, [6, 7, 8, 9], true)) {
@@ -82,15 +85,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
 
                 if (count($selectedQuestionIds) > 0) {
                     $placeholders = implode(',', array_fill(0, count($selectedQuestionIds), '?'));
+                    // ĐÃ THÊM: AND q.user_id = ? để chỉ lấy câu hỏi của chính giáo viên này
                     $stmtCheck = $conn->prepare(
                         "SELECT q.question_id
                          FROM questions q
                          JOIN topics t ON q.topic_id = t.topic_id
                          WHERE t.grade = ?
                          AND t.subject_id = ?
+                         AND q.user_id = ?
                          AND q.question_id IN ($placeholders)"
                     );
-                    $stmtCheck->execute(array_merge([$grade, $subjectId], $selectedQuestionIds));
+                    $stmtCheck->execute(array_merge([$grade, $subjectId, $userId], $selectedQuestionIds));
                     $validIds = array_map('intval', $stmtCheck->fetchAll(PDO::FETCH_COLUMN));
                     $selectedQuestionIds = array_values(array_intersect($selectedQuestionIds, $validIds));
                 }
@@ -113,10 +118,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
                 foreach ($levelsMap as $level => $count) {
                     if ($count <= 0) continue;
 
+                    // ĐÃ THÊM: AND q.user_id = :user_id để chỉ bốc ngẫu nhiên câu hỏi của giáo viên này
                     $sql = "SELECT q.question_id
                             FROM questions q
                             JOIN topics t ON q.topic_id = t.topic_id
-                            WHERE t.grade = :grade AND t.subject_id = :subject_id AND q.difficulty = :level";
+                            WHERE t.grade = :grade 
+                            AND t.subject_id = :subject_id 
+                            AND q.user_id = :user_id 
+                            AND q.difficulty = :level";
 
                     if ($topicId > 0) {
                         $sql .= " AND q.topic_id = :topic_id";
@@ -126,6 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
                     $stmtRandom = $conn->prepare($sql);
                     $stmtRandom->bindValue(':grade', $grade, PDO::PARAM_INT);
                     $stmtRandom->bindValue(':subject_id', $subjectId, PDO::PARAM_INT);
+                    $stmtRandom->bindValue(':user_id', $userId, PDO::PARAM_INT);
                     $stmtRandom->bindValue(':level', $level, PDO::PARAM_STR);
                     $stmtRandom->bindValue(':limit', $count, PDO::PARAM_INT);
 
@@ -146,7 +156,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
 
             $conn->beginTransaction();
 
-            // 🟢 CẬP NHẬT CÂU SQL INSERT THÊM CỘT USER_ID
             $stmtExam = $conn->prepare(
                 "INSERT INTO exam
                  (title, grade, subject_id, duration, start_time, end_time, exam_password, total_questions, is_randomized, user_id)
@@ -163,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
                 'exam_password'   => $examPassword !== '' ? $examPassword : null,
                 'total_questions' => $totalQuestions,
                 'is_randomized'   => ($mode === 'auto') ? 1 : 0,
-                'user_id'         => $userId // <--- Gắn ID người dùng vào đây
+                'user_id'         => $userId
             ]);
 
             $examId = (int)$conn->lastInsertId();
@@ -186,18 +195,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     }
 }
 
-$stmtTopics = $conn->query("SELECT topic_id, topic_name, grade, subject_id FROM topics ORDER BY grade ASC, topic_name ASC");
+// ĐÃ SỬA: Chỉ lấy danh sách chủ đề của giáo viên đang đăng nhập
+$stmtTopics = $conn->prepare("SELECT topic_id, topic_name, grade, subject_id FROM topics WHERE user_id = :user_id ORDER BY grade ASC, topic_name ASC");
+$stmtTopics->execute(['user_id' => $userId]);
 $allTopics = $stmtTopics->fetchAll(PDO::FETCH_ASSOC);
 
 $stmtSubjects = $conn->query("SELECT subject_id, subject_name, grade FROM subjects ORDER BY grade ASC, subject_name ASC");
 $allSubjects = $stmtSubjects->fetchAll(PDO::FETCH_ASSOC);
 
-$stmtQuestions = $conn->query(
+// ĐÃ SỬA: Chỉ lấy danh sách câu hỏi của giáo viên đang đăng nhập
+$stmtQuestions = $conn->prepare(
     "SELECT q.question_id, q.content, q.difficulty, t.grade, t.topic_name, t.topic_id, t.subject_id
      FROM questions q
      JOIN topics t ON q.topic_id = t.topic_id
+     WHERE q.user_id = :user_id
      ORDER BY t.grade ASC, q.question_id DESC"
 );
+$stmtQuestions->execute(['user_id' => $userId]);
 
 $questionsBank = $stmtQuestions->fetchAll(PDO::FETCH_ASSOC);
 $questionCounts = [6 => 0, 7 => 0, 8 => 0, 9 => 0];
