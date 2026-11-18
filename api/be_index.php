@@ -45,13 +45,19 @@ $isTeacher = (
     && strtoupper($_SESSION['role']) === 'TEACHER'
 );
 
-// Đọc tham số tìm kiếm & lọc khối lớp từ URL
-$keyword = trim($_GET['keyword'] ?? '');
-$grade   = trim($_GET['grade'] ?? '');
-$subject = trim($_GET['subject'] ?? '');
+// Đọc tham số tìm kiếm & lọc từ URL
+$keyword   = trim($_GET['keyword'] ?? '');
+$grade     = trim($_GET['grade'] ?? '');
+$subject   = trim($_GET['subject'] ?? '');
+$exam_type = trim($_GET['exam_type'] ?? '');
 
-// Truy vấn danh sách đề thi kèm tên giáo viên, môn học và chương/chủ đề
-$sql = "SELECT e.exam_id, e.title, e.grade, e.duration, e.total_questions,
+$allowedExamTypes = ['REGULAR', 'MIDTERM_1', 'FINAL_1', 'MIDTERM_2', 'FINAL_2'];
+if (!in_array($exam_type, $allowedExamTypes, true)) {
+    $exam_type = '';
+}
+
+// Truy vấn danh sách đề thi kèm tên giáo viên, môn học, loại đề và chương/chủ đề
+$sql = "SELECT e.exam_id, e.title, e.grade, e.exam_type, e.duration, e.total_questions,
                u.full_name AS teacher_name,
                s.subject_name,
                GROUP_CONCAT(DISTINCT t.topic_name SEPARATOR ', ') AS topic_names
@@ -80,7 +86,12 @@ if ($subject !== '') {
     $params['subject'] = $subject;
 }
 
-$sql .= " GROUP BY e.exam_id, e.title, e.grade, e.duration, e.total_questions, u.full_name, s.subject_name
+if ($exam_type !== '') {
+    $sql .= " AND e.exam_type = :exam_type";
+    $params['exam_type'] = $exam_type;
+}
+
+$sql .= " GROUP BY e.exam_id, e.title, e.grade, e.exam_type, e.duration, e.total_questions, u.full_name, s.subject_name
           ORDER BY e.exam_id DESC";
 
 $stmt_exams = $conn->prepare($sql);
