@@ -3,6 +3,14 @@
 <?php
 require_once __DIR__ . '/../api/be_index.php';
 echo $headerHtml;
+
+$examTypeBadges = [
+    'REGULAR'   => ['text' => '📝 Đề luyện tập', 'bg' => '#dcfce7', 'color' => '#166534'],
+    'MIDTERM_1' => ['text' => '🏆 Giữa kì 1',    'bg' => '#dbeafe', 'color' => '#1e40af'],
+    'FINAL_1'   => ['text' => '🏆 Cuối kì 1',    'bg' => '#fee2e2', 'color' => '#991b1b'],
+    'MIDTERM_2' => ['text' => '🏆 Giữa kì 2',    'bg' => '#fef3c7', 'color' => '#92400e'],
+    'FINAL_2'   => ['text' => '🏆 Cuối kì 2',    'bg' => '#f3e8ff', 'color' => '#6b21a8'],
+];
 ?>
 
 <!-- HERO SLIDER TRÀN VIỀN -->
@@ -113,6 +121,18 @@ echo $headerHtml;
                 </select>
             </div>
 
+            <div class="exam-grade-filter">
+                <span class="filter-icon" aria-hidden="true">🏆</span>
+                <select name="exam_type" id="exam_type" aria-label="Chọn kỳ thi">
+                    <option value="">Tất cả loại đề</option>
+                    <option value="REGULAR" <?= $exam_type === 'REGULAR' ? 'selected' : '' ?>>Đề luyện tập</option>
+                    <option value="MIDTERM_1" <?= $exam_type === 'MIDTERM_1' ? 'selected' : '' ?>>Giữa kì 1</option>
+                    <option value="FINAL_1" <?= $exam_type === 'FINAL_1' ? 'selected' : '' ?>>Cuối kì 1</option>
+                    <option value="MIDTERM_2" <?= $exam_type === 'MIDTERM_2' ? 'selected' : '' ?>>Giữa kì 2</option>
+                    <option value="FINAL_2" <?= $exam_type === 'FINAL_2' ? 'selected' : '' ?>>Cuối kì 2</option>
+                </select>
+            </div>
+
             <button type="submit" class="btn-search-submit"><span>⌕</span> Tìm kiếm</button>
         </form>
     </section>
@@ -164,7 +184,7 @@ echo $headerHtml;
     </section>
 
     <!-- KẾT QUẢ ĐỀ THI TỪ CSDL -->
-    <?php if ($keyword !== '' || $grade !== '' || $subject !== ''): ?>
+    <?php if ($keyword !== '' || $grade !== '' || $subject !== '' || $exam_type !== ''): ?>
     <section class="exam-results" id="de-thi">
         <div class="section-header">
             <div>
@@ -174,19 +194,71 @@ echo $headerHtml;
             <a href="index.php" class="section-more">Xóa bộ lọc <span>↗</span></a>
         </div>
 
+        <!-- THANH LỌC NHANH THEO KỲ THI -->
+        <?php
+        $quickTabs = [
+            ''          => 'Tất cả',
+            'REGULAR'   => '📝 Đề luyện tập',
+            'MIDTERM_1' => '🏆 Giữa kì 1',
+            'FINAL_1'   => '🏆 Cuối kì 1',
+            'MIDTERM_2' => '🏆 Giữa kì 2',
+            'FINAL_2'   => '🏆 Cuối kì 2',
+        ];
+        ?>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;">
+            <?php foreach ($quickTabs as $tabKey => $tabLabel): ?>
+                <?php
+                    $queryParams = [];
+                    if ($keyword !== '') $queryParams['keyword'] = $keyword;
+                    if ($grade !== '')   $queryParams['grade'] = $grade;
+                    if ($subject !== '') $queryParams['subject'] = $subject;
+                    if ($tabKey !== '')  $queryParams['exam_type'] = $tabKey;
+                    $tabUrl = 'index.php' . (!empty($queryParams) ? '?' . http_build_query($queryParams) : '') . '#de-thi';
+                    $isActiveTab = ($exam_type === $tabKey);
+                ?>
+                <a href="<?= htmlspecialchars($tabUrl, ENT_QUOTES, 'UTF-8') ?>" style="
+                    padding: 7px 14px;
+                    border-radius: 999px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    text-decoration: none;
+                    border: 1px solid <?= $isActiveTab ? '#2563eb' : '#cbd5e1' ?>;
+                    background-color: <?= $isActiveTab ? '#2563eb' : '#ffffff' ?>;
+                    color: <?= $isActiveTab ? '#ffffff' : '#334155' ?>;
+                ">
+                    <?= $tabLabel ?>
+                </a>
+            <?php endforeach; ?>
+        </div>
+
         <div id="examList" class="exam-list">
             <?php if (empty($filtered_exams)): ?>
                 <div class="exam-empty">
                     <span>🔍</span>
                     <strong>Không tìm thấy đề thi phù hợp</strong>
-                    <p>Hãy thử thay đổi từ khóa, khối lớp hoặc môn học khác.</p>
+                    <p>Hãy thử thay đổi từ khóa, khối lớp, môn học hoặc kỳ thi khác.</p>
                 </div>
             <?php else: ?>
                 <?php foreach ($filtered_exams as $index => $exam): ?>
+                    <?php
+                        $typeKey = $exam['exam_type'] ?? 'REGULAR';
+                        $badgeInfo = $examTypeBadges[$typeKey] ?? $examTypeBadges['REGULAR'];
+                    ?>
                     <article class="exam-card<?= $index >= $initial_limit ? ' exam-hidden' : '' ?>">
-                        <div class="exam-card-top">
+                        <div class="exam-card-top" style="flex-wrap: wrap; gap: 6px;">
                             <span class="exam-tag">Lớp <?= htmlspecialchars((string)$exam['grade'], ENT_QUOTES, 'UTF-8') ?></span>
                             <span class="exam-subject"><?= htmlspecialchars($exam['subject_name'] ?? 'Chưa phân môn', ENT_QUOTES, 'UTF-8') ?></span>
+                            <span style="
+                                background-color: <?= $badgeInfo['bg'] ?>;
+                                color: <?= $badgeInfo['color'] ?>;
+                                padding: 3px 10px;
+                                border-radius: 999px;
+                                font-size: 12px;
+                                font-weight: 600;
+                                margin-left: auto;
+                            ">
+                                <?= $badgeInfo['text'] ?>
+                            </span>
                         </div>
                         <h3><?= htmlspecialchars($exam['title'], ENT_QUOTES, 'UTF-8') ?></h3>
                         <?php if (!empty($exam['topic_names'])): ?>
