@@ -95,13 +95,21 @@ $total_submissions = (int)$stmt->fetchColumn();
 $stmt =$conn->query("SELECT AVG(score) FROM exam_results");
 $avg_score = round((float)$stmt->fetchColumn(), 1);
 
-$stmt_exams =$conn->prepare("
-    SELECT e.*, COUNT(er.result_id) AS total_attempts
+$stmt_exams = $conn->prepare("
+    SELECT 
+        e.*, 
+        s.subject_name,
+        COUNT(DISTINCT er.result_id) AS total_attempts,
+        GROUP_CONCAT(DISTINCT t.topic_name SEPARATOR ', ') AS topic_names
     FROM exam e
+    LEFT JOIN subjects s ON e.subject_id = s.subject_id
     LEFT JOIN exam_results er ON e.exam_id = er.exam_id
-    GROUP BY e.exam_id
+    LEFT JOIN exam_questions eq ON e.exam_id = eq.exam_id
+    LEFT JOIN questions q ON eq.question_id = q.question_id
+    LEFT JOIN topics t ON q.topic_id = t.topic_id
+    GROUP BY e.exam_id, s.subject_name
     ORDER BY e.exam_id DESC
     LIMIT 10
 ");
 $stmt_exams->execute();
-$recent_exams =$stmt_exams->fetchAll(PDO::FETCH_ASSOC);
+$recent_exams = $stmt_exams->fetchAll(PDO::FETCH_ASSOC);
