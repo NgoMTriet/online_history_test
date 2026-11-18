@@ -11,6 +11,9 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
+// LẤY USER_ID CỦA GIÁO VIÊN ĐANG ĐĂNG NHẬP
+$userId = (int)($_SESSION['user_id'] ?? 0);
+
 $message = '';
 $selected_grade = (int)($_POST['grade'] ?? $_GET['grade'] ?? 9);
 if (!in_array($selected_grade, [6, 7, 8, 9], true)) {
@@ -27,7 +30,8 @@ function showMessage(string $type, string $text): string
         . '</div>';
 }
 
-function saveQuestion(PDO $conn, int $topicId, string $question, array $options, string $correct, string $explanation, string $difficulty = 'EASY'): void {
+// ĐÃ SỬA LỖI PDO VÀ THÊM THAM SỐ $userId
+function saveQuestion(PDO $conn, int $userId, int $topicId, string $question, array $options, string $correct, string $explanation, string $difficulty = 'EASY'): void {
     $options = array_filter($options, fn($value) => trim((string)$value) !== '');
 
     $difficultyRaw = trim((string)$difficulty);
@@ -53,13 +57,16 @@ function saveQuestion(PDO $conn, int $topicId, string $question, array $options,
         throw new Exception('Độ khó không hợp lệ: ' . $difficultyRaw);
     }
 
+    if ($userId <= 0) { throw new Exception('Phiên đăng nhập không hợp lệ.'); }
     if ($question === '') { throw new Exception('Nội dung câu hỏi không được để trống.'); }
     if (count($options) < 2) { throw new Exception('Mỗi câu hỏi cần ít nhất 2 đáp án.'); }
     if (!isset($options[$correct])) { throw new Exception('Đáp án đúng chưa được nhập hoặc không khớp.'); }
 
-    $stmt = $conn->prepare("INSERT INTO questions (topic_id, content, difficulty, explanation) VALUES (:topic_id, :content, :difficulty, :explanation)");
+    // ĐÃ SỬA: Chèn thêm user_id theo đúng chuẩn PDO
+    $stmt = $conn->prepare("INSERT INTO questions (topic_id, user_id, content, difficulty, explanation) VALUES (:topic_id, :user_id, :content, :difficulty, :explanation)");
     $stmt->execute([
         'topic_id' => $topicId,
+        'user_id' => $userId,
         'content' => $question,
         'difficulty' => $difficulty,
         'explanation' => $explanation
@@ -123,6 +130,7 @@ foreach ($subjects_list as $subjectRow) {
     }
 }
 
+// ---------- Chủ đề (TOPICS) - ĐÃ TÁCH RIÊNG THEO USER_ID ----------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create_topic') {
     $newTopicName = trim($_POST['new_topic_name'] ?? '');
 
@@ -132,16 +140,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
         $message = showMessage('danger', 'Vui lòng chọn hoặc tạo môn học trước khi tạo chủ đề.');
     } else {
         try {
-            $stmt = $conn->prepare("SELECT topic_id FROM topics WHERE topic_name = :name AND grade = :grade AND subject_id = :subject_id LIMIT 1");
-            $stmt->execute(['name' => $newTopicName, 'grade' => $selected_grade, 'subject_id' => $selected_subject_id]);
+            // Kiểm tra trùng tên trong phạm vi chủ đề của chính giáo viên này
+            $stmt = $conn->prepare("SELECT topic_id FROM topics WHERE topic_name = :name AND grade = :grade AND subject_id = :subject_id AND user_id = :user_id LIMIT 1");
+            $stmt->execute(['name' => $newTopicName, 'grade' => $selected_grade, 'subject_id' => $selected_subject_id, 'user_id' => $userId]);
             $existingId = $stmt->fetchColumn();
 
             if ($existingId) {
                 $selected_topic_id = (int)$existingId;
                 $message = showMessage('warning', 'Chủ đề đã tồn tại. Hệ thống đã chọn chủ đề đó.');
             } else {
-                $stmt = $conn->prepare("INSERT INTO topics (topic_name, grade, subject_id) VALUES (:name, :grade, :subject_id)");
-                $stmt->execute(['name' => $newTopicName, 'grade' => $selected_grade, 'subject_id' => $selected_subject_id]);
+                // Lưu thêm user_id khi tạo chủ đề mới
+                $stmt = $conn->prepare("INSERT INTO topics (topic_name, grade, subject_id, user_id) VALUES (:name, :grade, :subject_id, :user_id)");
+                $stmt->execute(['name' => $newTopicName, 'grade' => $selected_grade, 'subject_id' => $selected_subject_id, 'user_id' => $userId]);
                 $selected_topic_id = (int)$conn->lastInsertId();
                 $message = showMessage('success', 'Tạo chủ đề mới thành công!');
             }
@@ -153,13 +163,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
 
 $current_topic = null;
 if ($selected_topic_id > 0) {
-    $stmt = $conn->prepare("SELECT topic_id, topic_name, grade FROM topics WHERE topic_id = :topic_id AND grade = :grade AND subject_id = :subject_id LIMIT 1");
-    $stmt->execute(['topic_id' => $selected_topic_id, 'grade' => $selected_grade, 'subject_id' => $selected_subject_id]);
+    // Chỉ cho phép chọn chủ đề thuộc về giáo viên đang đăng nhập
+    $stmt = $conn->prepare("SELECT topic_id, topic_name, grade FROM topics WHERE topic_id = :topic_id AND grade = :grade AND subject_id = :subject_id AND user_id = :user_id LIMIT 1");
+    $stmt->execute(['topic_id' => $selected_topic_id, 'grade' => $selected_grade, 'subject_id' => $selected_subject_id, 'user_id' => $userId]);
     $current_topic = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$current_topic) { $selected_topic_id = 0; }
 }
 
+// ---------- Thêm câu hỏi thủ công ----------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_manual') {
     if (!$current_topic) {
         $message = showMessage('danger', 'Vui lòng chọn một chủ đề hợp lệ trước khi thêm câu hỏi.');
@@ -177,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_m
 
         try {
             $conn->beginTransaction();
-            saveQuestion($conn, $selected_topic_id, $question, $options, $correct, $explanation, $difficulty);
+            saveQuestion($conn, $userId, $selected_topic_id, $question, $options, $correct, $explanation, $difficulty);
             $conn->commit();
             $message = showMessage('success', 'Thêm câu hỏi thủ công thành công!');
         } catch (Throwable $e) {
@@ -187,6 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_m
     }
 }
 
+// ---------- Import Excel ----------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'import_excel') {
     if (!$current_topic || !isset($_FILES['excel_file']) || $_FILES['excel_file']['error'] !== UPLOAD_ERR_OK) {
         $message = showMessage('danger', 'Vui lòng chọn chủ đề và tải lên file Excel hợp lệ.');
@@ -254,11 +267,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'impor
 
                     try {
                         if ($importTopicId <= 0) { throw new Exception('Chưa chọn chủ đề hợp lệ.'); }
-                        $checkTopic = $conn->prepare('SELECT topic_id FROM topics WHERE topic_id = :id LIMIT 1');
-                        $checkTopic->execute(['id' => $importTopicId]);
-                        if (!$checkTopic->fetchColumn()) { throw new Exception('Chủ đề ID ' . $importTopicId . ' không tồn tại.'); }
+                        // Kiểm tra chủ đề có thuộc về giáo viên đang đăng nhập không
+                        $checkTopic = $conn->prepare('SELECT topic_id FROM topics WHERE topic_id = :id AND user_id = :user_id LIMIT 1');
+                        $checkTopic->execute(['id' => $importTopicId, 'user_id' => $userId]);
+                        if (!$checkTopic->fetchColumn()) { throw new Exception('Chủ đề ID ' . $importTopicId . ' không tồn tại hoặc không thuộc quyền quản lý của bạn.'); }
 
-                        saveQuestion($conn, $importTopicId, $question, $options, $correct, $explanation, $difficulty);
+                        saveQuestion($conn, $userId, $importTopicId, $question, $options, $correct, $explanation, $difficulty);
                         $count++;
                     } catch (Throwable $e) {
                         $errors[] = 'Dòng ' . ($index + 1) . ': ' . $e->getMessage();
@@ -283,9 +297,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'impor
     }
 }
 
-$stmt = $conn->prepare("SELECT topic_id, topic_name FROM topics WHERE grade = :grade AND subject_id = :subject_id ORDER BY topic_id DESC");
-$stmt->execute(['grade' => $selected_grade, 'subject_id' => $selected_subject_id]);
+// ĐÃ SỬA: Chỉ lấy danh sách chủ đề của giáo viên đang đăng nhập
+$stmt = $conn->prepare("SELECT topic_id, topic_name FROM topics WHERE grade = :grade AND subject_id = :subject_id AND user_id = :user_id ORDER BY topic_id DESC");
+$stmt->execute(['grade' => $selected_grade, 'subject_id' => $selected_subject_id, 'user_id' => $userId]);
 $topics_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$stmt = $conn->query("SELECT q.question_id, q.content, t.grade, t.topic_name, s.subject_name FROM questions q JOIN topics t ON q.topic_id = t.topic_id LEFT JOIN subjects s ON t.subject_id = s.subject_id ORDER BY q.question_id DESC LIMIT 50");
+// ĐÃ SỬA: Chỉ lấy danh sách câu hỏi của giáo viên đang đăng nhập
+$stmt = $conn->prepare("SELECT q.question_id, q.content, t.grade, t.topic_name, s.subject_name FROM questions q JOIN topics t ON q.topic_id = t.topic_id LEFT JOIN subjects s ON t.subject_id = s.subject_id WHERE q.user_id = :user_id ORDER BY q.question_id DESC LIMIT 50");
+$stmt->execute(['user_id' => $userId]);
 $questions_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
