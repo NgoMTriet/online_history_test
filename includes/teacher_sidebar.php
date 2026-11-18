@@ -53,3 +53,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
          <a class="btn-logout" href="../api/auth.php?action=login">Đăng xuất</a>
     </div>
 </aside>
+<script>
+function etToggleSidebar() {
+  const sidebar = document.getElementById('etSidebar');
+  const overlay = document.getElementById('etOverlay');
+  if (sidebar) sidebar.classList.toggle('open');
+  if (overlay) overlay.classList.toggle('show');
+}
+</script>
