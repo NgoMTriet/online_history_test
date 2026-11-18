@@ -15,12 +15,11 @@ if (!isset($_SESSION['user_id']) || ($user_role !== 'TEACHER' && $user_role !== 
 $teacher_id = (int)($_SESSION['user_id'] ?? 0);
 $teacher_name = $_SESSION['full_name'] ?? $_SESSION['username'] ?? 'Giáo viên';
 
-// 1. XỬ LÝ XÓA ĐỀ THI (CHỈ XÓA ĐƯỢC ĐỀ CỦA CHÍNH GIÁO VIÊN NÀY)
+// 1. XỬ LÝ XÓA ĐỀ THI
 if (isset($_GET['action']) && $_GET['action'] === 'delete' && !empty($_GET['exam_id'])) {
     $delete_id = (int)$_GET['exam_id'];
 
     try {
-        // Kiểm tra xem đề thi này có đúng thuộc về $teacher_id không
         $stmt_check = $conn->prepare("SELECT exam_id FROM exam WHERE exam_id = :exam_id AND user_id = :user_id");
         $stmt_check->execute(['exam_id' => $delete_id, 'user_id' => $teacher_id]);
 
@@ -46,12 +45,18 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && !empty($_GET['exam
     exit;
 }
 
-// 2. XỬ LÝ SỬA ĐỀ THI (CHỈ SỬA ĐƯỢC ĐỀ CỦA CHÍNH GIÁO VIÊN NÀY)
+// 2. XỬ LÝ SỬA ĐỀ THI (ĐÃ BỔ SUNG CẬP NHẬT EXAM_TYPE)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit_exam') {
     $exam_id = (int)($_POST['exam_id'] ?? 0);
     $title = trim($_POST['title'] ?? '');
+    $exam_type = trim($_POST['exam_type'] ?? 'REGULAR');
     $duration = (int)($_POST['duration'] ?? 15);
     $examPassword = trim($_POST['exam_password'] ?? '');
+
+    $allowedExamTypes = ['REGULAR', 'MIDTERM_1', 'FINAL_1', 'MIDTERM_2', 'FINAL_2'];
+    if (!in_array($exam_type, $allowedExamTypes, true)) {
+        $exam_type = 'REGULAR';
+    }
 
     $startTimeRaw = trim($_POST['start_time'] ?? '');
     $startTime = !empty($startTimeRaw) ? date('Y-m-d H:i:s', strtotime($startTimeRaw)) : null;
@@ -70,6 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit_
             $stmt_update = $conn->prepare("
                 UPDATE exam
                 SET title = :title,
+                    exam_type = :exam_type,
                     duration = :duration,
                     start_time = :start_time,
                     end_time = :end_time,
@@ -79,6 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit_
 
             $stmt_update->execute([
                 'title' => $title,
+                'exam_type' => $exam_type,
                 'duration' => $duration,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
