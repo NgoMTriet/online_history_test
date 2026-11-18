@@ -1,6 +1,14 @@
 <?php
 require_once __DIR__ . '/../api/be_teacher_dashboard.php';
 include __DIR__ . '/../includes/teacher_sidebar.php';
+
+$examTypeBadges = [
+    'REGULAR'   => ['text' => '📝 Đề luyện tập',      'bg' => '#dcfce7', 'color' => '#166534'],
+    'MIDTERM_1' => ['text' => '🏆 Đề thi • Giữa kì 1', 'bg' => '#dbeafe', 'color' => '#1e40af'],
+    'FINAL_1'   => ['text' => '🏆 Đề thi • Cuối kì 1', 'bg' => '#fee2e2', 'color' => '#991b1b'],
+    'MIDTERM_2' => ['text' => '🏆 Đề thi • Giữa kì 2', 'bg' => '#fef3c7', 'color' => '#92400e'],
+    'FINAL_2'   => ['text' => '🏆 Đề thi • Cuối kì 2', 'bg' => '#f3e8ff', 'color' => '#6b21a8'],
+];
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -110,7 +118,6 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                             <th>Khối Lớp</th>
                             <th>Thời Gian</th>
                             <th>Khung Giờ Thi</th>
-                    
                             <th>Bảo Vệ</th>
                             <th>Lượt Làm</th>
                             <th>Hành Động</th>
@@ -118,28 +125,44 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                     </thead>
                     <tbody>
                         <?php if (!empty($recent_exams)): ?>
-                            <?php foreach ($recent_exams as$exam): ?>
+                            <?php foreach ($recent_exams as $exam): ?>
+                                <?php
+                                    $typeKey = $exam['exam_type'] ?? 'REGULAR';
+                                    $badgeInfo = $examTypeBadges[$typeKey] ?? $examTypeBadges['REGULAR'];
+                                ?>
                                 <tr>
                                     <td>#<?= $exam['exam_id'] ?></td>
                                     <td>
-    <strong><?= htmlspecialchars($exam['title']) ?></strong>
-    <?php if (!empty($exam['topic_names'])): ?>
-        <div style="font-size: 13px; color: #64748b; margin-top: 4px; font-weight: normal;">
-            📖 Chủ đề: <?= htmlspecialchars($exam['topic_names']) ?>
-        </div>
-    <?php endif; ?>
-</td>
-<td>
-    <span class="badge-grade">
-        <?= !empty($exam['subject_name']) ? htmlspecialchars($exam['subject_name']) . ' - ' : '' ?>Khối <?= $exam['grade'] ?>
-    </span>
-</td>
+                                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                            <strong><?= htmlspecialchars($exam['title']) ?></strong>
+                                            <span style="
+                                                background-color: <?= $badgeInfo['bg'] ?>;
+                                                color: <?= $badgeInfo['color'] ?>;
+                                                padding: 3px 10px;
+                                                border-radius: 999px;
+                                                font-size: 12px;
+                                                font-weight: 600;
+                                                white-space: nowrap;
+                                            ">
+                                                <?= $badgeInfo['text'] ?>
+                                            </span>
+                                        </div>
+                                        <?php if (!empty($exam['topic_names'])): ?>
+                                            <div style="font-size: 13px; color: #64748b; margin-top: 4px; font-weight: normal;">
+                                                📖 Chủ đề: <?= htmlspecialchars($exam['topic_names']) ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <span class="badge-grade">
+                                            <?= !empty($exam['subject_name']) ? htmlspecialchars($exam['subject_name']) . ' - ' : '' ?>Khối <?= $exam['grade'] ?>
+                                        </span>
+                                    </td>
                                     <td>⏱️ <?= $exam['duration'] ?> phút</td>
                                     <td style="font-size: 14px; color: var(--muted);">
                                         📅 Mở: <?= !empty($exam['start_time']) ? date('d/m/Y H:i', strtotime($exam['start_time'])) : 'Ngay lập tức' ?><br>
                                         🛑 Đóng: <?= !empty($exam['end_time']) ? date('d/m/Y H:i', strtotime($exam['end_time'])) : 'Không giới hạn' ?>
                                     </td>
-                                    
                                     <td>
                                         <?php if (!empty($exam['exam_password'])): ?>
                                             <span class="badge-lock">🔒 Mật khẩu</span>
@@ -157,7 +180,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="9" style="text-align: center; color: var(--muted); padding: 30px;">
+                                <td colspan="8" style="text-align: center; color: var(--muted); padding: 30px;">
                                     Chưa có đề thi nào được tạo. Hãy nhấn "Tạo đề thi mới" để bắt đầu!
                                 </td>
                             </tr>
@@ -190,7 +213,16 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                             <label for="edit_duration">Thời gian làm bài (phút)</label>
                             <input type="number" id="edit_duration" name="duration" min="1" max="300" required>
                         </div>
-                        
+                        <div class="form-group">
+                            <label for="edit_exam_type">Kỳ thi / Loại đề</label>
+                            <select id="edit_exam_type" name="exam_type">
+                                <option value="REGULAR">📝 Đề luyện tập / Thường xuyên</option>
+                                <option value="MIDTERM_1">🏆 Đề thi • Giữa kì 1</option>
+                                <option value="FINAL_1">🏆 Đề thi • Cuối kì 1</option>
+                                <option value="MIDTERM_2">🏆 Đề thi • Giữa kì 2</option>
+                                <option value="FINAL_2">🏆 Đề thi • Cuối kì 2</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="grid-2">
@@ -266,6 +298,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
         document.getElementById('edit_exam_id').value = exam.exam_id;
         document.getElementById('edit_title').value = exam.title;
         document.getElementById('edit_duration').value = exam.duration;
+        document.getElementById('edit_exam_type').value = exam.exam_type || 'REGULAR';
         document.getElementById('edit_password').value = exam.exam_password || '';
         document.getElementById('edit_start_time').value = exam.start_time ? formatDateTimeLocal(exam.start_time) : '';
         document.getElementById('edit_end_time').value = exam.end_time ? formatDateTimeLocal(exam.end_time) : '';
