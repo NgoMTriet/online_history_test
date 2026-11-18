@@ -774,11 +774,18 @@ select {
   font-weight: 700;
 }
 .exam-card h3 {
-  min-height: 45px;
-  margin-bottom: 12px;
+  min-height: unset;
+  margin-bottom: 6px;
   color: #1c3c63;
   font-size: 15px;
   font-weight: 800;
+  line-height: 1.45;
+}
+.exam-topic {
+  margin-bottom: 12px;
+  color: #4b688a;
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1.45;
 }
 .exam-meta {
