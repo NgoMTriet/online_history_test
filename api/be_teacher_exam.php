@@ -11,6 +11,16 @@ require_once __DIR__ . '/../config/database.php';
 // LẤY USER_ID CỦA GIÁO VIÊN ĐANG ĐĂNG NHẬP Ở ĐẦU FILE ĐỂ DÙNG CHO TOÀN BỘ TRANG
 $userId = (int)($_SESSION['user_id'] ?? 0);
 
+// DANH SÁCH LOẠI ĐỀ / KỲ THI CHUẨN BẬC THCS
+$examTypesMap = [
+    'PRACTICE'  => 'Luyện tập / Kiểm tra 15 phút',
+    'MIDTERM_1' => 'Giữa kì 1',
+    'FINAL_1'   => 'Cuối kì 1',
+    'MIDTERM_2' => 'Giữa kì 2',
+    'FINAL_2'   => 'Cuối kì 2',
+    'GRADE_10'  => 'Ôn thi vào lớp 10',
+];
+
 $message = '';
 $messageType = '';
 
@@ -19,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     $grade = (int)($_POST['grade'] ?? 9);
     $duration = (int)($_POST['duration'] ?? 15);
     $subjectId = (int)($_POST['subject_id'] ?? 0);
+    $examType = trim($_POST['exam_type'] ?? 'PRACTICE');
     $examPassword = trim($_POST['exam_password'] ?? '');
     $mode = $_POST['create_mode'] ?? 'manual';
 
@@ -60,6 +71,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     } elseif (!$subjectValid) {
         $message = 'Vui lòng chọn môn học hợp lệ cho khối lớp này.';
         $messageType = 'danger';
+    } elseif (!array_key_exists($examType, $examTypesMap)) {
+        $message = 'Loại đề / kỳ thi không hợp lệ.';
+        $messageType = 'danger';
+    } elseif ($examType === 'GRADE_10' && $grade !== 9) {
+        $message = 'Mục "Ôn thi vào lớp 10" chỉ áp dụng cho Khối lớp 9.';
+        $messageType = 'danger';
     } elseif ($duration < 1 || $duration > 300) {
         $message = 'Thời gian làm bài phải từ 1 đến 300 phút.';
         $messageType = 'danger';
@@ -85,7 +102,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
 
                 if (count($selectedQuestionIds) > 0) {
                     $placeholders = implode(',', array_fill(0, count($selectedQuestionIds), '?'));
-                    // ĐÃ THÊM: AND q.user_id = ? để chỉ lấy câu hỏi của chính giáo viên này
                     $stmtCheck = $conn->prepare(
                         "SELECT q.question_id
                          FROM questions q
@@ -118,7 +134,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
                 foreach ($levelsMap as $level => $count) {
                     if ($count <= 0) continue;
 
-                    // ĐÃ THÊM: AND q.user_id = :user_id để chỉ bốc ngẫu nhiên câu hỏi của giáo viên này
                     $sql = "SELECT q.question_id
                             FROM questions q
                             JOIN topics t ON q.topic_id = t.topic_id
@@ -158,14 +173,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
 
             $stmtExam = $conn->prepare(
                 "INSERT INTO exam
-                 (title, grade, subject_id, duration, start_time, end_time, exam_password, total_questions, is_randomized, user_id)
-                 VALUES (:title, :grade, :subject_id, :duration, :start_time, :end_time, :exam_password, :total_questions, :is_randomized, :user_id)"
+                 (title, grade, subject_id, exam_type, duration, start_time, end_time, exam_password, total_questions, is_randomized, user_id)
+                 VALUES (:title, :grade, :subject_id, :exam_type, :duration, :start_time, :end_time, :exam_password, :total_questions, :is_randomized, :user_id)"
             );
 
             $stmtExam->execute([
                 'title'           => $title,
                 'grade'           => $grade,
                 'subject_id'      => $subjectId,
+                'exam_type'       => $examType,
                 'duration'        => $duration,
                 'start_time'      => $startTime,
                 'end_time'        => $endTime,
@@ -195,7 +211,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     }
 }
 
-// ĐÃ SỬA: Chỉ lấy danh sách chủ đề của giáo viên đang đăng nhập
 $stmtTopics = $conn->prepare("SELECT topic_id, topic_name, grade, subject_id FROM topics WHERE user_id = :user_id ORDER BY grade ASC, topic_name ASC");
 $stmtTopics->execute(['user_id' => $userId]);
 $allTopics = $stmtTopics->fetchAll(PDO::FETCH_ASSOC);
@@ -203,7 +218,6 @@ $allTopics = $stmtTopics->fetchAll(PDO::FETCH_ASSOC);
 $stmtSubjects = $conn->query("SELECT subject_id, subject_name, grade FROM subjects ORDER BY grade ASC, subject_name ASC");
 $allSubjects = $stmtSubjects->fetchAll(PDO::FETCH_ASSOC);
 
-// ĐÃ SỬA: Chỉ lấy danh sách câu hỏi của giáo viên đang đăng nhập
 $stmtQuestions = $conn->prepare(
     "SELECT q.question_id, q.content, q.difficulty, t.grade, t.topic_name, t.topic_id, t.subject_id
      FROM questions q
