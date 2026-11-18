@@ -6,23 +6,25 @@
 @import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap");
 
 :root {
-  --pf-ink: #1c2233;          /* chữ chính */
-  --pf-muted: #5f6678;        /* chữ phụ */
-  --pf-line: #e3e6ee;         /* đường viền */
-  --pf-bg: #f4f5f9;           /* nền trang */
-  --pf-surface: #ffffff;      /* nền thẻ */
-  --pf-indigo: #232f6b;       /* màu chàm — màu chủ đạo */
+  --pf-ink: #1c2233; /* chữ chính */
+  --pf-muted: #5f6678; /* chữ phụ */
+  --pf-line: #e3e6ee; /* đường viền */
+  --pf-bg: #f4f5f9; /* nền trang */
+  --pf-surface: #ffffff; /* nền thẻ */
+  --pf-indigo: #232f6b; /* màu chàm — màu chủ đạo */
   --pf-indigo-dark: #19235a;
   --pf-indigo-soft: #e9ecf8;
-  --pf-seal: #b3261e;         /* đỏ son — con dấu & cảnh báo/không đạt */
-  --pf-ok: #1d7a4b;           /* xanh lá — đạt / đúng */
+  --pf-seal: #b3261e; /* đỏ son — con dấu & cảnh báo/không đạt */
+  --pf-ok: #1d7a4b; /* xanh lá — đạt / đúng */
   --pf-ok-soft: #e6f4ec;
   --pf-err-soft: #fdecea;
   --pf-warning-soft: #fff8eb;
   --pf-gold: #d97706;
   --pf-radius: 14px;
   --pf-radius-sm: 9px;
-  --pf-font: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --pf-font:
+    "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, Arial,
+    sans-serif;
   --pf-serif: var(--pf-font);
 }
 
@@ -35,6 +37,7 @@ body {
   line-height: 1.55;
   padding-bottom: 56px;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button,
@@ -61,7 +64,7 @@ textarea {
 }
 
 /* ==========================================================================
-   Khung nội dung chung (khớp chuẩn .pf-wrap & .about-hero-content)
+   Khung nội dung chung
    ========================================================================== */
 .wrap {
   width: 100%;
@@ -283,7 +286,9 @@ textarea {
   font-size: 0.9rem;
   text-decoration: none;
   white-space: nowrap;
-  transition: background-color 0.15s, border-color 0.15s;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
 }
 
 .wrap .btn-detail:hover {
@@ -456,9 +461,15 @@ textarea {
   font-weight: 500;
 }
 
-.wrap .summary-item.correct strong { color: var(--pf-ok); }
-.wrap .summary-item.wrong strong { color: var(--pf-seal); }
-.wrap .summary-item.blank strong { color: var(--pf-muted); }
+.wrap .summary-item.correct strong {
+  color: var(--pf-ok);
+}
+.wrap .summary-item.wrong strong {
+  color: var(--pf-seal);
+}
+.wrap .summary-item.blank strong {
+  color: var(--pf-muted);
+}
 
 .wrap .section-title {
   margin: 0 0 16px;
@@ -510,9 +521,18 @@ textarea {
   flex-shrink: 0;
 }
 
-.wrap .state-correct { background: var(--pf-ok-soft); color: var(--pf-ok); }
-.wrap .state-wrong { background: var(--pf-err-soft); color: var(--pf-seal); }
-.wrap .state-blank { background: var(--pf-bg); color: var(--pf-muted); }
+.wrap .state-correct {
+  background: var(--pf-ok-soft);
+  color: var(--pf-ok);
+}
+.wrap .state-wrong {
+  background: var(--pf-err-soft);
+  color: var(--pf-seal);
+}
+.wrap .state-blank {
+  background: var(--pf-bg);
+  color: var(--pf-muted);
+}
 
 .wrap .options {
   display: flex;
@@ -598,12 +618,25 @@ textarea {
    Responsive
    ========================================================================== */
 @media (max-width: 1040px) {
-  .wrap { padding: 24px 16px 0; }
-  .wrap .stats { grid-template-columns: repeat(2, 1fr); }
-  .wrap .summary { grid-template-columns: 1fr; }
-  .wrap .detail-head { padding: 20px; }
-  .wrap .question-card { padding: 18px; }
-  .wrap .question-top { flex-direction: column; gap: 8px; }
+  .wrap {
+    padding: 24px 16px 0;
+  }
+  .wrap .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .wrap .summary {
+    grid-template-columns: 1fr;
+  }
+  .wrap .detail-head {
+    padding: 20px;
+  }
+  .wrap .question-card {
+    padding: 18px;
+  }
+  .wrap .question-top {
+    flex-direction: column;
+    gap: 8px;
+  }
 
   .wrap .panel table,
   .wrap .panel tbody,
