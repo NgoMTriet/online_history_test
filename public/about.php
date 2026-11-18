@@ -1,19 +1,29 @@
 
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giới thiệu - Hệ thống Ôn luyện Trực tuyến</title>
+
+    <link rel="stylesheet" href="../assets/css/about.css?v=3">
+</head>
+<body>
+
 <?php include __DIR__ . '/../includes/menu.php'; ?>
 
-<link rel="stylesheet" href="../assets/css/about.css?v=2">
 <main class="about-page">
     <section class="about-hero">
         <div class="about-hero-content">
-            <span class="about-label">KHÁM PHÁ LỊCH SỬ</span>
-            <h1>Giới thiệu về SuViet</h1>
+            <span class="about-label">LUYỆN THI ĐA MÔN HỌC</span>
+            <h1>Giới thiệu về Hệ thống Ôn luyện Trực tuyến</h1>
             <p>
-                Học Lịch sử theo cách chủ động hơn thông qua những bài thi
-                trắc nghiệm trực tuyến, giúp bạn củng cố kiến thức và khám
-                phá những dấu mốc đáng nhớ của dân tộc Việt Nam.
+                Chinh phục kiến thức các môn học theo cách chủ động hơn thông qua 
+                kho đề thi trắc nghiệm trực tuyến đa dạng (GDCD, Địa lý, Tin học, Lịch sử...), 
+                giúp bạn củng cố kiến thức vững vàng và tự tin đạt điểm cao trong mọi kỳ thi.
             </p>
             <a href="../index.php" class="about-button">
-                Bắt đầu ôn tập
+                Bắt đầu luyện thi ngay
             </a>
         </div>
     </section>
@@ -21,10 +31,10 @@
     <section class="about-section">
         <h2>Về chúng tôi</h2>
         <p>
-            TestSuViet.com là website hỗ trợ học tập và ôn luyện môn Lịch sử
-            dành cho học sinh trung học cơ sở (THCS). Website hướng đến việc
-            tạo ra môi trường học tập trực tuyến thuận tiện, giúp học sinh
-            kiểm tra kiến thức, rèn luyện khả năng ghi nhớ và chủ động ôn tập.
+            Đây là nền tảng hỗ trợ học tập, ôn luyện và thi thử trực tuyến đa môn học 
+            dành cho học sinh trung học cơ sở (THCS). Website hướng đến việc tạo ra 
+            một môi trường học tập hiện đại, thuận tiện, giúp học sinh hệ thống hóa kiến thức, 
+            rèn luyện kỹ năng làm bài trắc nghiệm và chủ động đánh giá năng lực bản thân.
         </p>
     </section>
 
@@ -34,19 +44,19 @@
         <div class="about-grid">
             <div class="about-card">
                 <div class="about-icon">📚</div>
-                <h3>Ôn tập kiến thức</h3>
+                <h3>Ngân hàng đề đa môn</h3>
                 <p>
-                    Hỗ trợ học sinh củng cố kiến thức lịch sử thông qua
-                    các câu hỏi trắc nghiệm.
+                    Hỗ trợ học sinh ôn tập toàn diện nhiều môn học như Giáo dục công dân, 
+                    Địa lý, Tin học, Lịch sử... thông qua hệ thống câu hỏi bám sát chương trình.
                 </p>
             </div>
 
             <div class="about-card">
                 <div class="about-icon">🎯</div>
-                <h3>Chủ động học tập</h3>
+                <h3>Tự đánh giá & Cải thiện</h3>
                 <p>
-                    Giúp học sinh tự luyện tập và nhận biết những nội dung
-                    cần tiếp tục ôn luyện.
+                    Giúp học sinh làm quen với áp lực phòng thi, chấm điểm tự động và 
+                    nhận biết ngay những lỗ hổng kiến thức cần tiếp tục ôn luyện.
                 </p>
             </div>
 
@@ -54,8 +64,8 @@
                 <div class="about-icon">📝</div>
                 <h3>Hỗ trợ giảng dạy</h3>
                 <p>
-                    Cung cấp công cụ hỗ trợ giáo viên quản lý câu hỏi
-                    và xây dựng đề thi.
+                    Cung cấp công cụ trực quan hỗ trợ giáo viên dễ dàng quản lý ngân hàng 
+                    câu hỏi, tạo đề thi theo từng môn và theo dõi kết quả học tập.
                 </p>
             </div>
         </div>
@@ -64,13 +74,17 @@
     <section class="about-section about-audience">
         <h2>Dành cho ai?</h2>
         <p>
-            Website phục vụ học sinh có nhu cầu ôn tập, giáo viên cần công cụ
-            hỗ trợ xây dựng đề thi và quản trị viên phụ trách quản lý hệ thống.
+            Hệ thống phục vụ học sinh THCS có nhu cầu ôn tập và thi thử các môn học, 
+            giáo viên bộ môn cần công cụ xây dựng đề kiểm tra nhanh chóng, cùng quản trị viên 
+            vận hành và phát triển nội dung giáo dục.
         </p>
     </section>
 
     <section class="about-cta">
-        <h2>Cùng khám phá lịch sử Việt Nam!</h2>
-        <p>Mỗi câu hỏi là một cơ hội để hiểu thêm về quá khứ dân tộc.</p>
+        <h2>Sẵn sàng chinh phục mọi môn học!</h2>
+        <p>Mỗi bài luyện tập là một bước tiến vững chắc trên hành trình tri thức của bạn.</p>
     </section>
 </main>
+
+</body>
+</html>

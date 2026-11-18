@@ -17,7 +17,7 @@ $isTeacher = $isLoggedIn
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SuViet.com</title>
+    <title>EXAM365.com</title>
     <link rel="stylesheet" href="assets/css/header.css?v=2.3">
 </head>
 <body>
@@ -28,7 +28,7 @@ $isTeacher = $isLoggedIn
         <!-- LOGO -->
         <div class="logo">           
             <a href="index.php">
-                <img src="image/logo.png" alt="Logo SuViet">
+                <img src="image/logo.png" alt="Logo EXAM365">
             </a>
         </div>
         <!-- KHU VỰC MENU NÚT BẤM -->
@@ -50,22 +50,16 @@ $isTeacher = $isLoggedIn
                     </div>
                 <?php endif; ?>
 
-                <a href="index.php">🏠 Trang chủ</a>
-                <a href="about.php">ℹ️ Giới thiệu</a>
-
-                <?php if ($isTeacher): ?>
-                    <a href ="teacher_dashboard.php">Trang chủ giáo viên</a>
-                    <a href="teacher_question.php">📚 Ngân hàng câu hỏi</a>
-                    <a href="teacher_exam.php">📝 Tạo đề thi</a>
-                <?php endif; ?>
+                <a href="index.php">Trang chủ</a>
+                <a href="about.php">Giới thiệu</a>
 
                 <?php if ($isLoggedIn): ?>
-                    <a href="history.php">📜 Lịch sử làm bài</a>
-                    <a href="profile.php">⚙️ Trang cá nhân</a>
-                    <a href="../api/auth.php?action=logout" class="logout-link">🚪 Đăng xuất</a>
+                    <a href="history.php">Lịch sử làm bài</a>
+                    <a href="profile.php">Trang cá nhân</a>
+                    <a href="../api/auth.php?action=logout" class="logout-link">Đăng xuất</a>
                 <?php else: ?>
-                    <a href="login.php">🔑 Đăng nhập</a>
-                    <a href="register.php">📝 Đăng ký</a>
+                    <a href="login.php">Đăng nhập</a>
+                    <a href="register.php">Đăng ký</a>
                 <?php endif; ?>
             </nav>
         </div>

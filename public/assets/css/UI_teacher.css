@@ -440,11 +440,6 @@ button {
 }
 
 .page-title p,
-.subtitle {
-  color: var(--muted);
-  font-size: 14px;
-  margin-top: 4px;
-}
 
 .title-icon,
 .header-icon {
@@ -868,7 +863,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 14px;
+  font-size: 10px;
 }
 
 th {

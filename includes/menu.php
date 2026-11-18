@@ -9,7 +9,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 <style>
 /* ==========================================================================
-   Thanh điều hướng chung (TestSuViet - Định dạng chuẩn theo profile.css)
+   Thanh điều hướng chung - Định dạng chuẩn theo profile.css)
    ========================================================================== */
 .st-topbar {
   position: sticky;
@@ -107,7 +107,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <header class="st-topbar">
     <div class="st-topbar-inner">
         <div class="st-left">
-            <a class="st-brand" href="index.php">SuViet</a>
+            <a class="st-brand" href="index.php">EXAM365</a>
 
             <nav class="st-nav" aria-label="Menu chính">
                 <a href="index.php" class="<?= ($current_page === 'index.php') ? 'active' : '' ?>">Trang chủ</a>

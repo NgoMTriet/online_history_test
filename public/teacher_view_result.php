@@ -7,7 +7,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kết quả làm bài thi của học sinh | TestSuViet</title>
+    <title>Kết quả làm bài thi của học sinh | EXAM365</title>
     <link rel="stylesheet" href="/../assets/css/UI_teacher.css">
 </head>
 <body>
@@ -24,19 +24,19 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
 <div class="container">
     <header class="page-header">
         <div class="page-title">
-            <h2>📊 Kết quả làm bài thi của học sinh</h2>
-            <p>Theo dõi điểm số, ngày sinh và thời gian nộp bài chi tiết.</p>
+            <div class="title-icon">📊</div>
+            <h2>Kết quả làm bài thi của học sinh</h2>
         </div>
     </header>
 
     <div class="card">
         <form method="GET" class="filter-form">
             <div class="form-group">
-                <label for="exam_id">Lọc theo Đề thi</label>
+                <label for="exam_id">Lọc theo Đề thi của tôi</label>
                 <select name="exam_id" id="exam_id">
-                    <option value="0">-- Tất cả đề thi --</option>
+                    <option value="0">-- Tất cả đề thi của tôi --</option>
                     <?php foreach ($exam_list as $e): ?>
-                        <option value="<?= $e['exam_id'] ?>" <?= $selected_exam_id === (int)$e['exam_id'] ? 'selected' : '' ?>>
+                        <option value="<?= (int)$e['exam_id'] ?>" <?= $selected_exam_id === (int)$e['exam_id'] ? 'selected' : '' ?>>
                             Lớp <?= htmlspecialchars($e['grade']) ?> - <?= htmlspecialchars($e['title']) ?>
                         </option>
                     <?php endforeach; ?>
@@ -63,6 +63,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                         <th>STT</th>
                         <th>Họ và Tên</th>
                         <th>Lớp</th>
+                        <th>Đề thi</th>
                         <th>Ngày sinh</th>
                         <th>Điểm số</th>
                         <th>Rời bài</th>
@@ -82,6 +83,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                                 <td><?= $index + 1 ?></td>
                                 <td><strong><?= htmlspecialchars($row['full_name']) ?></strong></td>
                                 <td><span class="badge badge-class"><?= htmlspecialchars($row['class_name'] ?? 'N/A') ?></span></td>
+                                <td>Lớp <?= htmlspecialchars($row['grade']) ?> - <?= htmlspecialchars($row['exam_title']) ?></td>
                                 <td><?= htmlspecialchars($dob) ?></td>
                                 <td><span class="score-box <?= $score_class ?>"><?= number_format($score, 1) ?></span></td>
                                 <td>
@@ -96,10 +98,10 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="7">
+                            <td colspan="8">
                                 <div class="empty-state">
                                     <span>📭</span>
-                                    <p>Chưa có lượt làm bài nào phù hợp với bộ lọc.</p>
+                                    <p>Chưa có lượt làm bài nào cho các đề thi của bạn.</p>
                                 </div>
                             </td>
                         </tr>
@@ -111,7 +113,6 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
 </div>
     </main>
   </div>
-</div>
 <script>
 function etToggleSidebar() {
   const sidebar = document.getElementById('etSidebar');

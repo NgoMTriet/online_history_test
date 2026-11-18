@@ -7,8 +7,8 @@
         }
         .logo img {
            /* Kích thước logo đã được thu nhỏ lại */
-           width: 150px;  /* Chiều rộng mới */
-           height: 100px; /* Chiều cao mới */
+           width: 200px;  /* Chiều rộng mới */
+           height: 150px; /* Chiều cao mới */
            object-fit: contain;
            display: block;
 }

@@ -4,29 +4,30 @@ date_default_timezone_set('Asia/Ho_Chi_Minh');
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/exam_attempts.php';
 
-// Lấy ID đề thi từ URL
 $exam_id = filter_input(INPUT_GET, 'exam_id', FILTER_VALIDATE_INT);
 
 if (!$exam_id || $exam_id <= 0) {
     die('Đề thi không hợp lệ. Vui lòng quay lại danh sách đề thi.');
 }
 
-// 🔄 XÓA CỜ HOÀN THÀNH KHI VÀO TRANG GIỚI THIỆU ĐỂ SẴN SÀNG CHO LƯỢT THI MỚI
 if (isset($_SESSION['exam_completed_' . $exam_id])) {
     unset($_SESSION['exam_completed_' . $exam_id]);
 }
 
-// Lấy thông tin đề thi
 $stmt = $conn->prepare("
     SELECT 
         exam_id,
         title,
         grade,
+        visibility,
+        school_name,
+        target_classes,
         duration,
         total_questions,
         max_attempts,
         start_time,
-        end_time
+        end_time,
+        user_id
     FROM exam
     WHERE exam_id = :exam_id
     LIMIT 1
@@ -39,16 +40,60 @@ if (!$exam) {
     die('Không tìm thấy đề thi.');
 }
 
-// Lấy số lượt làm bài tối đa
+// Kiểm tra quyền truy cập đề thi theo phạm vi (PUBLIC / SCHOOL / GRADE / CLASS)
+$examVis   = !empty($exam['visibility']) ? $exam['visibility'] : 'PUBLIC';
+$uidCheck  = (int)($_SESSION['user_id'] ?? 0);
+$roleCheck = strtoupper((string)($_SESSION['role'] ?? ''));
+
+if ($examVis !== 'PUBLIC' && $roleCheck !== 'ADMIN' && (int)$exam['user_id'] !== $uidCheck) {
+    if ($uidCheck <= 0) {
+        header('Location: login.php');
+        exit;
+    }
+
+    $stmtUserScope = $conn->prepare("SELECT school_name, class_name FROM users WHERE user_id = ? LIMIT 1");
+    $stmtUserScope->execute([$uidCheck]);
+    $uScope = $stmtUserScope->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $uSchool = mb_strtolower(trim((string)($uScope['school_name'] ?? '')), 'UTF-8');
+    $uClass  = mb_strtolower(preg_replace('/\s+/', '', preg_replace('/^lớp\s*/iu', '', trim((string)($uScope['class_name'] ?? '')))), 'UTF-8');
+    $eSchool = mb_strtolower(trim((string)($exam['school_name'] ?? '')), 'UTF-8');
+
+    $studentGrade = 0;
+    if (preg_match('/^([6-9])/', $uClass, $m)) {
+        $studentGrade = (int)$m[1];
+    }
+
+    $schoolOk = ($uSchool === '' || $eSchool === '' || $uSchool === $eSchool);
+
+    $canAccess = false;
+    if ($examVis === 'SCHOOL') {
+        $canAccess = ($uSchool !== '' && $uSchool === $eSchool);
+    } elseif ($examVis === 'GRADE') {
+        $canAccess = ($studentGrade > 0 && $studentGrade === (int)$exam['grade'] && $schoolOk);
+    } elseif ($examVis === 'CLASS') {
+        $targetList = array_map(
+            fn($c) => mb_strtolower(preg_replace('/\s+/', '', preg_replace('/^lớp\s*/iu', '', trim($c))), 'UTF-8'),
+            explode(',', (string)($exam['target_classes'] ?? ''))
+        );
+        $canAccess = ($uClass !== '' && in_array($uClass, $targetList, true) && $schoolOk);
+    }
+
+    if (!$canAccess) {
+        http_response_code(403);
+        die('<div style="padding:24px;font-family:sans-serif;color:#991b1b;background:#fee2e2;border-radius:8px;margin:20px;">
+                ⛔ Bạn không thuộc trường, khối hoặc lớp được phép tham gia đề thi này.
+             </div>');
+    }
+}
+
 $maxAttempts = (int)($exam['max_attempts'] ?? 0);
 
-// Đếm số lượt học sinh hiện tại đã làm đề thi này
 $userId = $_SESSION['user_id'] ?? null;
 $attemptCount = 0;
 $hasInProgress = false;
 
 if ($userId !== null) {
-    // Đóng các lượt làm dở đã quá hạn, rồi kiểm tra học viên có lượt đang làm không.
     close_expired_attempts($conn);
     $hasInProgress = find_in_progress_attempt($conn, (int) $userId, $exam_id) !== null;
 
@@ -67,12 +112,10 @@ if ($userId !== null) {
     $attemptCount = (int) $stmtAttempts->fetchColumn();
 }
 
-// Tạo nội dung hiển thị
 $attemptsText = $maxAttempts === 0
     ? $attemptCount . ' lượt đã làm (Không giới hạn)'
     : $attemptCount . '/' . $maxAttempts . ' lượt';
 
-// Đếm tổng số lượt làm bài của đề thi
 $stmtAttempts = $conn->prepare("
     SELECT COUNT(*)
     FROM exam_results
@@ -85,7 +128,6 @@ $stmtAttempts->execute([
 
 $totalAttempts = (int) $stmtAttempts->fetchColumn();
 
-// Đếm số câu hỏi thực tế trong đề
 $stmtCount = $conn->prepare("
     SELECT COUNT(*)
     FROM exam_questions
@@ -97,34 +139,25 @@ $questionCount = (int) $stmtCount->fetchColumn();
 $title = $exam['title'] ?? 'Bài thi Lịch sử';
 $grade = $exam['grade'] ?? '';
 $duration = max(1, (int) ($exam['duration'] ?? 1));
-// Lấy thời gian hiện tại theo múi giờ Việt Nam
+
 $now = new DateTimeImmutable('now', new DateTimeZone('Asia/Ho_Chi_Minh'));
 
-// Lấy thời gian mở đề
 $startTime = !empty($exam['start_time'])
     ? new DateTimeImmutable($exam['start_time'], new DateTimeZone('Asia/Ho_Chi_Minh'))
     : null;
 
-// Lấy thời gian khóa đề
 $endTime = !empty($exam['end_time'])
     ? new DateTimeImmutable($exam['end_time'], new DateTimeZone('Asia/Ho_Chi_Minh'))
     : null;
 
-// Kiểm tra trạng thái đề thi
 $examNotOpened = $startTime !== null && $now < $startTime;
-
 $examClosed = $endTime !== null && $now >= $endTime;
-
-// Kiểm tra số lượt làm bài
 $hasAttemptsLeft = $maxAttempts === 0 || $attemptCount < $maxAttempts;
 
-// Kiểm tra học sinh có được bắt đầu thi không
-// Lượt đang làm dở được tiếp tục dù đề đã khóa hoặc đã dùng hết lượt.
 $canStartExam = !$examNotOpened
     && $questionCount > 0
     && ($hasInProgress || (!$examClosed && $hasAttemptsLeft));
 
-// Định dạng thời gian hiển thị
 $startTimeText = $startTime
     ? $startTime->format('d/m/Y H:i')
     : 'Không thiết lập';
@@ -132,6 +165,7 @@ $startTimeText = $startTime
 $endTimeText = $endTime
     ? $endTime->format('d/m/Y H:i')
     : 'Không thiết lập';
+
 $h = static fn($value) => htmlspecialchars(
     (string) $value,
     ENT_QUOTES,
@@ -155,8 +189,8 @@ $h = static fn($value) => htmlspecialchars(
 <body class="ex-body">
 <header class="ex-topbar">
     <div class="ex-topbar-inner">
-        <div class="ex-brand"><span>SuViet</span>.com</div>
-        <small class="ex-tagline">Hệ thống thi trắc nghiệm Lịch sử THCS</small>
+        <div class="ex-brand"><span>EXAM365</span>.com</div>
+        <small class="ex-tagline">Hệ thống thi trắc nghiệm THCS</small>
     </div>
 </header>
 

@@ -7,7 +7,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản lý ngân hàng câu hỏi | TestSuViet</title>
+    <title>Quản lý ngân hàng câu hỏi | EXAM365</title>
     <link rel="stylesheet" href="/../assets/css/UI_teacher.css">
     <script>
         function onGradeChange(select) {
@@ -31,12 +31,11 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
     </header>
     <main class="et-content">
 <div class="container">
-    <header class="header-bar">
-        <div class="header-title">
-            <div class="header-icon">📚</div>
+    <header class="page-header">
+        <div class="page-title">
+            <div class="title-icon">📚</div>
             <div>
                 <h1>Ngân hàng câu hỏi</h1>
-                <p class="subtitle">Quản lý chủ đề, nhập câu hỏi và đáp án môn Lịch sử THCS</p>
             </div>
         </div>
     </header>

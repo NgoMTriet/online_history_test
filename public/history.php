@@ -1,18 +1,19 @@
 <?php
 require_once __DIR__ . '/../api/be_history.php';
-include __DIR__ . '/../includes/menu.php';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lịch sử làm bài - TestSuViet</title>
+    <title>Lịch sử làm bài - Hệ thống Ôn luyện Trực tuyến</title>
 
-    <link rel="stylesheet" href="/../assets/css/history.css">
+    <link rel="stylesheet" href="../assets/css/history.css?v=2">
 </head>
 <body>
 
+<?php include __DIR__ . '/../includes/menu.php'; ?>
+<div class="container">
 <main class="wrap">
 
 <?php if ($attempt_detail): ?>
@@ -21,6 +22,8 @@ include __DIR__ . '/../includes/menu.php';
         $detail_pass = $detail_score >= 5;
         $ring_percent = (int)round(min(10, max(0, $detail_score)) * 10);
     ?>
+
+    <a href="history.php" class="back-link">← Quay lại danh sách lịch sử</a>
 
     <section class="detail-head">
         <div>
@@ -111,7 +114,7 @@ include __DIR__ . '/../includes/menu.php';
         <h1>Lịch sử làm bài</h1>
         <p>
             <?php if ($is_teacher): ?>
-                Chế độ giáo viên: kết quả bài thi của tất cả học sinh.
+                Chế độ giáo viên: kết quả bài thi các môn học của tất cả học sinh.
             <?php else: ?>
                 Người thi: <strong><?= h($student_name) ?></strong>
             <?php endif; ?>
@@ -146,8 +149,8 @@ include __DIR__ . '/../includes/menu.php';
             <div class="empty">
                 <strong><?= $is_teacher ? 'Chưa có học sinh nào nộp bài' : 'Bạn chưa thực hiện bài thi nào' ?></strong>
                 <?php if (!$is_teacher): ?>
-                    Hãy chọn một đề thi và làm bài đầu tiên của bạn.<br>
-                    <a class="btn-primary" href="index.php">Làm bài ngay</a>
+                    Hãy chọn một môn học và hoàn thành bài luyện tập đầu tiên của bạn.<br>
+                    <a class="btn-primary" href="../index.php">Làm bài ngay</a>
                 <?php endif; ?>
             </div>
         <?php else: ?>
@@ -201,5 +204,6 @@ include __DIR__ . '/../includes/menu.php';
 <?php endif; ?>
 
 </main>
+</div>
 </body>
 </html>

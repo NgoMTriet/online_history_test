@@ -10,7 +10,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <a class="et-brand" href="teacher_dashboard.php">
             <span class="et-brand-icon">VN</span>
             <span>
-                <strong>SuVietTeacher</strong>
+                <strong>EXAM365Teacher</strong>
                 <small>Hệ thống của giáo viên</small>
             </span>
         </a>

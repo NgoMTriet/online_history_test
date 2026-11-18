@@ -1,7 +1,7 @@
-/* =========================================================
-   TESTSUVIET.COM - TRANG GIỚI THIỆU (v2)
-   Đồng bộ 100% font chữ, cỡ chữ & thiết kế theo profile.css
-   ========================================================= */
+/* ==========================================================================
+   about.css — Trang Giới thiệu
+   Đồng bộ 100% hệ thống font, cỡ chữ, màu sắc & bo góc với history.css & profile.css
+   ========================================================================== */
 
 @import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap");
 
@@ -14,22 +14,30 @@
   --pf-indigo: #232f6b;
   --pf-indigo-dark: #19235a;
   --pf-indigo-soft: #e9ecf8;
+  --pf-seal: #b3261e;
+  --pf-ok: #1d7a4b;
+  --pf-ok-soft: #e6f4ec;
   --pf-gold: #f5a623;
+  --pf-warning-soft: #fff8eb;
   --pf-radius: 14px;
   --pf-radius-sm: 9px;
-  --pf-font: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --pf-font:
+    "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, Arial,
+    sans-serif;
   --pf-serif: var(--pf-font);
-  --about-w: min(1040px, calc(100% - 48px));
 }
 
+html,
 body {
   margin: 0;
+  padding: 0;
   background: var(--pf-bg);
   color: var(--pf-ink);
   font-family: var(--pf-font);
   font-size: 16px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button,
@@ -40,15 +48,15 @@ textarea {
 }
 
 .about-page {
+  --about-w: min(1040px, calc(100% - 48px));
+
   width: 100%;
-  max-width: none;
   margin: 0;
-  padding: 0 0 56px;
+  padding: 0;
   font-family: var(--pf-font);
   background: var(--pf-bg);
   color: var(--pf-ink);
   line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
 }
 
 .about-page *,
@@ -59,26 +67,13 @@ textarea {
 
 .about-page h1,
 .about-page h2,
-.about-page h3 {
-  font-family: var(--pf-serif);
-  letter-spacing: -0.01em;
-}
-
-.about-page h1,
-.about-page h2,
 .about-page h3,
 .about-page p {
   margin: 0;
+  font-family: inherit;
 }
 
-.about-page section {
-  margin: 0;
-  padding: 0;
-  background: none;
-  border: 0;
-}
-
-/* ---------- 1. Hero Section ---------- */
+/* ---------- 1. Phần đầu trang (Hero) ---------- */
 .about-page .about-hero {
   position: relative;
   overflow: hidden;
@@ -87,7 +82,7 @@ textarea {
   background:
     repeating-radial-gradient(
       circle at 86% 50%,
-      rgba(255, 255, 255, 0.08) 0 2px,
+      rgba(255, 255, 255, 0.06) 0 2px,
       transparent 2px 46px
     ),
     linear-gradient(135deg, var(--pf-indigo-dark) 0%, var(--pf-indigo) 100%);
@@ -100,31 +95,32 @@ textarea {
 
 .about-page .about-label {
   display: inline-block;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   padding: 4px 14px;
   border: 1px solid rgba(245, 166, 35, 0.55);
   border-radius: 999px;
   color: var(--pf-gold);
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 700;
   letter-spacing: 0.08em;
 }
 
 .about-page .about-hero h1 {
   max-width: 720px;
-  margin-bottom: 16px;
-  font-size: clamp(1.75rem, 3.6vw, 2.35rem);
+  margin-bottom: 14px;
+  font-size: clamp(1.75rem, 3.6vw, 2.5rem);
   font-weight: 700;
   line-height: 1.25;
+  letter-spacing: -0.01em;
   color: #fff;
 }
 
 .about-page .about-hero p {
-  max-width: 620px;
-  margin-bottom: 28px;
+  max-width: 640px;
+  margin-bottom: 26px;
   font-size: 1rem;
-  line-height: 1.55;
-  color: var(--pf-indigo-soft);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .about-page .about-button {
@@ -135,25 +131,28 @@ textarea {
   padding: 0 24px;
   border-radius: var(--pf-radius-sm);
   background: var(--pf-gold);
-  color: #3a2500;
-  font-weight: 600;
+  color: #2b1b00;
   font-size: 0.95rem;
+  font-weight: 700;
   text-decoration: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .about-page .about-button:hover {
   background: #ffb840;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
 }
 
 .about-page .about-button:focus-visible {
-  outline: 3px solid #fff;
-  outline-offset: 3px;
+  outline: 3px solid rgba(255, 255, 255, 0.75);
+  outline-offset: 2px;
 }
 
-/* ---------- 2. Grid Nội dung ---------- */
+/* ---------- 2. Khối giới thiệu chung ---------- */
 .about-page .about-section {
   width: var(--about-w);
   margin: 48px auto 0;
@@ -170,6 +169,7 @@ textarea {
   font-size: 1.35rem;
   font-weight: 700;
   line-height: 1.3;
+  letter-spacing: -0.01em;
   color: var(--pf-indigo);
 }
 
@@ -180,7 +180,7 @@ textarea {
   left: 0;
   bottom: 0;
   width: 44px;
-  height: 4px;
+  height: 3.5px;
   border-radius: 2px;
   background: var(--pf-gold);
 }
@@ -188,11 +188,11 @@ textarea {
 .about-page .about-section p {
   max-width: 720px;
   font-size: 0.95rem;
-  line-height: 1.55;
+  line-height: 1.65;
   color: var(--pf-muted);
 }
 
-/* ---------- 3. Giá trị / Cards ---------- */
+/* ---------- 3. Thẻ giá trị ---------- */
 .about-page .about-features {
   width: var(--about-w);
   margin: 48px auto 0;
@@ -214,13 +214,16 @@ textarea {
   border: 1px solid var(--pf-line);
   border-radius: var(--pf-radius);
   box-shadow: 0 1px 2px rgba(28, 34, 51, 0.04);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .about-page .about-card:hover {
   transform: translateY(-3px);
-  border-color: #cbd2e1;
-  box-shadow: 0 8px 24px rgba(35, 47, 107, 0.08);
+  border-color: #cfd4e1;
+  box-shadow: 0 8px 20px rgba(28, 34, 51, 0.07);
 }
 
 .about-page .about-icon {
@@ -231,16 +234,16 @@ textarea {
   margin-bottom: 16px;
   border-radius: var(--pf-radius-sm);
   background: var(--pf-indigo-soft);
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1;
 }
 
 .about-page .about-card:nth-child(2) .about-icon {
-  background: #fff0df;
+  background: var(--pf-warning-soft);
 }
 
 .about-page .about-card:nth-child(3) .about-icon {
-  background: #e6f4ec;
+  background: var(--pf-ok-soft);
 }
 
 .about-page .about-card h3 {
@@ -248,12 +251,13 @@ textarea {
   font-size: 1.15rem;
   font-weight: 700;
   line-height: 1.3;
+  letter-spacing: -0.01em;
   color: var(--pf-ink);
 }
 
 .about-page .about-card p {
-  font-size: 0.95rem;
-  line-height: 1.55;
+  font-size: 0.9rem;
+  line-height: 1.6;
   color: var(--pf-muted);
 }
 
@@ -266,20 +270,26 @@ textarea {
   box-shadow: 0 1px 2px rgba(28, 34, 51, 0.04);
 }
 
-/* ---------- 5. CTA Footer ---------- */
+/* ---------- 5. Lời kêu gọi cuối trang ---------- */
 .about-page .about-cta {
   margin-top: 56px;
-  padding: 48px 24px;
+  padding: 48px 24px 52px;
   text-align: center;
   color: #fff;
-  background: linear-gradient(135deg, var(--pf-indigo) 0%, var(--pf-indigo-dark) 100%);
+  background:
+    repeating-radial-gradient(
+      circle at 14% 50%,
+      rgba(255, 255, 255, 0.05) 0 2px,
+      transparent 2px 46px
+    ),
+    linear-gradient(135deg, var(--pf-indigo) 0%, var(--pf-indigo-dark) 100%);
 }
 
 .about-page .about-cta h2 {
   margin-bottom: 8px;
-  font-size: 1.45rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  line-height: 1.3;
+  letter-spacing: -0.01em;
   color: #fff;
 }
 
@@ -287,52 +297,54 @@ textarea {
   max-width: 560px;
   margin: 0 auto;
   font-size: 0.95rem;
-  line-height: 1.55;
-  color: var(--pf-indigo-soft);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 860px) {
+@media (max-width: 1040px) {
   .about-page {
     --about-w: min(1040px, calc(100% - 32px));
   }
+}
+
+@media (max-width: 860px) {
   .about-page .about-hero {
-    padding: 40px 0 48px;
+    padding: 44px 0 52px;
   }
+
   .about-page .about-section {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 10px;
     margin-top: 36px;
   }
+
   .about-page .about-features {
     margin-top: 36px;
   }
+
   .about-page .about-grid {
     grid-template-columns: 1fr;
     gap: 16px;
   }
+
   .about-page .about-audience {
     padding: 22px 20px;
   }
-  .about-page .about-cta {
-    margin-top: 40px;
-    padding: 36px 20px;
-  }
-}
 
-@media (max-width: 560px) {
-  .about-page .about-hero h1 {
-    font-size: 1.55rem;
-  }
-  .about-page .about-section h2,
-  .about-page .about-features h2 {
-    font-size: 1.25rem;
+  .about-page .about-cta {
+    margin-top: 44px;
+    padding: 40px 20px 44px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .about-page .about-button,
   .about-page .about-card {
-    transition: none !important;
+    transition: none;
+  }
+
+  .about-page .about-button:hover,
+  .about-page .about-card:hover {
+    transform: none;
   }
 }

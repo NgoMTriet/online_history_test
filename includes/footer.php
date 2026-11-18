@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lịch sử THCS</title>
+  <title>Ôn luyện dành cho THCS</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital@1&display=swap" rel="stylesheet">
   <style>
     body {
@@ -57,8 +57,8 @@
 <footer>
   <div class="footer-content">
     <div class="footer-brand">
-      <h3 class="logo">Lịch sử Việt Nam</h3>
-      <p class="logo-tagline">Website hỗ trợ học tập và ôn luyện kiến thức Lịch sử.</p>
+      <h3 class="logo">Học sinh Việt Nam</h3>
+      <p class="logo-tagline">Website hỗ trợ thi và ôn luyện kiến thức.</p>
       <p class="logo-tagline">Dành cho học sinh trung học cơ sở.</p>
     </div>
     <div class="footer-quote">
@@ -67,7 +67,7 @@
   </div>
 
   <p class="footer-bottom">
-    © 2026 - SuViet.com.vn
+    © 2026 - EXAM365.com.vn
   </p>
 </footer>
 
