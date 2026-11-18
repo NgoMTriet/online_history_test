@@ -110,7 +110,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                             <th>Khối Lớp</th>
                             <th>Thời Gian</th>
                             <th>Khung Giờ Thi</th>
-                            <th>Số Lần Tối Đa</th>
+                    
                             <th>Bảo Vệ</th>
                             <th>Lượt Làm</th>
                             <th>Hành Động</th>
@@ -121,14 +121,25 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                             <?php foreach ($recent_exams as$exam): ?>
                                 <tr>
                                     <td>#<?= $exam['exam_id'] ?></td>
-                                    <td><strong><?= htmlspecialchars($exam['title']) ?></strong></td>
-                                    <td><span class="badge-grade">Khối <?= $exam['grade'] ?></span></td>
+                                    <td>
+    <strong><?= htmlspecialchars($exam['title']) ?></strong>
+    <?php if (!empty($exam['topic_names'])): ?>
+        <div style="font-size: 13px; color: #64748b; margin-top: 4px; font-weight: normal;">
+            📖 Chủ đề: <?= htmlspecialchars($exam['topic_names']) ?>
+        </div>
+    <?php endif; ?>
+</td>
+<td>
+    <span class="badge-grade">
+        <?= !empty($exam['subject_name']) ? htmlspecialchars($exam['subject_name']) . ' - ' : '' ?>Khối <?= $exam['grade'] ?>
+    </span>
+</td>
                                     <td>⏱️ <?= $exam['duration'] ?> phút</td>
                                     <td style="font-size: 14px; color: var(--muted);">
                                         📅 Mở: <?= !empty($exam['start_time']) ? date('d/m/Y H:i', strtotime($exam['start_time'])) : 'Ngay lập tức' ?><br>
                                         🛑 Đóng: <?= !empty($exam['end_time']) ? date('d/m/Y H:i', strtotime($exam['end_time'])) : 'Không giới hạn' ?>
                                     </td>
-                                    <td><?= $exam['max_attempts'] > 0 ?$exam['max_attempts'] . ' lần' : 'Tự do' ?></td>
+                                    
                                     <td>
                                         <?php if (!empty($exam['exam_password'])): ?>
                                             <span class="badge-lock">🔒 Mật khẩu</span>
@@ -179,16 +190,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                             <label for="edit_duration">Thời gian làm bài (phút)</label>
                             <input type="number" id="edit_duration" name="duration" min="1" max="300" required>
                         </div>
-                        <div class="form-group">
-                            <label for="edit_max_attempts">Số lần làm tối đa</label>
-                            <select name="max_attempts" id="edit_max_attempts">
-                                <option value="0">Không giới hạn</option>
-                                <option value="1">1 lần</option>
-                                <option value="2">2 lần</option>
-                                <option value="3">3 lần</option>
-                                <option value="5">5 lần</option>
-                            </select>
-                        </div>
+                        
                     </div>
 
                     <div class="grid-2">
@@ -264,7 +266,6 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
         document.getElementById('edit_exam_id').value = exam.exam_id;
         document.getElementById('edit_title').value = exam.title;
         document.getElementById('edit_duration').value = exam.duration;
-        document.getElementById('edit_max_attempts').value = exam.max_attempts;
         document.getElementById('edit_password').value = exam.exam_password || '';
         document.getElementById('edit_start_time').value = exam.start_time ? formatDateTimeLocal(exam.start_time) : '';
         document.getElementById('edit_end_time').value = exam.end_time ? formatDateTimeLocal(exam.end_time) : '';
