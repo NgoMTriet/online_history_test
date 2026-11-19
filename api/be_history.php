@@ -55,7 +55,11 @@ if ($student_name === '') {
 
 // Danh sách lịch sử: bỏ qua các lượt đang làm dở (IN_PROGRESS)
 $sql_history = "
-    SELECT r.result_id AS attempt_id, r.user_id AS student_id,
+    SELECT r.result_id AS attempt_id, r.user_id AS student_id, r.exam_id,
+           e.max_attempts,
+           (SELECT COUNT(*) FROM exam_results r2
+            WHERE r2.user_id = r.user_id AND r2.exam_id = r.exam_id
+              AND r2.result_id <= r.result_id) AS attempt_no,
            $name_expression AS student_name,
            e.title AS exam_title, r.submitted_at,
            CONCAT(FLOOR(r.completion_time / 60), ' phút ', MOD(r.completion_time, 60), ' giây') AS completion_time,
