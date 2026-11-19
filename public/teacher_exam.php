@@ -11,6 +11,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
     <title>Tạo đề thi | EXAM365</title>
 
     <link rel="stylesheet" href="/../assets/css/UI_teacher.css">
+    <link rel="stylesheet" href="/../assets/css/teacher_exam_attempts.css">
 
 </head>
 
@@ -125,17 +126,35 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                     <input type="number" id="duration" name="duration" value="15" min="1" max="300" required>
                 </div>
 
-                <!-- 🔁 Ô NHẬP SỐ LẦN LÀM BÀI -->
-                <div class="form-group">
-                    <label for="maxAttempts">🔁 Số lần làm bài</label>
-                    <input type="number" id="maxAttempts" name="max_attempts" value="<?= (int)$defaultMaxAttempts ?>" min="0" max="100" required>
-                    <div class="attempt-presets">
-                        <button type="button" class="attempt-preset-btn <?= (int)$defaultMaxAttempts === 0 ? 'active' : '' ?>" data-attempts="0">Không giới hạn</button>
-                        <button type="button" class="attempt-preset-btn <?= (int)$defaultMaxAttempts === 1 ? 'active' : '' ?>" data-attempts="1">1 lần</button>
-                        <button type="button" class="attempt-preset-btn <?= (int)$defaultMaxAttempts === 2 ? 'active' : '' ?>" data-attempts="2">2 lần</button>
-                        <button type="button" class="attempt-preset-btn <?= (int)$defaultMaxAttempts === 3 ? 'active' : '' ?>" data-attempts="3">3 lần</button>
+                <!-- 🔁 SỐ LƯỢT LÀM BÀI -->
+                <div class="form-group attempts-field">
+                    <label for="maxAttempts">🔁 Số lượt làm bài</label>
+
+                    <div class="attempts-box <?= (int)$defaultMaxAttempts === 0 ? 'is-unlimited' : '' ?>" id="attemptsBox">
+                        <label class="attempts-switch" for="attemptsUnlimited">
+                            <input type="checkbox" id="attemptsUnlimited" <?= (int)$defaultMaxAttempts === 0 ? 'checked' : '' ?>>
+                            <span class="attempts-switch-track" aria-hidden="true"></span>
+                            <span class="attempts-switch-text">Không giới hạn số lượt</span>
+                        </label>
+
+                        <div class="attempts-stepper">
+                            <button type="button" class="attempts-step-btn" data-step="-1" aria-label="Giảm 1 lượt">−</button>
+                            <input type="number" id="maxAttempts" name="max_attempts"
+                                   value="<?= (int)$defaultMaxAttempts ?>" min="0" max="100" inputmode="numeric" required>
+                            <button type="button" class="attempts-step-btn" data-step="1" aria-label="Tăng 1 lượt">+</button>
+                            <span class="attempts-unit">lượt / học sinh</span>
+                        </div>
+
+                        <div class="attempts-chips" role="group" aria-label="Chọn nhanh số lượt">
+                            <?php foreach ([1, 2, 3, 5, 10] as $preset): ?>
+                                <button type="button"
+                                        class="attempts-chip <?= (int)$defaultMaxAttempts === $preset ? 'active' : '' ?>"
+                                        data-attempts="<?= $preset ?>"><?= $preset ?> lượt</button>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <p class="attempts-hint" id="attemptHint"></p>
                     </div>
-                    <small class="attempt-hint" id="attemptHint">Học sinh có thể làm lại đề này nhiều lần (0 = không giới hạn).</small>
                 </div>
 
                 <!-- Ô NHẬP MẬT KHẨU ĐỀ THI -->
@@ -323,7 +342,10 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
     const durationInput        = document.getElementById('duration');
     const maxAttemptsInput     = document.getElementById('maxAttempts');
     const attemptHint          = document.getElementById('attemptHint');
-    const attemptPresetBtns    = document.querySelectorAll('.attempt-preset-btn');
+    const attemptsBox          = document.getElementById('attemptsBox');
+    const attemptsUnlimited    = document.getElementById('attemptsUnlimited');
+    const attemptChips         = document.querySelectorAll('.attempts-chip');
+    const attemptStepBtns      = document.querySelectorAll('.attempts-step-btn');
     const visibilitySelect     = document.getElementById('visibilitySelect');
     const visibilityHint       = document.getElementById('visibilityHint');
     const schoolFieldWrap      = document.getElementById('schoolFieldWrap');
@@ -348,28 +370,76 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
         CLASS:  'Chỉ học sinh thuộc các lớp ra đề được chọn bên dưới (VD: 7A1, 7A2) mới làm được đề này.'
     };
 
-    function updateAttemptsUI() {
-        const val = parseInt(maxAttemptsInput.value, 10);
-        if (isNaN(val) || val <= 0) {
-            attemptHint.textContent = 'Học sinh có thể làm lại đề này nhiều lần (0 = không giới hạn).';
-        } else {
-            attemptHint.textContent = `Mỗi học sinh được làm tối đa ${val} lần.`;
-        }
+    // ===== Số lượt làm bài: 0 = không giới hạn, 1..100 = giới hạn =====
+    const ATTEMPTS_MAX = 100;
+    let lastLimitedAttempts = Math.max(1, parseInt(maxAttemptsInput.value, 10) || 1);
 
-        attemptPresetBtns.forEach(btn => {
-            const btnVal = parseInt(btn.dataset.attempts, 10);
-            btn.classList.toggle('active', !isNaN(val) && btnVal === val);
-        });
+    function clampAttempts(v) {
+        v = parseInt(v, 10);
+        if (isNaN(v) || v < 1) return 1;
+        return Math.min(ATTEMPTS_MAX, v);
     }
 
-    attemptPresetBtns.forEach(btn => {
+    // value = 0 -> không giới hạn; value > 0 -> giới hạn theo số lượt
+    function setAttempts(value) {
+        if (value <= 0) {
+            attemptsUnlimited.checked = true;
+            maxAttemptsInput.value = 0;
+        } else {
+            lastLimitedAttempts = clampAttempts(value);
+            attemptsUnlimited.checked = false;
+            maxAttemptsInput.value = lastLimitedAttempts;
+        }
+        updateAttemptsUI();
+    }
+
+    function updateAttemptsUI() {
+        const unlimited = attemptsUnlimited.checked;
+        const val = unlimited ? 0 : clampAttempts(maxAttemptsInput.value);
+
+        attemptsBox.classList.toggle('is-unlimited', unlimited);
+        maxAttemptsInput.readOnly = unlimited;
+        attemptStepBtns.forEach(btn => btn.disabled = unlimited);
+        attemptChips.forEach(btn => {
+            btn.disabled = false;
+            btn.classList.toggle('active', !unlimited && parseInt(btn.dataset.attempts, 10) === val);
+        });
+
+        attemptHint.textContent = unlimited
+            ? 'Học sinh được làm lại đề không giới hạn số lượt.'
+            : (val === 1
+                ? 'Mỗi học sinh chỉ được làm 1 lượt duy nhất.'
+                : `Mỗi học sinh được làm tối đa ${val} lượt.`);
+    }
+
+    attemptsUnlimited.addEventListener('change', () => {
+        setAttempts(attemptsUnlimited.checked ? 0 : lastLimitedAttempts);
+    });
+
+    attemptStepBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            maxAttemptsInput.value = btn.dataset.attempts;
-            updateAttemptsUI();
+            const step = parseInt(btn.dataset.step, 10);
+            setAttempts(clampAttempts((parseInt(maxAttemptsInput.value, 10) || 0) + step));
         });
     });
 
-    maxAttemptsInput.addEventListener('input', updateAttemptsUI);
+    attemptChips.forEach(btn => {
+        btn.addEventListener('click', () => setAttempts(parseInt(btn.dataset.attempts, 10)));
+    });
+
+    maxAttemptsInput.addEventListener('input', () => {
+        const v = parseInt(maxAttemptsInput.value, 10);
+        if (!isNaN(v) && v > 0) {
+            lastLimitedAttempts = Math.min(ATTEMPTS_MAX, v);
+        }
+        updateAttemptsUI();
+    });
+
+    // Rời ô nhập: gõ 0 => không giới hạn, gõ sai => chuẩn hóa về 1..100
+    maxAttemptsInput.addEventListener('change', () => {
+        const v = parseInt(maxAttemptsInput.value, 10);
+        setAttempts(!isNaN(v) && v <= 0 ? 0 : clampAttempts(v));
+    });
 
     function getSelectedSubjectInfo() {
         const opt = subjectSelect.selectedOptions[0];
