@@ -36,7 +36,7 @@ try {
 
     $colAttempts = $conn->query("SHOW COLUMNS FROM `exam` LIKE 'max_attempts'");
     if ($colAttempts && $colAttempts->rowCount() === 0) {
-        $conn->exec("ALTER TABLE `exam` ADD COLUMN `max_attempts` INT NOT NULL DEFAULT 0 COMMENT '0 = Không giới hạn' AFTER `duration`");
+        $conn->exec("ALTER TABLE `exam` ADD COLUMN `max_attempts` INT NOT NULL DEFAULT 0 COMMENT '0 = Không giới hạn số lượt làm' AFTER `duration`");
     }
 
     // Đảm bảo subjects có đủ môn Lịch sử cho khối 6, 7, 8, 9
@@ -79,6 +79,17 @@ function extractGradeFromClass(string $className): int
         return (int)$m[1];
     }
     return 0;
+}
+
+// Số lượt làm bài: 0 = không giới hạn, 1..100 = giới hạn
+function normalizeMaxAttempts($raw): int
+{
+    return max(0, min(100, (int)$raw));
+}
+
+function formatAttemptLabel(int $maxAttempts): string
+{
+    return $maxAttempts === 0 ? 'không giới hạn số lượt làm' : "tối đa {$maxAttempts} lượt làm";
 }
 
 function normalizeSubjectName(?string $name, int $subjectId = 0): string
@@ -221,7 +232,7 @@ if ($defaultSubjectId === 0) {
 
 $defaultMaxAttempts = 0;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['max_attempts'])) {
-    $defaultMaxAttempts = max(0, min(100, (int)$_POST['max_attempts']));
+    $defaultMaxAttempts = normalizeMaxAttempts($_POST['max_attempts']);
 }
 
 // 3. Lấy danh sách lớp học sinh và trường học hiện có
@@ -358,7 +369,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
         $message = 'Thời gian làm bài phải từ 1 đến 300 phút.';
         $messageType = 'danger';
     } elseif ($maxAttempts < 0 || $maxAttempts > 100) {
-        $message = 'Số lần làm bài phải từ 0 (không giới hạn) đến 100 lần.';
+        $message = 'Số lượt làm bài phải từ 0 (không giới hạn) đến 100 lượt.';
         $messageType = 'danger';
     } elseif ($startTime !== null && $endTime !== null && strtotime($endTime) <= strtotime($startTime)) {
         $message = 'Thời gian đóng đề thi phải sau thời gian mở đề thi.';
@@ -500,7 +511,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
             }
 
             $conn->commit();
-            $attemptLabel = ($maxAttempts === 0) ? 'không giới hạn số lần làm' : "tối đa {$maxAttempts} lần làm";
+            $attemptLabel = formatAttemptLabel($maxAttempts);
             $message = "Tạo đề thi thành công! Đề thi gồm {$totalQuestions} câu hỏi ({$attemptLabel}).";
             $messageType = 'success';
             $defaultMaxAttempts = 0;
