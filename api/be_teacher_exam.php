@@ -12,7 +12,7 @@ $userId = (int)($_SESSION['user_id'] ?? 0);
 $message = '';
 $messageType = '';
 
-// Tự động bổ sung cột phạm vi & bảng liên kết teacher_subjects nếu chưa có
+// Tự động bổ sung cột phạm vi, số lần làm & bảng liên kết teacher_subjects nếu chưa có
 try {
     $colUserSchool = $conn->query("SHOW COLUMNS FROM `users` LIKE 'school_name'");
     if ($colUserSchool && $colUserSchool->rowCount() === 0) {
@@ -32,6 +32,11 @@ try {
     $colClasses = $conn->query("SHOW COLUMNS FROM `exam` LIKE 'target_classes'");
     if ($colClasses && $colClasses->rowCount() === 0) {
         $conn->exec("ALTER TABLE `exam` ADD COLUMN `target_classes` VARCHAR(255) NULL AFTER `school_name`");
+    }
+
+    $colAttempts = $conn->query("SHOW COLUMNS FROM `exam` LIKE 'max_attempts'");
+    if ($colAttempts && $colAttempts->rowCount() === 0) {
+        $conn->exec("ALTER TABLE `exam` ADD COLUMN `max_attempts` INT NOT NULL DEFAULT 0 COMMENT '0 = Không giới hạn' AFTER `duration`");
     }
 
     // Đảm bảo subjects có đủ môn Lịch sử cho khối 6, 7, 8, 9
@@ -214,6 +219,11 @@ if ($defaultSubjectId === 0) {
     }
 }
 
+$defaultMaxAttempts = 0;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['max_attempts'])) {
+    $defaultMaxAttempts = max(0, min(100, (int)$_POST['max_attempts']));
+}
+
 // 3. Lấy danh sách lớp học sinh và trường học hiện có
 $availableClassItems = [];
 $availableSchools    = [];
@@ -263,6 +273,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     $visibility   = trim($_POST['visibility'] ?? 'PUBLIC');
     $schoolName   = trim($_POST['school_name'] ?? '');
     $duration     = (int)($_POST['duration'] ?? 15);
+    $maxAttempts  = (int)($_POST['max_attempts'] ?? 0);
     $examPassword = trim($_POST['exam_password'] ?? '');
     $mode         = $_POST['create_mode'] ?? 'manual';
 
@@ -345,6 +356,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
         $messageType = 'danger';
     } elseif ($duration < 1 || $duration > 300) {
         $message = 'Thời gian làm bài phải từ 1 đến 300 phút.';
+        $messageType = 'danger';
+    } elseif ($maxAttempts < 0 || $maxAttempts > 100) {
+        $message = 'Số lần làm bài phải từ 0 (không giới hạn) đến 100 lần.';
         $messageType = 'danger';
     } elseif ($startTime !== null && $endTime !== null && strtotime($endTime) <= strtotime($startTime)) {
         $message = 'Thời gian đóng đề thi phải sau thời gian mở đề thi.';
@@ -456,8 +470,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
 
             $stmtExam = $conn->prepare(
                 "INSERT INTO exam
-                 (title, grade, subject_id, exam_type, visibility, school_name, target_classes, duration, start_time, end_time, exam_password, total_questions, is_randomized, user_id)
-                 VALUES (:title, :grade, :subject_id, :exam_type, :visibility, :school_name, :target_classes, :duration, :start_time, :end_time, :exam_password, :total_questions, :is_randomized, :user_id)"
+                 (title, grade, subject_id, exam_type, visibility, school_name, target_classes, duration, max_attempts, start_time, end_time, exam_password, total_questions, is_randomized, user_id)
+                 VALUES (:title, :grade, :subject_id, :exam_type, :visibility, :school_name, :target_classes, :duration, :max_attempts, :start_time, :end_time, :exam_password, :total_questions, :is_randomized, :user_id)"
             );
 
             $stmtExam->execute([
@@ -469,6 +483,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
                 'school_name'     => $saveSchoolName,
                 'target_classes'  => $saveTargetClasses,
                 'duration'        => $duration,
+                'max_attempts'    => $maxAttempts,
                 'start_time'      => $startTime,
                 'end_time'        => $endTime,
                 'exam_password'   => $examPassword !== '' ? $examPassword : null,
@@ -485,8 +500,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
             }
 
             $conn->commit();
-            $message = "Tạo đề thi thành công! Đề thi gồm {$totalQuestions} câu hỏi.";
+            $attemptLabel = ($maxAttempts === 0) ? 'không giới hạn số lần làm' : "tối đa {$maxAttempts} lần làm";
+            $message = "Tạo đề thi thành công! Đề thi gồm {$totalQuestions} câu hỏi ({$attemptLabel}).";
             $messageType = 'success';
+            $defaultMaxAttempts = 0;
         } catch (Throwable $e) {
             if ($conn->inTransaction()) {
                 $conn->rollBack();
