@@ -154,19 +154,6 @@ require_once __DIR__ . '/../api/be_history.php';
                 <?php endif; ?>
             </div>
         <?php else: ?>
-            <?php
-                // Đánh số lượt làm theo từng đề (và từng học sinh nếu là giáo viên), theo thứ tự thời gian nộp
-                $attemptNoMap = [];
-                $attemptSeen  = [];
-                $orderedKeys  = array_keys($history_list);
-                usort($orderedKeys, fn($a, $b) => strtotime($history_list[$a]['submitted_at']) <=> strtotime($history_list[$b]['submitted_at']));
-                foreach ($orderedKeys as $k) {
-                    $it  = $history_list[$k];
-                    $key = ($is_teacher ? ($it['student_name'] ?? '') : '') . '|' . ($it['exam_id'] ?? $it['exam_title']);
-                    $attemptSeen[$key] = ($attemptSeen[$key] ?? 0) + 1;
-                    $attemptNoMap[$k]  = $attemptSeen[$key];
-                }
-            ?>
             <div class="table-wrap">
                 <table>
                     <thead>
@@ -190,7 +177,7 @@ require_once __DIR__ . '/../api/be_history.php';
                                     <td data-label="Học sinh"><?= h($item['student_name']) ?></td>
                                 <?php endif; ?>
                                 <td data-label="Đề thi"><span class="exam-name"><?= h($item['exam_title']) ?></span></td>
-                                <td class="muted" data-label="Lượt">Lượt <?= (int)($attemptNoMap[$index] ?? 1) ?></td>
+                                <td class="muted" data-label="Lượt">Lượt <?= (int)($item['attempt_no'] ?? 1) ?><?php if ((int)($item['max_attempts'] ?? 0) > 0): ?> / <?= (int)$item['max_attempts'] ?><?php endif; ?></td>
                                 <td class="muted" data-label="Ngày làm"><?= h(date('d/m/Y H:i', strtotime($item['submitted_at']))) ?></td>
                                 <td class="muted" data-label="Thời gian"><?= h($item['completion_time']) ?></td>
                                 <td data-label="Điểm">
