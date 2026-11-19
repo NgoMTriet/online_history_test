@@ -440,7 +440,6 @@ button {
 }
 
 .page-title p,
-
 .title-icon,
 .header-icon {
   display: grid;
@@ -1324,7 +1323,9 @@ tr:hover {
   font-weight: 600;
   text-decoration: none;
   box-shadow: 0 4px 12px -4px rgba(22, 163, 74, 0.6);
-  transition: background 0.15s, transform 0.1s;
+  transition:
+    background 0.15s,
+    transform 0.1s;
 }
 .tpl-box a.tpl-btn:hover {
   background: #15803d;
@@ -1333,6 +1334,48 @@ tr:hover {
   transform: translateY(1px);
 }
 @media (max-width: 640px) {
-  .tpl-box { flex-wrap: wrap; }
-  .tpl-box a.tpl-btn { width: 100%; justify-content: center; }
+  .tpl-box {
+    flex-wrap: wrap;
+  }
+  .tpl-box a.tpl-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+/* ===== CẤU HÌNH SỐ LẦN LÀM BÀI ===== */
+.attempt-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.attempt-preset-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.attempt-preset-btn:hover {
+  background-color: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.attempt-preset-btn.active {
+  color: #ffffff;
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+.attempt-hint {
+  color: #64748b;
+  font-size: 12px;
+  display: block;
+  margin-top: 5px;
 }
