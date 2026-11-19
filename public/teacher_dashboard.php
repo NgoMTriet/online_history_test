@@ -1,6 +1,5 @@
 <?php
 require_once __DIR__ . '/../api/be_teacher_dashboard.php';
-include __DIR__ . '/../includes/teacher_sidebar.php';
 
 $examTypeBadges = [
     'REGULAR'   => ['text' => '📝 Đề luyện tập',      'bg' => '#dcfce7', 'color' => '#166534'],
@@ -21,6 +20,7 @@ $examTypeBadges = [
     <link rel="stylesheet" href="/../assets/css/teacher_exam_attempts.css">
 </head>
 <body>
+<?php include __DIR__ . '/../includes/teacher_sidebar.php'; ?>
 <div class="et-overlay" id="etOverlay" onclick="etToggleSidebar()"></div>
   <div class="et-workspace">
     <header class="et-topbar">
@@ -406,7 +406,6 @@ $examTypeBadges = [
     </script>
     </main>
   </div>
-</div>
 <script>
 function etToggleSidebar() {
   const sidebar = document.getElementById('etSidebar');
