@@ -11,44 +11,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
     <title>Tạo đề thi | EXAM365</title>
 
     <link rel="stylesheet" href="/../assets/css/UI_teacher.css">
-    <style>
-        .scope-panel {
-            margin-top: 16px;
-            padding: 16px;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            background: #f8fafc;
-        }
-        .scope-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 14px;
-        }
-        .class-chips-wrap {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 8px;
-        }
-        .class-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            border-radius: 999px;
-            font-size: 13px;
-            font-weight: 600;
-            color: #1e293b;
-            cursor: pointer;
-            user-select: none;
-        }
-        .class-chip input[type="checkbox"] {
-            margin: 0;
-            accent-color: #2563eb;
-        }
-    </style>
+
 </head>
 
 <body>
@@ -89,7 +52,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                 <div class="step-number">01</div>
                 <div>
                     <h2>Thông tin chung</h2>
-                    <p class="section-description">Tên đề thi, khối lớp, phạm vi áp dụng, thời gian làm bài và mật khẩu truy cập.</p>
+                    <p class="section-description">Tên đề thi, khối lớp, phạm vi áp dụng, thời gian, số lần làm bài và mật khẩu truy cập.</p>
                 </div>
             </div>
 
@@ -160,6 +123,19 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                 <div class="form-group">
                     <label for="duration">Thời gian làm bài (phút)</label>
                     <input type="number" id="duration" name="duration" value="15" min="1" max="300" required>
+                </div>
+
+                <!-- 🔁 Ô NHẬP SỐ LẦN LÀM BÀI -->
+                <div class="form-group">
+                    <label for="maxAttempts">🔁 Số lần làm bài</label>
+                    <input type="number" id="maxAttempts" name="max_attempts" value="<?= (int)$defaultMaxAttempts ?>" min="0" max="100" required>
+                    <div class="attempt-presets">
+                        <button type="button" class="attempt-preset-btn <?= (int)$defaultMaxAttempts === 0 ? 'active' : '' ?>" data-attempts="0">Không giới hạn</button>
+                        <button type="button" class="attempt-preset-btn <?= (int)$defaultMaxAttempts === 1 ? 'active' : '' ?>" data-attempts="1">1 lần</button>
+                        <button type="button" class="attempt-preset-btn <?= (int)$defaultMaxAttempts === 2 ? 'active' : '' ?>" data-attempts="2">2 lần</button>
+                        <button type="button" class="attempt-preset-btn <?= (int)$defaultMaxAttempts === 3 ? 'active' : '' ?>" data-attempts="3">3 lần</button>
+                    </div>
+                    <small class="attempt-hint" id="attemptHint">Học sinh có thể làm lại đề này nhiều lần (0 = không giới hạn).</small>
                 </div>
 
                 <!-- Ô NHẬP MẬT KHẨU ĐỀ THI -->
@@ -345,6 +321,9 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
     const subjectSelect        = document.getElementById('subjectSelect');
     const examTypeSelect       = document.getElementById('examTypeSelect');
     const durationInput        = document.getElementById('duration');
+    const maxAttemptsInput     = document.getElementById('maxAttempts');
+    const attemptHint          = document.getElementById('attemptHint');
+    const attemptPresetBtns    = document.querySelectorAll('.attempt-preset-btn');
     const visibilitySelect     = document.getElementById('visibilitySelect');
     const visibilityHint       = document.getElementById('visibilityHint');
     const schoolFieldWrap      = document.getElementById('schoolFieldWrap');
@@ -368,6 +347,29 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
         GRADE:  'Tất cả học sinh thuộc các lớp của khối đã chọn trong trường (VD: 7A1, 7A2...) đều làm được đề này.',
         CLASS:  'Chỉ học sinh thuộc các lớp ra đề được chọn bên dưới (VD: 7A1, 7A2) mới làm được đề này.'
     };
+
+    function updateAttemptsUI() {
+        const val = parseInt(maxAttemptsInput.value, 10);
+        if (isNaN(val) || val <= 0) {
+            attemptHint.textContent = 'Học sinh có thể làm lại đề này nhiều lần (0 = không giới hạn).';
+        } else {
+            attemptHint.textContent = `Mỗi học sinh được làm tối đa ${val} lần.`;
+        }
+
+        attemptPresetBtns.forEach(btn => {
+            const btnVal = parseInt(btn.dataset.attempts, 10);
+            btn.classList.toggle('active', !isNaN(val) && btnVal === val);
+        });
+    }
+
+    attemptPresetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            maxAttemptsInput.value = btn.dataset.attempts;
+            updateAttemptsUI();
+        });
+    });
+
+    maxAttemptsInput.addEventListener('input', updateAttemptsUI);
 
     function getSelectedSubjectInfo() {
         const opt = subjectSelect.selectedOptions[0];
@@ -561,6 +563,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
         }
     });
 
+    updateAttemptsUI();
     updateSubjectOptions();
     updateVisibilityUI();
     toggleMode();
