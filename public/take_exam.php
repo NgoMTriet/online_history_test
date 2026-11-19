@@ -27,32 +27,6 @@ if ($gate_state === 'not_started'):
 exit;
 endif;
 
-if ($gate_state === 'max_attempts'):
-?>
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Hết lượt làm bài</title>
-</head>
-<body>
-    <div class="card">
-        <h2>🚫 Bạn đã hết lượt làm bài!</h2>
-        <p>
-            Đề thi <strong><?= $safeTitle ?></strong>
-            cho phép làm tối đa <strong><?= $max_attempts ?></strong> lần.
-            <br>
-            Bạn đã thực hiện
-            <strong><?= $user_attempts ?>/<?= $max_attempts ?></strong> lượt.
-        </p>
-        <a href="index.php" class="btn">Quay lại trang chủ</a>
-    </div>
-</body>
-</html>
-<?php
-exit;
-endif;
 
 if ($gate_state === 'password_required'):
 ?>
@@ -96,6 +70,54 @@ if ($gate_state === 'password_required'):
         </form>
 
         <p><a href="index.php">Quay lại trang chủ</a></p>
+    </div>
+</body>
+</html>
+<?php
+exit;
+endif;
+
+
+if ($gate_state === 'attempts_exceeded' || $gate_state === 'exam_closed'):
+    $gate_max = (int) ($exam['max_attempts'] ?? 0);
+    $gate_end = !empty($exam['end_time']) ? date('H:i - d/m/Y', strtotime($exam['end_time'])) : '';
+?>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><?= $gate_state === 'attempts_exceeded' ? 'Đã hết lượt làm bài' : 'Đề thi đã đóng' ?></title>
+    <style>
+        body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+               background: #f1f5f9; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #0f172a; }
+        .gate-card { max-width: 440px; margin: 20px; padding: 32px 28px; text-align: center;
+                     background: #fff; border-radius: 14px; box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }
+        .gate-card h2 { margin: 0 0 12px; font-size: 22px; }
+        .gate-card p { margin: 0 0 22px; color: #475569; line-height: 1.6; }
+        .gate-btn { display: inline-block; padding: 10px 22px; border-radius: 8px; background: #4f46e5;
+                    color: #fff; text-decoration: none; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="gate-card">
+        <?php if ($gate_state === 'attempts_exceeded'): ?>
+            <h2>🔁 Bạn đã hết lượt làm bài</h2>
+            <p>
+                Đề thi <strong><?= htmlspecialchars($exam['title'] ?? 'Bài thi', ENT_QUOTES, 'UTF-8') ?></strong>
+                chỉ cho phép tối đa <strong><?= $gate_max ?> lượt</strong> mỗi học sinh,
+                và bạn đã sử dụng hết.
+            </p>
+            <a href="history.php" class="gate-btn">Xem lịch sử làm bài</a>
+        <?php else: ?>
+            <h2>🛑 Đề thi đã đóng</h2>
+            <p>
+                Đề thi <strong><?= htmlspecialchars($exam['title'] ?? 'Bài thi', ENT_QUOTES, 'UTF-8') ?></strong>
+                đã kết thúc<?= $gate_end !== '' ? ' vào lúc <strong>' . htmlspecialchars($gate_end, ENT_QUOTES, 'UTF-8') . '</strong>' : '' ?>.
+                Bạn không thể bắt đầu lượt làm mới.
+            </p>
+            <a href="index.php" class="gate-btn">Quay lại trang chủ</a>
+        <?php endif; ?>
     </div>
 </body>
 </html>
