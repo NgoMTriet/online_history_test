@@ -18,6 +18,7 @@ $examTypeBadges = [
     <title>Bảng điều khiển Giáo viên | EXAM365</title>
 
     <link rel="stylesheet" href="/../assets/css/UI_teacher.css">
+    <link rel="stylesheet" href="/../assets/css/teacher_exam_attempts.css">
 </head>
 <body>
 <div class="et-overlay" id="etOverlay" onclick="etToggleSidebar()"></div>
@@ -170,7 +171,14 @@ $examTypeBadges = [
                                             <span style="color: var(--muted);">Công khai</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td><strong><?= $exam['total_attempts'] ?></strong> lượt</td>
+                                    <td>
+                                        <strong><?= $exam['total_attempts'] ?></strong> lượt
+                                        <?php if (array_key_exists('max_attempts', $exam)): ?>
+                                            <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">
+                                                🔁 <?= (int)$exam['max_attempts'] === 0 ? 'Không giới hạn' : 'Tối đa ' . (int)$exam['max_attempts'] . ' lượt/HS' ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
                                     <td style="white-space: nowrap;">
                                         <a href="teacher_view_result.php?exam_id=<?= $exam['exam_id'] ?>" class="btn-link">📊 Kết quả</a>
                                         <button type="button" class="btn-edit" onclick='openEditModal(<?= json_encode($exam, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>)'>✏️ Sửa</button>
@@ -233,6 +241,24 @@ $examTypeBadges = [
                         <div class="form-group">
                             <label for="edit_end_time">🛑 Thời gian đóng đề</label>
                             <input type="datetime-local" id="edit_end_time" name="end_time">
+                        </div>
+                    </div>
+
+                    <div class="form-group attempts-field">
+                        <label for="edit_max_attempts">🔁 Số lượt làm bài</label>
+                        <div class="attempts-box" id="editAttemptsBox">
+                            <label class="attempts-switch" for="edit_attempts_unlimited">
+                                <input type="checkbox" id="edit_attempts_unlimited">
+                                <span class="attempts-switch-track" aria-hidden="true"></span>
+                                <span class="attempts-switch-text">Không giới hạn số lượt</span>
+                            </label>
+                            <div class="attempts-stepper">
+                                <button type="button" class="attempts-step-btn" data-edit-step="-1" aria-label="Giảm 1 lượt">−</button>
+                                <input type="number" id="edit_max_attempts" name="max_attempts" min="0" max="100" inputmode="numeric" value="0" required>
+                                <button type="button" class="attempts-step-btn" data-edit-step="1" aria-label="Tăng 1 lượt">+</button>
+                                <span class="attempts-unit">lượt / học sinh</span>
+                            </div>
+                            <p class="attempts-hint" id="editAttemptHint"></p>
                         </div>
                     </div>
 
@@ -300,10 +326,61 @@ $examTypeBadges = [
         document.getElementById('edit_duration').value = exam.duration;
         document.getElementById('edit_exam_type').value = exam.exam_type || 'REGULAR';
         document.getElementById('edit_password').value = exam.exam_password || '';
+        setEditAttempts(parseInt(exam.max_attempts, 10) || 0);
         document.getElementById('edit_start_time').value = exam.start_time ? formatDateTimeLocal(exam.start_time) : '';
         document.getElementById('edit_end_time').value = exam.end_time ? formatDateTimeLocal(exam.end_time) : '';
         editModal.classList.add('active');
     }
+
+    // ===== Số lượt làm bài trong form sửa: 0 = không giới hạn, 1..100 = giới hạn =====
+    const editAttemptsInput = document.getElementById('edit_max_attempts');
+    const editAttemptsUnlimited = document.getElementById('edit_attempts_unlimited');
+    const editAttemptsBox = document.getElementById('editAttemptsBox');
+    const editAttemptHint = document.getElementById('editAttemptHint');
+    let editLastLimited = 1;
+
+    function clampEditAttempts(v) {
+        v = parseInt(v, 10);
+        if (isNaN(v) || v < 1) return 1;
+        return Math.min(100, v);
+    }
+
+    function setEditAttempts(value) {
+        if (value <= 0) {
+            editAttemptsUnlimited.checked = true;
+            editAttemptsInput.value = 0;
+        } else {
+            editLastLimited = clampEditAttempts(value);
+            editAttemptsUnlimited.checked = false;
+            editAttemptsInput.value = editLastLimited;
+        }
+        updateEditAttemptsUI();
+    }
+
+    function updateEditAttemptsUI() {
+        const unlimited = editAttemptsUnlimited.checked;
+        const val = unlimited ? 0 : clampEditAttempts(editAttemptsInput.value);
+        editAttemptsBox.classList.toggle('is-unlimited', unlimited);
+        editAttemptsInput.readOnly = unlimited;
+        document.querySelectorAll('[data-edit-step]').forEach(btn => btn.disabled = unlimited);
+        editAttemptHint.textContent = unlimited
+            ? 'Học sinh được làm lại đề không giới hạn số lượt.'
+            : (val === 1 ? 'Mỗi học sinh chỉ được làm 1 lượt duy nhất.' : `Mỗi học sinh được làm tối đa ${val} lượt.`);
+    }
+
+    editAttemptsUnlimited.addEventListener('change', () => {
+        setEditAttempts(editAttemptsUnlimited.checked ? 0 : editLastLimited);
+    });
+    document.querySelectorAll('[data-edit-step]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const step = parseInt(btn.dataset.editStep, 10);
+            setEditAttempts(clampEditAttempts((parseInt(editAttemptsInput.value, 10) || 0) + step));
+        });
+    });
+    editAttemptsInput.addEventListener('change', () => {
+        const v = parseInt(editAttemptsInput.value, 10);
+        setEditAttempts(!isNaN(v) && v <= 0 ? 0 : clampEditAttempts(v));
+    });
 
     function closeEditModal() { editModal.classList.remove('active'); }
     function formatDateTimeLocal(dateTimeStr) {
