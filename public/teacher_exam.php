@@ -1,6 +1,5 @@
 <?php
 require_once __DIR__ . '/../api/be_teacher_exam.php';
-include __DIR__ . '/../includes/teacher_sidebar.php';
 ?>
 
 <!DOCTYPE html>
@@ -16,6 +15,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
 </head>
 
 <body>
+<?php include __DIR__ . '/../includes/teacher_sidebar.php'; ?>
 <div class="et-overlay" id="etOverlay" onclick="etToggleSidebar()"></div>
   <div class="et-workspace">
     <header class="et-topbar">
