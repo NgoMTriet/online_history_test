@@ -55,20 +55,6 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
         </form>
     </div>
 
-    <?php
-    // Đánh số lượt làm của từng học sinh theo từng đề (lượt 1, 2, 3...) theo thứ tự thời gian nộp
-    $results = $results ?? [];
-    $attemptNoMap = [];
-    $attemptSeen  = [];
-    $orderedKeys  = array_keys($results);
-    usort($orderedKeys, fn($a, $b) => strtotime($results[$a]['created_at']) <=> strtotime($results[$b]['created_at']));
-    foreach ($orderedKeys as $k) {
-        $r   = $results[$k];
-        $key = ($r['user_id'] ?? $r['full_name']) . '|' . ($r['exam_id'] ?? $r['exam_title']);
-        $attemptSeen[$key] = ($attemptSeen[$key] ?? 0) + 1;
-        $attemptNoMap[$k]  = $attemptSeen[$key];
-    }
-    ?>
     <div class="card" style="padding: 0; overflow: hidden;">
         <div class="table-responsive">
             <table>
@@ -102,7 +88,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                                 <td>
                                     <?php
                                         $rowMax = isset($row['max_attempts']) ? (int)$row['max_attempts'] : 0;
-                                        $rowNo  = $attemptNoMap[$index] ?? 1;
+                                        $rowNo  = (int)($row['attempt_no'] ?? 1);
                                     ?>
                                     <strong>Lượt <?= $rowNo ?></strong><?php if ($rowMax > 0): ?><small style="color: var(--muted);"> / <?= $rowMax ?></small><?php endif; ?>
                                 </td>
