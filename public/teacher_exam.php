@@ -638,5 +638,13 @@ require_once __DIR__ . '/../api/be_teacher_exam.php';
     updateVisibilityUI();
     toggleMode();
 </script>
+<script>
+function etToggleSidebar() {
+  const sidebar = document.getElementById('etSidebar');
+  const overlay = document.getElementById('etOverlay');
+  if (sidebar) sidebar.classList.toggle('open');
+  if (overlay) overlay.classList.toggle('show');
+}
+</script>
 </body>
 </html>
