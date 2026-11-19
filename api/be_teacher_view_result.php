@@ -35,6 +35,8 @@ if ($selected_exam_id > 0 && !in_array($selected_exam_id, $owned_exam_ids, true)
 $sql = "
     SELECT 
         er.result_id,
+        er.user_id,
+        er.exam_id,
         er.score,
         er.correct_answers_count AS correct_answers,
         er.tab_switches,
@@ -45,11 +47,16 @@ $sql = "
         u.class_name,
         u.dob,
         e.title AS exam_title,
-        e.grade
+        e.grade,
+        e.max_attempts,
+        (SELECT COUNT(*) FROM exam_results r2
+         WHERE r2.user_id = er.user_id AND r2.exam_id = er.exam_id
+           AND r2.result_id <= er.result_id) AS attempt_no
     FROM exam_results er
     JOIN users u ON er.user_id = u.user_id
     JOIN exam e ON er.exam_id = e.exam_id
     WHERE e.user_id = :teacher_id
+      AND er.status <> 'IN_PROGRESS'
 ";
 
 $params = [
