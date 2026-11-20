@@ -53,7 +53,6 @@ foreach ($allSubjects as $subj) {
 
     <form method="POST" id="examForm">
         <input type="hidden" name="action" value="create_exam">
-        <input type="hidden" name="max_attempts" value="0">
 
         <!-- PHẦN 1: THÔNG TIN CHUNG -->
         <section class="card">
