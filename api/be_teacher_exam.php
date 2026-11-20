@@ -34,14 +34,9 @@ try {
         $conn->exec("ALTER TABLE `exam` ADD COLUMN `target_classes` VARCHAR(255) NULL AFTER `school_name`");
     }
 
-    $colAttempts = $conn->query("SHOW COLUMNS FROM `exam` LIKE 'max_attempts'");
-    if ($colAttempts && $colAttempts->rowCount() === 0) {
-        $conn->exec("ALTER TABLE `exam` ADD COLUMN `max_attempts` INT NOT NULL DEFAULT 0 COMMENT '0 = Không giới hạn số lượt làm' AFTER `duration`");
-    }
-
     $colStartTime = $conn->query("SHOW COLUMNS FROM `exam` LIKE 'start_time'");
     if ($colStartTime && $colStartTime->rowCount() === 0) {
-        $conn->exec("ALTER TABLE `exam` ADD COLUMN `start_time` DATETIME NULL AFTER `max_attempts`");
+        $conn->exec("ALTER TABLE `exam` ADD COLUMN `start_time` DATETIME NULL AFTER `duration`");
     }
 
     $colEndTime = $conn->query("SHOW COLUMNS FROM `exam` LIKE 'end_time'");
@@ -89,17 +84,6 @@ function extractGradeFromClass(string $className): int
         return (int)$m[1];
     }
     return 0;
-}
-
-// Số lượt làm bài: 0 = không giới hạn, 1..100 = giới hạn
-function normalizeMaxAttempts($raw): int
-{
-    return max(0, min(100, (int)$raw));
-}
-
-function formatAttemptLabel(int $maxAttempts): string
-{
-    return $maxAttempts === 0 ? 'không giới hạn số lượt làm' : "tối đa {$maxAttempts} lượt làm";
 }
 
 function normalizeSubjectName(?string $name, int $subjectId = 0): string
@@ -249,11 +233,6 @@ if (empty($subjectOptions)) {
     $subjectOptions = $allSubjects;
 }
 
-$defaultMaxAttempts = 0;
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['max_attempts'])) {
-    $defaultMaxAttempts = normalizeMaxAttempts($_POST['max_attempts']);
-}
-
 // 3. Lấy danh sách lớp học sinh và trường học hiện có
 $availableClassItems = [];
 $availableSchools    = [];
@@ -303,7 +282,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     $visibility   = trim($_POST['visibility'] ?? 'PUBLIC');
     $schoolName   = trim($_POST['school_name'] ?? '');
     $duration     = (int)($_POST['duration'] ?? 15);
-    $maxAttempts  = (int)($_POST['max_attempts'] ?? 0);
     $examPassword = trim($_POST['exam_password'] ?? '');
     $mode         = $_POST['create_mode'] ?? 'manual';
 
@@ -392,9 +370,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
         $messageType = 'danger';
     } elseif ($duration < 1 || $duration > 300) {
         $message = 'Thời gian làm bài phải từ 1 đến 300 phút.';
-        $messageType = 'danger';
-    } elseif ($maxAttempts < 0 || $maxAttempts > 100) {
-        $message = 'Số lượt làm bài phải từ 0 (không giới hạn) đến 100 lượt.';
         $messageType = 'danger';
     } elseif ($invalidStartTime) {
         $message = 'Thời gian mở đề thi không hợp lệ.';
@@ -512,8 +487,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
 
             $stmtExam = $conn->prepare(
                 "INSERT INTO exam
-                 (title, grade, subject_id, exam_type, visibility, school_name, target_classes, duration, max_attempts, start_time, end_time, exam_password, total_questions, is_randomized, user_id)
-                 VALUES (:title, :grade, :subject_id, :exam_type, :visibility, :school_name, :target_classes, :duration, :max_attempts, :start_time, :end_time, :exam_password, :total_questions, :is_randomized, :user_id)"
+                 (title, grade, subject_id, exam_type, visibility, school_name, target_classes, duration, start_time, end_time, exam_password, total_questions, is_randomized, user_id)
+                 VALUES (:title, :grade, :subject_id, :exam_type, :visibility, :school_name, :target_classes, :duration, :start_time, :end_time, :exam_password, :total_questions, :is_randomized, :user_id)"
             );
 
             $stmtExam->execute([
@@ -525,7 +500,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
                 'school_name'     => $saveSchoolName,
                 'target_classes'  => $saveTargetClasses,
                 'duration'        => $duration,
-                'max_attempts'    => $maxAttempts,
                 'start_time'      => $startTime,
                 'end_time'        => $endTime,
                 'exam_password'   => $examPassword !== '' ? $examPassword : null,
@@ -542,10 +516,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
             }
 
             $conn->commit();
-            $attemptLabel = formatAttemptLabel($maxAttempts);
-            $message = "Tạo đề thi thành công! Đề thi gồm {$totalQuestions} câu hỏi ({$attemptLabel}).";
+            $message = "Tạo đề thi thành công! Đề thi gồm {$totalQuestions} câu hỏi.";
             $messageType = 'success';
-            $defaultMaxAttempts = 0;
         } catch (Throwable $e) {
             if ($conn->inTransaction()) {
                 $conn->rollBack();
