@@ -86,11 +86,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                                 <td><span class="badge badge-class"><?= htmlspecialchars($row['class_name'] ?? 'N/A') ?></span></td>
                                 <td>Lớp <?= htmlspecialchars($row['grade']) ?> - <?= htmlspecialchars($row['exam_title']) ?></td>
                                 <td>
-                                    <?php
-                                        $rowMax = isset($row['max_attempts']) ? (int)$row['max_attempts'] : 0;
-                                        $rowNo  = (int)($row['attempt_no'] ?? 1);
-                                    ?>
-                                    <strong>Lượt <?= $rowNo ?></strong><?php if ($rowMax > 0): ?><small style="color: var(--muted);"> / <?= $rowMax ?></small><?php endif; ?>
+                                    <strong>Lượt <?= (int)($row['attempt_no'] ?? 1) ?></strong>
                                 </td>
                                 <td><?= htmlspecialchars($dob) ?></td>
                                 <td><span class="score-box <?= $score_class ?>"><?= number_format($score, 1) ?></span></td>
