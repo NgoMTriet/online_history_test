@@ -414,9 +414,6 @@ $catalog_initial_limit = 4;
                             <span>👤 GV: <?= htmlspecialchars($exam['teacher_name'] ?? 'Chưa cập nhật', ENT_QUOTES, 'UTF-8') ?></span>
                             <span>◷ <?= htmlspecialchars((string)$exam['duration'], ENT_QUOTES, 'UTF-8') ?> phút</span>
                             <span>▤ <?= htmlspecialchars((string)$exam['total_questions'], ENT_QUOTES, 'UTF-8') ?> câu hỏi</span>
-                            <?php if (array_key_exists('max_attempts', $exam)): ?>
-                                <span>🔁 <?= (int)$exam['max_attempts'] === 0 ? 'Không giới hạn lượt' : (int)$exam['max_attempts'] . ' lượt' ?></span>
-                            <?php endif; ?>
                         </div>
                         <a href="intro_exam.php?exam_id=<?= urlencode((string)$exam['exam_id']) ?>" class="slider-btn btn-start-exam">Vào làm bài <span>→</span></a>
                     </article>
