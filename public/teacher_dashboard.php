@@ -3,11 +3,11 @@ require_once __DIR__ . '/../api/be_teacher_dashboard.php';
 include __DIR__ . '/../includes/teacher_sidebar.php';
 
 $examTypeBadges = [
-    'REGULAR'   => ['text' => '📝 Đề luyện tập',      'bg' => '#dcfce7', 'color' => '#166534'],
-    'MIDTERM_1' => ['text' => '🏆 Đề thi • Giữa kì 1', 'bg' => '#dbeafe', 'color' => '#1e40af'],
-    'FINAL_1'   => ['text' => '🏆 Đề thi • Cuối kì 1', 'bg' => '#fee2e2', 'color' => '#991b1b'],
-    'MIDTERM_2' => ['text' => '🏆 Đề thi • Giữa kì 2', 'bg' => '#fef3c7', 'color' => '#92400e'],
-    'FINAL_2'   => ['text' => '🏆 Đề thi • Cuối kì 2', 'bg' => '#f3e8ff', 'color' => '#6b21a8'],
+    'REGULAR'   => ['text' => ' Đề luyện tập',      'bg' => '#dcfce7', 'color' => '#166534'],
+    'MIDTERM_1' => ['text' => ' Đề thi • Giữa kì 1', 'bg' => '#dbeafe', 'color' => '#1e40af'],
+    'FINAL_1'   => ['text' => ' Đề thi • Cuối kì 1', 'bg' => '#fee2e2', 'color' => '#991b1b'],
+    'MIDTERM_2' => ['text' => ' Đề thi • Giữa kì 2', 'bg' => '#fef3c7', 'color' => '#92400e'],
+    'FINAL_2'   => ['text' => ' Đề thi • Cuối kì 2', 'bg' => '#f3e8ff', 'color' => '#6b21a8'],
 ];
 ?>
 <!DOCTYPE html>
@@ -16,8 +16,8 @@ $examTypeBadges = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bảng điều khiển Giáo viên | EXAM365</title>
-
     <link rel="stylesheet" href="/../assets/css/UI_teacher.css">
+
 </head>
 <body>
 <div class="et-overlay" id="etOverlay" onclick="etToggleSidebar()"></div>
@@ -39,7 +39,7 @@ $examTypeBadges = [
 
         <header class="welcome-header">
             <h2>Xin chào, Thầy/Cô <?= htmlspecialchars($teacher_name) ?></h2>
-            <p>Bảng điều khiển quản lý đề thi Lịch sử, ngân hàng câu hỏi và xem kết quả học sinh.</p>
+            <p>Bảng điều khiển quản lý đề thi, ngân hàng câu hỏi và xem kết quả học sinh.</p>
         </header>
 
         <div class="action-grid">
@@ -54,7 +54,7 @@ $examTypeBadges = [
                 <div class="action-icon bg-amber">📚</div>
                 <div class="action-info">
                     <h3>Ngân Hàng Câu Hỏi</h3>
-                    <p>Thêm mới, chỉnh sửa và quản lý câu hỏi Lịch sử các khối</p>
+                    <p>Thêm mới, chỉnh sửa và quản lý câu hỏi các khối</p>
                 </div>
             </a>
             <a href="teacher_view_result.php" class="action-card">
@@ -129,6 +129,8 @@ $examTypeBadges = [
                                 <?php
                                     $typeKey = $exam['exam_type'] ?? 'REGULAR';
                                     $badgeInfo = $examTypeBadges[$typeKey] ?? $examTypeBadges['REGULAR'];
+                                    $topicCount = (int)($exam['topic_count'] ?? 0);
+                                    $rawTopicNames = trim((string)($exam['topic_names'] ?? ''));
                                 ?>
                                 <tr>
                                     <td>#<?= $exam['exam_id'] ?></td>
@@ -147,9 +149,16 @@ $examTypeBadges = [
                                                 <?= $badgeInfo['text'] ?>
                                             </span>
                                         </div>
-                                        <?php if (!empty($exam['topic_names'])): ?>
-                                            <div style="font-size: 13px; color: #64748b; margin-top: 4px; font-weight: normal;">
-                                                📖 Chủ đề: <?= htmlspecialchars($exam['topic_names']) ?>
+                                        <?php if ($topicCount > 0 && $rawTopicNames !== ''): ?>
+                                            <div style="font-size: 13px; color: #64748b; margin-top: 5px; font-weight: normal;">
+                                                📖 Chủ đề:
+                                                <?php if ($topicCount >= 2): ?>
+                                                    <span class="topic-summary-badge" title="<?= htmlspecialchars($rawTopicNames, ENT_QUOTES, 'UTF-8') ?>">
+                                                        Chủ đề tổng hợp (<?= $topicCount ?> chủ đề)
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span><?= htmlspecialchars($rawTopicNames, ENT_QUOTES, 'UTF-8') ?></span>
+                                                <?php endif; ?>
                                             </div>
                                         <?php endif; ?>
                                     </td>
@@ -191,9 +200,9 @@ $examTypeBadges = [
         </div>
     </div>
 
-    <!-- MODAL EDIT -->
+    <!-- MODAL EDIT (THÔNG TIN CHUNG + CHỈNH SỬA CÂU HỎI TRONG ĐỀ) -->
     <div class="modal-overlay" id="editModal">
-        <div class="modal-card">
+        <div class="modal-card modal-lg">
             <div class="modal-header">
                 <h3>✏️ Chỉnh sửa Đề thi <span id="modalExamId"></span></h3>
                 <button type="button" class="modal-close" onclick="closeEditModal()">&times;</button>
@@ -239,6 +248,25 @@ $examTypeBadges = [
                     <div class="form-group">
                         <label for="edit_password">🔑 Mật khẩu bài thi</label>
                         <input type="text" id="edit_password" name="exam_password" placeholder="Để trống nếu không đặt mật khẩu">
+                    </div>
+
+                    <!-- PHẦN CHỈNH SỬA CÂU HỎI TRONG ĐỀ -->
+                    <div class="form-group" style="margin-top: 14px;">
+                        <label>📝 Danh sách câu hỏi trong đề (<span id="editSelectedQCount">0</span> câu đang chọn)</label>
+                        <div style="font-size: 13px; color: #475569; margin-bottom: 6px;">
+                            📖 Chủ đề đã chọn: <strong id="editSelectedTopicsPreview">Chưa có</strong>
+                        </div>
+                        <div class="edit-q-box">
+                            <div class="edit-q-toolbar">
+                                <select id="editTopicFilter" style="max-width: 240px; padding: 6px 10px; font-size: 13px;">
+                                    <option value="0">-- Tất cả chủ đề --</option>
+                                </select>
+                                <input type="text" id="editQuestionSearch" placeholder="🔎 Tìm nội dung câu hỏi..." style="max-width: 260px; padding: 6px 10px; font-size: 13px;">
+                            </div>
+                            <div class="edit-q-list" id="editQuestionsContainer">
+                                <!-- Render bằng JS theo khối lớp & môn học của đề -->
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -292,7 +320,138 @@ $examTypeBadges = [
         }
     });
 
+    const teacherQuestionsBank = <?= json_encode($teacher_questions_bank, JSON_UNESCAPED_UNICODE) ?>;
     const editModal = document.getElementById('editModal');
+    const editQuestionsContainer = document.getElementById('editQuestionsContainer');
+    const editTopicFilter = document.getElementById('editTopicFilter');
+    const editQuestionSearch = document.getElementById('editQuestionSearch');
+    const editSelectedQCount = document.getElementById('editSelectedQCount');
+    const editSelectedTopicsPreview = document.getElementById('editSelectedTopicsPreview');
+
+    let currentModalSelectedIds = new Set();
+
+    function escapeHtml(str) {
+        return String(str ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function updateEditTopicSummary() {
+        const selectedTopics = new Set();
+        teacherQuestionsBank.forEach(q => {
+            if (currentModalSelectedIds.has(Number(q.question_id)) && q.topic_name) {
+                selectedTopics.add(q.topic_name);
+            }
+        });
+
+        editSelectedQCount.textContent = currentModalSelectedIds.size;
+
+        const topicsArr = Array.from(selectedTopics);
+        if (topicsArr.length === 0) {
+            editSelectedTopicsPreview.textContent = 'Chưa chọn câu hỏi nào';
+        } else if (topicsArr.length >= 2) {
+            editSelectedTopicsPreview.textContent = `Chủ đề tổng hợp (${topicsArr.join(', ')})`;
+        } else {
+            editSelectedTopicsPreview.textContent = topicsArr[0];
+        }
+    }
+
+    function filterEditQuestionsList() {
+        const topicId = editTopicFilter.value;
+        const kw = editQuestionSearch.value.trim().toLowerCase();
+
+        document.querySelectorAll('#editQuestionsContainer .edit-q-item').forEach(item => {
+            const matchTopic = (topicId === '0' || item.dataset.topicId === topicId);
+            const matchKw = item.dataset.search.includes(kw);
+            item.style.display = (matchTopic && matchKw) ? 'flex' : 'none';
+        });
+    }
+
+    function renderEditQuestions(exam) {
+        const examGrade = Number(exam.grade || 0);
+        const examSubjId = Number(exam.subject_id || 0);
+        const examSubjName = String(exam.subject_name || '').trim().toLowerCase();
+        const isHistory = (examSubjId <= 0 || examSubjName.includes('lịch sử'));
+
+        currentModalSelectedIds = new Set(
+            String(exam.question_ids_str || '')
+                .split(',')
+                .map(s => Number(s.trim()))
+                .filter(n => n > 0)
+        );
+
+        const eligibleQuestions = teacherQuestionsBank.filter(q => {
+            if (Number(q.grade) !== examGrade) return false;
+            const qSubjId = Number(q.subject_id || 0);
+            const qSubjNorm = String(q.subject_norm || '').trim().toLowerCase();
+
+            if (examSubjId > 0) {
+                return qSubjId === examSubjId || (examSubjName !== '' && qSubjNorm === examSubjName);
+            }
+            return qSubjId === 0;
+        });
+
+        // Tạo dropdown lọc chủ đề
+        const topicsMap = new Map();
+        eligibleQuestions.forEach(q => {
+            topicsMap.set(String(q.topic_id), q.topic_name);
+        });
+
+        editTopicFilter.innerHTML = '<option value="0">-- Tất cả chủ đề --</option>';
+        topicsMap.forEach((name, id) => {
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = name;
+            editTopicFilter.appendChild(opt);
+        });
+        editQuestionSearch.value = '';
+
+        if (eligibleQuestions.length === 0) {
+            editQuestionsContainer.innerHTML = '<div style="color:#64748b; padding:12px; text-align:center;">Không có câu hỏi nào thuộc khối lớp và môn học này.</div>';
+            updateEditTopicSummary();
+            return;
+        }
+
+        const diffLabels = { EASY: 'Dễ', MEDIUM: 'TB', HARD: 'Khó' };
+        editQuestionsContainer.innerHTML = eligibleQuestions.map(q => {
+            const qid = Number(q.question_id);
+            const checked = currentModalSelectedIds.has(qid) ? 'checked' : '';
+            const diff = String(q.difficulty || 'EASY').toUpperCase();
+            const searchStr = `${q.content} ${q.topic_name}`.toLowerCase();
+
+            return `
+                <label class="edit-q-item" data-topic-id="${escapeHtml(q.topic_id)}" data-search="${escapeHtml(searchStr)}">
+                    <input type="checkbox" name="question_ids[]" value="${qid}" ${checked}>
+                    <div>
+                        <span class="diff-pill diff-${escapeHtml(diff)}">${diffLabels[diff] || 'Dễ'}</span>
+                        <strong>[${escapeHtml(q.topic_name)}]</strong>
+                        <span>${escapeHtml(q.content)}</span>
+                    </div>
+                </label>
+            `;
+        }).join('');
+
+        editQuestionsContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.addEventListener('change', function() {
+                const id = Number(this.value);
+                if (this.checked) {
+                    currentModalSelectedIds.add(id);
+                } else {
+                    currentModalSelectedIds.delete(id);
+                }
+                updateEditTopicSummary();
+            });
+        });
+
+        updateEditTopicSummary();
+    }
+
+    editTopicFilter.addEventListener('change', filterEditQuestionsList);
+    editQuestionSearch.addEventListener('input', filterEditQuestionsList);
+
     function openEditModal(exam) {
         document.getElementById('modalExamId').textContent = '#' + exam.exam_id;
         document.getElementById('edit_exam_id').value = exam.exam_id;
@@ -302,6 +461,8 @@ $examTypeBadges = [
         document.getElementById('edit_password').value = exam.exam_password || '';
         document.getElementById('edit_start_time').value = exam.start_time ? formatDateTimeLocal(exam.start_time) : '';
         document.getElementById('edit_end_time').value = exam.end_time ? formatDateTimeLocal(exam.end_time) : '';
+
+        renderEditQuestions(exam);
         editModal.classList.add('active');
     }
 
@@ -324,6 +485,11 @@ $examTypeBadges = [
         if (startVal && endVal && new Date(endVal) <= new Date(startVal)) {
             e.preventDefault();
             alert('⚠️ Thời gian đóng đề thi phải sau thời gian mở đề thi!');
+            return;
+        }
+        if (currentModalSelectedIds.size === 0) {
+            e.preventDefault();
+            alert('⚠️ Đề thi phải có ít nhất 1 câu hỏi!');
         }
     });
     </script>

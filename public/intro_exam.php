@@ -87,7 +87,8 @@ if ($examVis !== 'PUBLIC' && $roleCheck !== 'ADMIN' && (int)$exam['user_id'] !==
     }
 }
 
-$maxAttempts = (int)($exam['max_attempts'] ?? 0);
+// Bỏ giới hạn số lượt làm đề thi
+$maxAttempts = 0;
 
 $userId = $_SESSION['user_id'] ?? null;
 $attemptCount = 0;
@@ -112,9 +113,7 @@ if ($userId !== null) {
     $attemptCount = (int) $stmtAttempts->fetchColumn();
 }
 
-$attemptsText = $maxAttempts === 0
-    ? $attemptCount . ' lượt đã làm (Không giới hạn)'
-    : $attemptCount . '/' . $maxAttempts . ' lượt';
+$attemptsText = $attemptCount . ' lượt đã làm (Không giới hạn)';
 
 $stmtAttempts = $conn->prepare("
     SELECT COUNT(*)
@@ -152,11 +151,10 @@ $endTime = !empty($exam['end_time'])
 
 $examNotOpened = $startTime !== null && $now < $startTime;
 $examClosed = $endTime !== null && $now >= $endTime;
-$hasAttemptsLeft = $maxAttempts === 0 || $attemptCount < $maxAttempts;
 
 $canStartExam = !$examNotOpened
     && $questionCount > 0
-    && ($hasInProgress || (!$examClosed && $hasAttemptsLeft));
+    && ($hasInProgress || !$examClosed);
 
 $startTimeText = $startTime
     ? $startTime->format('d/m/Y H:i')
@@ -208,19 +206,14 @@ $h = static fn($value) => htmlspecialchars(
 
         <div class="ex-content">
             <dl class="ex-info">
-                <div class="ex-info-item">
+                <div class="ex-info-item is-wide">
                     <dt>Thời gian làm bài</dt>
                     <dd><?= $duration ?> phút</dd>
                 </div>
 
-                <div class="ex-info-item">
+                <div class="ex-info-item is-wide">
                     <dt>Số câu hỏi</dt>
                     <dd><?= $questionCount ?> câu</dd>
-                </div>
-
-                <div class="ex-info-item is-full">
-                    <dt>Lượt làm bài</dt>
-                    <dd class="is-small"><?= $h($attemptsText) ?></dd>
                 </div>
 
                 <div class="ex-info-item is-wide">
@@ -254,12 +247,6 @@ $h = static fn($value) => htmlspecialchars(
                     Đề thi đã kết thúc vào lúc
                     <?= $h($endTimeText) ?>.
                     Bạn không thể bắt đầu lượt thi mới.
-                </div>
-
-            <?php elseif (!$hasAttemptsLeft): ?>
-
-                <div class="ex-notice ex-notice--error" role="alert">
-                    Bạn đã sử dụng hết số lượt làm bài cho phép.
                 </div>
 
             <?php elseif ($questionCount > 0): ?>

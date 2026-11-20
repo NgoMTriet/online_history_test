@@ -7,6 +7,25 @@ date_default_timezone_set('Asia/Ho_Chi_Minh');
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/exam_attempts.php';
 
+/**
+ * Lý do KHÔNG cho bắt đầu lượt làm mới:
+ *   ''                  -> được làm
+ *   'exam_closed'       -> đề đã đóng
+ *   'attempts_exceeded' -> đã dùng hết số lượt (max_attempts > 0)
+ * Mọi lượt (kể cả làm dở / thoát giữa chừng) đều được tính, giống intro_exam.php.
+ */
+function exam_new_attempt_block_reason(PDO $conn, array $exam, int $user_id): string
+{
+    if (!empty($exam['end_time'])) {
+        $tz = new DateTimeZone('Asia/Ho_Chi_Minh');
+        if (new DateTime('now', $tz) >= new DateTime($exam['end_time'], $tz)) {
+            return 'exam_closed';
+        }
+    }
+
+    return '';
+}
+
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
@@ -36,8 +55,7 @@ if (!$exam) {
 $gate_state = 'ready';
 $formattedStartTime = '';
 $safeTitle = htmlspecialchars((string) ($exam['title'] ?? 'Bài thi'), ENT_QUOTES, 'UTF-8');
-$max_attempts = (int) ($exam['max_attempts'] ?? 0);
-$user_attempts = 0;
+$password_error = '';
 $password_error = '';
 
 // 2. Kiểm tra thời gian mở đề
@@ -52,28 +70,20 @@ if (!empty($exam['start_time'])) {
         return;
     }
 }
-
-// 3. Kiểm tra số lượt làm bài (max_attempts = 0: không giới hạn)
+// 3. Kiểm tra lượt thi đang làm dở
 close_expired_attempts($conn);
 $in_progress = find_in_progress_attempt($conn, $user_id, $exam_id);
 
-$stmt_check = $conn->prepare(
-    'SELECT COUNT(*) FROM exam_results
-     WHERE user_id = :user_id AND exam_id = :exam_id'
-);
-$stmt_check->execute([
-    'user_id' => $user_id,
-    'exam_id' => $exam_id
-]);
-$user_attempts = (int) $stmt_check->fetchColumn();
-
-// Lượt đang làm dở thì được tiếp tục, không bị chặn vì hết lượt.
-if ($max_attempts > 0 && $user_attempts >= $max_attempts && !$in_progress) {
-    unset($_SESSION['exam_auth_' . $exam_id]);
-    $gate_state = 'max_attempts';
-    return;
+// Chưa có lượt đang làm: kiểm tra đề đã đóng / đã hết số lượt chưa
+if (!$in_progress) {
+    $block_reason = exam_new_attempt_block_reason($conn, $exam, $user_id);
+    if ($block_reason !== '') {
+        $gate_state = $block_reason;
+        return;
+    }
 }
 
+unset($_SESSION['exam_completed_' . $exam_id]);
 unset($_SESSION['exam_completed_' . $exam_id]);
 
 // 4. Kiểm tra mật khẩu đề thi
@@ -123,8 +133,35 @@ if ($in_progress) {
     $attempt_id = (int) $in_progress['result_id'];
     $remaining_seconds = max(1, $duration_seconds - (int) $in_progress['elapsed']);
 } else {
-    $attempt_id = start_attempt($conn, $user_id, $exam_id, count($raw_questions));
-    $remaining_seconds = $duration_seconds;
+    // Khoá theo (học sinh, đề): mở 2 tab cùng lúc cũng không vượt quá số lượt cho phép
+    $lock_name = 'exam_attempt_' . $user_id . '_' . $exam_id;
+    $got_lock  = (int) $conn->query('SELECT GET_LOCK(' . $conn->quote($lock_name) . ', 5)')->fetchColumn() === 1;
+
+    try {
+        // Kiểm tra lại bên trong khoá
+        $in_progress = find_in_progress_attempt($conn, $user_id, $exam_id);
+
+        if ($in_progress) {
+            $attempt_id = (int) $in_progress['result_id'];
+            $remaining_seconds = max(1, $duration_seconds - (int) $in_progress['elapsed']);
+        } else {
+            $block_reason = exam_new_attempt_block_reason($conn, $exam, $user_id);
+            if ($block_reason !== '') {
+                $gate_state = $block_reason;
+            } else {
+                $attempt_id = start_attempt($conn, $user_id, $exam_id, count($raw_questions));
+                $remaining_seconds = $duration_seconds;
+            }
+        }
+    } finally {
+        if ($got_lock) {
+            $conn->query('SELECT RELEASE_LOCK(' . $conn->quote($lock_name) . ')')->fetchColumn();
+        }
+    }
+
+    if ($gate_state !== 'ready') {
+        return;
+    }
 }
 
 // Xáo trộn theo mã lượt thi: tải lại trang (F5) vẫn ra đúng thứ tự cũ.

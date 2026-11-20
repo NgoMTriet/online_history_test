@@ -8,13 +8,14 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-body {
-    background: #f4f6f9;
-    color: #333;
-    padding-bottom: 80px;
-    min-height: 100vh;
-}
-
+body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+               background: #f1f5f9; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #0f172a; }
+        .gate-card { max-width: 440px; margin: 20px; padding: 32px 28px; text-align: center;
+                     background: #fff; border-radius: 14px; box-shadow: 0 10px 30px rgba(15, 23, 42, .08); }
+        .gate-card h2 { margin: 0 0 12px; font-size: 22px; }
+        .gate-card p { margin: 0 0 22px; color: #475569; line-height: 1.6; }
+        .gate-btn { display: inline-block; padding: 10px 22px; border-radius: 8px; background: #4f46e5;
+                    color: #fff; text-decoration: none; font-weight: 600; }
 body.fs-locked {
     overflow: hidden;
 }

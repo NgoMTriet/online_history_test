@@ -27,32 +27,6 @@ if ($gate_state === 'not_started'):
 exit;
 endif;
 
-if ($gate_state === 'max_attempts'):
-?>
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Hết lượt làm bài</title>
-</head>
-<body>
-    <div class="card">
-        <h2>🚫 Bạn đã hết lượt làm bài!</h2>
-        <p>
-            Đề thi <strong><?= $safeTitle ?></strong>
-            cho phép làm tối đa <strong><?= $max_attempts ?></strong> lần.
-            <br>
-            Bạn đã thực hiện
-            <strong><?= $user_attempts ?>/<?= $max_attempts ?></strong> lượt.
-        </p>
-        <a href="index.php" class="btn">Quay lại trang chủ</a>
-    </div>
-</body>
-</html>
-<?php
-exit;
-endif;
 
 if ($gate_state === 'password_required'):
 ?>
@@ -96,6 +70,34 @@ if ($gate_state === 'password_required'):
         </form>
 
         <p><a href="index.php">Quay lại trang chủ</a></p>
+    </div>
+</body>
+</html>
+<?php
+exit;
+endif;
+
+
+if ($gate_state === 'exam_closed'):
+    $gate_end = !empty($exam['end_time']) ? date('H:i - d/m/Y', strtotime($exam['end_time'])) : '';
+?>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><?= $gate_state === 'attempts_exceeded' ? 'Đã hết lượt làm bài' : 'Đề thi đã đóng' ?></title>
+
+</head>
+<body>
+    <div class="gate-card">
+            <h2>🛑 Đề thi đã đóng</h2>
+            <p>
+                Đề thi <strong><?= htmlspecialchars($exam['title'] ?? 'Bài thi', ENT_QUOTES, 'UTF-8') ?></strong>
+                đã kết thúc<?= $gate_end !== '' ? ' vào lúc <strong>' . htmlspecialchars($gate_end, ENT_QUOTES, 'UTF-8') . '</strong>' : '' ?>.
+                Bạn không thể bắt đầu lượt làm mới.
+            </p>
+            <a href="index.php" class="gate-btn">Quay lại trang chủ</a>
     </div>
 </body>
 </html>

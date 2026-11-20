@@ -161,6 +161,7 @@ require_once __DIR__ . '/../api/be_history.php';
                             <th>STT</th>
                             <?php if ($is_teacher): ?><th>Học sinh</th><?php endif; ?>
                             <th>Tên đề thi</th>
+                            <th>Lượt</th>
                             <th>Ngày làm</th>
                             <th>Thời gian làm</th>
                             <th>Điểm</th>
@@ -176,6 +177,7 @@ require_once __DIR__ . '/../api/be_history.php';
                                     <td data-label="Học sinh"><?= h($item['student_name']) ?></td>
                                 <?php endif; ?>
                                 <td data-label="Đề thi"><span class="exam-name"><?= h($item['exam_title']) ?></span></td>
+                                <td class="muted" data-label="Lượt">Lượt <?= (int)($item['attempt_no'] ?? 1) ?><?php if ((int)($item['max_attempts'] ?? 0) > 0): ?> / <?= (int)$item['max_attempts'] ?><?php endif; ?></td>
                                 <td class="muted" data-label="Ngày làm"><?= h(date('d/m/Y H:i', strtotime($item['submitted_at']))) ?></td>
                                 <td class="muted" data-label="Thời gian"><?= h($item['completion_time']) ?></td>
                                 <td data-label="Điểm">

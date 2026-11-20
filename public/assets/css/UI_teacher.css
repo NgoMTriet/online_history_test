@@ -440,7 +440,6 @@ button {
 }
 
 .page-title p,
-
 .title-icon,
 .header-icon {
   display: grid;
@@ -1276,6 +1275,7 @@ tr:hover {
     display: none;
   }
 }
+
 /* ===== Khung tải file Excel mẫu ===== */
 .tpl-box {
   display: flex;
@@ -1324,7 +1324,9 @@ tr:hover {
   font-weight: 600;
   text-decoration: none;
   box-shadow: 0 4px 12px -4px rgba(22, 163, 74, 0.6);
-  transition: background 0.15s, transform 0.1s;
+  transition:
+    background 0.15s,
+    transform 0.1s;
 }
 .tpl-box a.tpl-btn:hover {
   background: #15803d;
@@ -1333,6 +1335,115 @@ tr:hover {
   transform: translateY(1px);
 }
 @media (max-width: 640px) {
-  .tpl-box { flex-wrap: wrap; }
-  .tpl-box a.tpl-btn { width: 100%; justify-content: center; }
+  .tpl-box {
+    flex-wrap: wrap;
+  }
+  .tpl-box a.tpl-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ===== MODAL CHỈNH SỬA ĐỀ THI & CHỌN CÂU HỎI ===== */
+.modal-card.modal-lg {
+  max-width: 780px;
+  width: 95%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-card.modal-lg form {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-card.modal-lg .modal-body {
+  overflow-y: auto;
+  padding-right: 18px;
+}
+
+.edit-q-box {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #f8fafc;
+  margin-top: 8px;
+}
+
+.edit-q-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.edit-q-list {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.edit-q-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.edit-q-item:hover {
+  background: #f1f5f9;
+}
+
+.edit-q-item input[type="checkbox"] {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.diff-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.diff-EASY {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.diff-MEDIUM {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.diff-HARD {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.topic-summary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12.5px;
 }

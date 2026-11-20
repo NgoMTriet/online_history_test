@@ -50,6 +50,28 @@ $current_page = basename($_SERVER['PHP_SELF']);
     </div>
 
     <div class="et-sidebar-foot">
-         <a class="btn-logout" href="../api/auth.php?action=login">Đăng xuất</a>
+         <a class="btn-logout" href="../api/auth.php?action=logout">Đăng xuất</a>
     </div>
 </aside>
+
+<script>
+// Mở/đóng thanh menu giáo viên trên màn hình nhỏ (CSS dùng .et-sidebar.open và .et-overlay.show)
+function etToggleSidebar(forceClose) {
+    var sidebar = document.getElementById('etSidebar');
+    var overlay = document.getElementById('etOverlay');
+    if (!sidebar) return;
+
+    var willOpen = forceClose === true ? false : !sidebar.classList.contains('open');
+    sidebar.classList.toggle('open', willOpen);
+    if (overlay) overlay.classList.toggle('show', willOpen);
+    document.body.style.overflow = willOpen ? 'hidden' : '';
+}
+
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') etToggleSidebar(true);
+});
+
+window.addEventListener('resize', function () {
+    if (window.innerWidth > 900) etToggleSidebar(true);
+});
+</script>

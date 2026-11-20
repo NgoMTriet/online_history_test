@@ -35,23 +35,29 @@ function saveQuestion(PDO $conn, int $userId, int $topicId, string $question, ar
     $options = array_filter($options, fn($value) => trim((string)$value) !== '');
 
     $difficultyRaw = trim((string)$difficulty);
+    // Chuẩn hóa Unicode tổ hợp (WPS/Mac) về Unicode dựng sẵn (NFC) nếu có extension intl
+    if (class_exists('Normalizer')) {
+        $difficultyRaw = Normalizer::normalize($difficultyRaw, Normalizer::FORM_C) ?: $difficultyRaw;
+    }
+
     $difficultyText = mb_strtolower($difficultyRaw, 'UTF-8');
     $difficultyText = preg_replace('/\s+/u', ' ', $difficultyText) ?? $difficultyText;
 
+    // Bỏ toàn bộ dấu tiếng Việt thủ công để không phụ thuộc iconv của Windows/XAMPP
+    $vi = ['à','á','ạ','ả','ã','â','ầ','ấ','ậ','ẩ','ẫ','ă','ằ','ắ','ặ','ẳ','ẵ','è','é','ẹ','ẻ','ẽ','ê','ề','ế','ệ','ể','ễ','ì','í','ị','ỉ','ĩ','ò','ó','ọ','ỏ','õ','ô','ồ','ố','ộ','ổ','ỗ','ơ','ờ','ớ','ợ','ở','ỡ','ù','ú','ụ','ủ','ũ','ư','ừ','ứ','ự','ử','ữ','ỳ','ý','ỵ','ỷ','ỹ','đ'];
+    $en = ['a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','a','e','e','e','e','e','e','e','e','e','e','e','i','i','i','i','i','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','o','u','u','u','u','u','u','u','u','u','u','u','y','y','y','y','y','d'];
+    $difficultyAscii = str_replace($vi, $en, $difficultyText);
+    // Xóa các ký tự dấu tổ hợp rời (nếu server không bật Normalizer)
+    $difficultyAscii = preg_replace('/\p{M}/u', '', $difficultyAscii);
+    $difficultyAscii = trim($difficultyAscii);
+
     $difficultyMap = [
-        'easy' => 'EASY', 'dễ' => 'EASY', 'de' => 'EASY',
-        'medium' => 'MEDIUM', 'trung bình' => 'MEDIUM', 'trung binh' => 'MEDIUM',
-        'hard' => 'HARD', 'khó' => 'HARD', 'kho' => 'HARD'
+        'easy' => 'EASY', 'de' => 'EASY',
+        'medium' => 'MEDIUM', 'trung binh' => 'MEDIUM',
+        'hard' => 'HARD', 'kho' => 'HARD'
     ];
 
-    if (isset($difficultyMap[$difficultyText])) {
-        $difficulty = $difficultyMap[$difficultyText];
-    } else {
-        $folded = str_replace(['đ', 'Đ'], 'd', $difficultyText);
-        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $folded);
-        $ascii = strtolower(trim($ascii === false ? $folded : $ascii));
-        $difficulty = $difficultyMap[$ascii] ?? '';
-    }
+    $difficulty = $difficultyMap[$difficultyAscii] ?? '';
 
     if (!in_array($difficulty, ['EASY', 'MEDIUM', 'HARD'], true)) {
         throw new Exception('Độ khó không hợp lệ: ' . $difficultyRaw);
@@ -217,9 +223,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'impor
                 $worksheet = $spreadsheet->getActiveSheet();
                 $rows = $worksheet->toArray();
 
+                // 1. Sửa đoạn đọc $header (dòng 210) để không bị lỗi chữ 'đ' của iconv:
                 $header = array_map(static function ($value): string {
                     $value = trim((string)$value);
                     $value = mb_strtolower($value, 'UTF-8');
+                    $value = str_replace(['đ', 'Đ'], 'd', $value); // Thêm dòng này
                     $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
                     $ascii = $ascii === false ? $value : $ascii;
                     return preg_replace('/[^a-z0-9]+/', '', strtolower($ascii));
@@ -262,7 +270,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'impor
                     $rowTopicId = $topicIdCol !== null ? (int)($row[$topicIdCol] ?? 0) : 0;
                     $importTopicId = $rowTopicId > 0 ? $rowTopicId : $selected_topic_id;
 
-                    if ($difficulty === '') { $difficulty = 'EASY'; }
                     if ($question === '' && count(array_filter($options)) === 0) { continue; }
 
                     try {

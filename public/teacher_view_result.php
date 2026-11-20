@@ -64,6 +64,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                         <th>Họ và Tên</th>
                         <th>Lớp</th>
                         <th>Đề thi</th>
+                        <th>Lượt</th>
                         <th>Ngày sinh</th>
                         <th>Điểm số</th>
                         <th>Rời bài</th>
@@ -84,6 +85,13 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                                 <td><strong><?= htmlspecialchars($row['full_name']) ?></strong></td>
                                 <td><span class="badge badge-class"><?= htmlspecialchars($row['class_name'] ?? 'N/A') ?></span></td>
                                 <td>Lớp <?= htmlspecialchars($row['grade']) ?> - <?= htmlspecialchars($row['exam_title']) ?></td>
+                                <td>
+                                    <?php
+                                        $rowMax = isset($row['max_attempts']) ? (int)$row['max_attempts'] : 0;
+                                        $rowNo  = (int)($row['attempt_no'] ?? 1);
+                                    ?>
+                                    <strong>Lượt <?= $rowNo ?></strong><?php if ($rowMax > 0): ?><small style="color: var(--muted);"> / <?= $rowMax ?></small><?php endif; ?>
+                                </td>
                                 <td><?= htmlspecialchars($dob) ?></td>
                                 <td><span class="score-box <?= $score_class ?>"><?= number_format($score, 1) ?></span></td>
                                 <td>
@@ -98,7 +106,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="8">
+                            <td colspan="9">
                                 <div class="empty-state">
                                     <span>📭</span>
                                     <p>Chưa có lượt làm bài nào cho các đề thi của bạn.</p>
