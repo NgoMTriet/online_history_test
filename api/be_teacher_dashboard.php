@@ -65,9 +65,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit_
     $exam_type = trim($_POST['exam_type'] ?? 'REGULAR');
     $duration = (int)($_POST['duration'] ?? 15);
     $examPassword = trim($_POST['exam_password'] ?? '');
-    $maxAttempts = isset($_POST['max_attempts'])
-        ? max(0, min(100, (int)$_POST['max_attempts']))
-        : null;
 
     $allowedExamTypes = ['REGULAR', 'MIDTERM_1', 'FINAL_1', 'MIDTERM_2', 'FINAL_2'];
     if (!in_array($exam_type, $allowedExamTypes, true)) {
@@ -151,7 +148,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit_
                 SET title = :title,
                     exam_type = :exam_type,
                     duration = :duration,
-                    max_attempts = COALESCE(:max_attempts, max_attempts),
                     start_time = :start_time,
                     end_time = :end_time,
                     exam_password = :exam_password,
@@ -163,7 +159,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit_
                 'title' => $title,
                 'exam_type' => $exam_type,
                 'duration' => $duration,
-                'max_attempts' => $maxAttempts,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
                 'exam_password' => $examPassword !== '' ? $examPassword : null,
