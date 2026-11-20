@@ -112,6 +112,25 @@ endif;
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= htmlspecialchars($exam['title'] ?? 'Làm bài thi', ENT_QUOTES, 'UTF-8') ?></title>
 <link rel="stylesheet" href="/../assets/css/take_exam.css">
+<style>
+/* Sửa lỗi thanh tiêu đề/giờ bị lệch giữa màn hình: ghim lên đầu trang */
+body { display: block; }
+body > header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 24px;
+    background: #2c3e50;
+    color: #fff;
+}
+</style>
 </head>
 <body class="fs-locked">
 
