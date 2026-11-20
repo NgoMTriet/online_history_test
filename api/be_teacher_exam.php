@@ -211,16 +211,16 @@ $gradeOptions = !empty($teacherGrades) ? $teacherGrades : [6, 7, 8, 9];
 sort($gradeOptions);
 
 $defaultGrade = $gradeOptions[0];
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['grade'])) {
-    $postedGrade = (int)$_POST['grade'];
-    if (in_array($postedGrade, $gradeOptions, true)) {
-        $defaultGrade = $postedGrade;
-    }
+// Cho phép chọn khối qua POST (khi submit) hoặc GET (?grade=8 khi đổi khối)
+$reqGrade = (int)($_POST['grade'] ?? $_GET['grade'] ?? 0);
+if ($reqGrade > 0 && in_array($reqGrade, $gradeOptions, true)) {
+    $defaultGrade = $reqGrade;
 }
 
 $defaultSubjectId = 0;
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['subject_id'])) {
-    $postedSubjId = (int)$_POST['subject_id'];
+$reqSubjId = (int)($_POST['subject_id'] ?? $_GET['subject_id'] ?? 0);
+if ($reqSubjId > 0) {
+    $postedSubjId = $reqSubjId;
     foreach ($allSubjects as $subj) {
         if ((int)$subj['subject_id'] === $postedSubjId) {
             $defaultSubjectId = $postedSubjId;
@@ -238,6 +238,15 @@ if ($defaultSubjectId === 0) {
     if ($defaultSubjectId === 0 && !empty($allSubjects)) {
         $defaultSubjectId = (int)$allSubjects[0]['subject_id'];
     }
+}
+
+// Danh sách môn đưa vào <select>: ưu tiên môn thuộc khối đang chọn (hoặc môn không gắn khối)
+$subjectOptions = array_values(array_filter(
+    $allSubjects,
+    fn($sj) => (int)$sj['grade'] === $defaultGrade || (int)$sj['grade'] === 0
+));
+if (empty($subjectOptions)) {
+    $subjectOptions = $allSubjects;
 }
 
 $defaultMaxAttempts = 0;
