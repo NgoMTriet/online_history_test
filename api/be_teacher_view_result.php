@@ -48,7 +48,6 @@ $sql = "
         u.dob,
         e.title AS exam_title,
         e.grade,
-        e.max_attempts,
         (SELECT COUNT(*) FROM exam_results r2
          WHERE r2.user_id = er.user_id AND r2.exam_id = er.exam_id
            AND r2.result_id <= er.result_id) AS attempt_no
