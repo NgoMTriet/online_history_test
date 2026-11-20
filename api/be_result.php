@@ -248,7 +248,7 @@ if (!$result) {
 }
 $exam_id = (int)$result['exam_id'];
 
-// Số thứ tự lượt làm, số lượt đã dùng và giới hạn của đề (để hiển thị và hiện nút "Làm lại")
+// Số thứ tự lượt làm và số lượt đã dùng (không giới hạn số lượt nên luôn cho phép "Làm lại")
 $stmt_no = $conn->prepare('SELECT COUNT(*) FROM exam_results WHERE user_id = :uid AND exam_id = :eid AND result_id <= :rid');
 $stmt_no->execute(['uid' => $user_id, 'eid' => $exam_id, 'rid' => $result_id]);
 $attempt_no = max(1, (int) $stmt_no->fetchColumn());
@@ -257,10 +257,7 @@ $stmt_used = $conn->prepare('SELECT COUNT(*) FROM exam_results WHERE user_id = :
 $stmt_used->execute(['uid' => $user_id, 'eid' => $exam_id]);
 $attempt_used = (int) $stmt_used->fetchColumn();
 
-$stmt_max = $conn->prepare('SELECT max_attempts FROM exam WHERE exam_id = :eid LIMIT 1');
-$stmt_max->execute(['eid' => $exam_id]);
-$max_attempts = (int) $stmt_max->fetchColumn();
-$can_retry = $max_attempts === 0 || $attempt_used < $max_attempts;
+$can_retry = true;
 $correct_count = (int)$result['correct_answers_count'];
 $total_questions = (int)$result['total_questions'];
 $score = (float)$result['score'];
