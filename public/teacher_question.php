@@ -13,9 +13,17 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
         function onGradeChange(select) {
             window.location.href = '?grade=' + encodeURIComponent(select.value);
         }
+        function onSubjectChange(select) {
+            const grade = document.getElementById('grade_select').value;
+            window.location.href = '?grade=' + encodeURIComponent(grade)
+                + '&subject_id=' + encodeURIComponent(select.value);
+        }
         function onTopicSelect(select) {
             const grade = document.getElementById('grade_select').value;
-            window.location.href = '?grade=' + encodeURIComponent(grade) + '&topic_id=' + encodeURIComponent(select.value);
+            const subject = document.getElementById('subject_select').value;
+            window.location.href = '?grade=' + encodeURIComponent(grade)
+                + '&subject_id=' + encodeURIComponent(subject)
+                + '&topic_id=' + encodeURIComponent(select.value);
         }
     </script>
 </head>
@@ -62,6 +70,16 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                     </select>
                 </div>
                 <div class="form-group">
+                    <label for="subject_select">Môn học</label>
+                    <select id="subject_select" onchange="onSubjectChange(this)">
+                        <?php foreach ($subjects_list as $subj): ?>
+                            <option value="<?= (int)$subj['subject_id'] ?>" <?= $selected_subject_id === (int)$subj['subject_id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($subj['subject_name'], ENT_QUOTES, 'UTF-8') ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label for="topic_select">Chủ đề hiện có</label>
                     <select id="topic_select" onchange="onTopicSelect(this)">
                         <option value="0">-- Chọn chủ đề --</option>
@@ -78,6 +96,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
                 <form method="POST">
                     <input type="hidden" name="action" value="create_topic">
                     <input type="hidden" name="grade" value="<?= $selected_grade ?>">
+                    <input type="hidden" name="subject_id" value="<?= $selected_subject_id ?>">
                     <?php if ($selected_topic_id > 0): ?>
                         <input type="hidden" name="topic_id" value="<?= $selected_topic_id ?>">
                     <?php endif; ?>
@@ -108,6 +127,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
             <form method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="import_excel">
                 <input type="hidden" name="grade" value="<?= $selected_grade ?>">
+                    <input type="hidden" name="subject_id" value="<?= $selected_subject_id ?>">
                 <input type="hidden" name="topic_id" value="<?= $selected_topic_id ?>">
 
                 <div class="form-group">
@@ -142,6 +162,7 @@ include __DIR__ . '/../includes/teacher_sidebar.php';
             <form method="POST">
                 <input type="hidden" name="action" value="add_manual">
                 <input type="hidden" name="grade" value="<?= $selected_grade ?>">
+                    <input type="hidden" name="subject_id" value="<?= $selected_subject_id ?>">
                 <input type="hidden" name="topic_id" value="<?= $selected_topic_id ?>">
 
                 <div class="form-group">
