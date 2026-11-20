@@ -14,7 +14,7 @@ require_once __DIR__ . '/../api/be_result.php';
   <section class="panel summary">
     <h1>Kết quả bài thi</h1>
     <p><strong><?= h($result['exam_title']) ?></strong></p>
-    <p>Lượt làm bài: <strong>Lượt <?= (int)$attempt_no ?><?= $max_attempts > 0 ? ' / ' . (int)$max_attempts : ' (không giới hạn)' ?></strong></p>
+    <p>Lượt làm bài: <strong>Lượt <?= (int)$attempt_no ?></strong></p>
     <div class="score"><?= number_format($score, 2) ?>/10</div>
     <p class="<?= $score >= 5 ? 'passed' : 'failed' ?>"><strong><?= $score >= 5 ? 'ĐẠT' : 'CHƯA ĐẠT' ?></strong></p>
     <div class="stats">
@@ -22,7 +22,7 @@ require_once __DIR__ . '/../api/be_result.php';
       <div class="stat">Số câu sai/chưa chọn<strong><?= max(0, $total_questions - $correct_count) ?></strong></div>
       <div class="stat">Thời gian làm bài<strong><?= sprintf('%02d:%02d', $minutes, $seconds) ?></strong></div>
     </div>
-    <div class="actions"><a class="btn home" href="index.php">Về trang chủ</a><a class="btn history" href="history.php">Lịch sử làm bài</a><?php if ($can_retry): ?><a class="btn history" href="intro_exam.php?exam_id=<?= (int)$exam_id ?>">Làm lại<?= $max_attempts > 0 ? ' (còn ' . (int)($max_attempts - $attempt_used) . ' lượt)' : '' ?></a><?php endif; ?></div>
+    <div class="actions"><a class="btn home" href="index.php">Về trang chủ</a><a class="btn history" href="history.php">Lịch sử làm bài</a><?php if ($can_retry): ?><a class="btn history" href="intro_exam.php?exam_id=<?= (int)$exam_id ?>">Làm lại</a><?php endif; ?></div>
   </section>
   <section class="panel">
     <h2>Chi tiết đáp án</h2>
