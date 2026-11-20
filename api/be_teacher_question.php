@@ -30,6 +30,41 @@ function showMessage(string $type, string $text): string
         . '</div>';
 }
 
+// Bỏ dấu tiếng Việt, không phụ thuộc iconv/locale của server
+function vnToAscii(string $text): string
+{
+    $text = mb_strtolower(trim($text), 'UTF-8');
+    if (class_exists('Normalizer')) {
+        $n = Normalizer::normalize($text, Normalizer::FORM_C);
+        if ($n !== false) { $text = $n; }
+    }
+    static $map = null;
+    if ($map === null) {
+        $groups = [
+            'a' => 'àáạảãâầấậẩẫăằắặẳẵ',
+            'e' => 'èéẹẻẽêềếệểễ',
+            'i' => 'ìíịỉĩ',
+            'o' => 'òóọỏõôồốộổỗơờớợởỡ',
+            'u' => 'ùúụủũưừứựửữ',
+            'y' => 'ỳýỵỷỹ',
+            'd' => 'đ',
+        ];
+        $map = [];
+        foreach ($groups as $base => $chars) {
+            foreach (mb_str_split($chars, 1, 'UTF-8') as $ch) { $map[$ch] = $base; }
+        }
+    }
+    $text = strtr($text, $map);
+    return preg_replace('/\p{M}/u', '', $text) ?? $text;
+}
+
+function isDifficultyWord(string $value): bool
+{
+    return in_array(preg_replace('/[^a-z]+/', ' ', vnToAscii($value)) !== null
+        ? trim(preg_replace('/[^a-z]+/', ' ', vnToAscii($value))) : '',
+        ['easy', 'medium', 'hard', 'de', 'trung binh', 'kho'], true);
+}
+
 // ĐÃ SỬA LỖI PDO VÀ THÊM THAM SỐ $userId
 function saveQuestion(PDO $conn, int $userId, int $topicId, string $question, array $options, string $correct, string $explanation, string $difficulty = 'EASY'): void {
     $options = array_filter($options, fn($value) => trim((string)$value) !== '');
@@ -225,12 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'impor
 
                 // 1. Sửa đoạn đọc $header (dòng 210) để không bị lỗi chữ 'đ' của iconv:
                 $header = array_map(static function ($value): string {
-                    $value = trim((string)$value);
-                    $value = mb_strtolower($value, 'UTF-8');
-                    $value = str_replace(['đ', 'Đ'], 'd', $value); // Thêm dòng này
-                    $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
-                    $ascii = $ascii === false ? $value : $ascii;
-                    return preg_replace('/[^a-z0-9]+/', '', strtolower($ascii));
+                    return preg_replace('/[^a-z0-9]+/', '', vnToAscii((string)$value));
                 }, $rows[0] ?? []);
 
                 $findColumn = static function (array $aliases) use ($header): ?int {
@@ -246,7 +276,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'impor
                 $optionCCol = $findColumn(['dapanc', 'optionc', 'answerc']) ?? 3;
                 $optionDCol = $findColumn(['dapand', 'optiond', 'answerd']) ?? 4;
                 $correctCol = $findColumn(['dapandungabcd', 'dapandung', 'correctanswer', 'correctoption']) ?? 5;
-                $explanationCol = $findColumn(['loigiaichitiet', 'loigiai', 'explanation']) ?? 8;
+                $explanationCol = $findColumn(['loigiaichitiet', 'loigiai', 'explanation']) ?? 7;
                 $difficultyCol = $findColumn(['dokho', 'dokhocauhoi', 'difficulty', 'mucdo', 'mucdokho', 'mucdocauhoi', 'level']) ?? 6;
                 $topicIdCol = $findColumn(['chudeid', 'topicid', 'idchude', 'topic']);
 
@@ -267,6 +297,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'impor
                     $correct = strtoupper(trim((string)($row[$correctCol] ?? '')));
                     $explanation = trim((string)($row[$explanationCol] ?? ''));
                     $difficulty = trim((string)($row[$difficultyCol] ?? ''));
+                    // Nếu hai cột bị đảo (đáp án đúng nằm ở cột Độ khó và ngược lại) thì tự đổi lại
+                    if (preg_match('/^[A-D]$/i', $difficulty) && isDifficultyWord($correct)) {
+                        [$correct, $difficulty] = [strtoupper($difficulty), $correct];
+                    }
                     $rowTopicId = $topicIdCol !== null ? (int)($row[$topicIdCol] ?? 0) : 0;
                     $importTopicId = $rowTopicId > 0 ? $rowTopicId : $selected_topic_id;
 
@@ -282,7 +316,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'impor
                         saveQuestion($conn, $userId, $importTopicId, $question, $options, $correct, $explanation, $difficulty);
                         $count++;
                     } catch (Throwable $e) {
-                        $errors[] = 'Dòng ' . ($index + 1) . ': ' . $e->getMessage();
+                        $errors[] = 'Dòng ' . ($index + 1) . ': ' . $e->getMessage()
+                            . ' [cột: câu hỏi=' . ($questionCol + 1) . ', đáp án đúng=' . ($correctCol + 1)
+                            . ', độ khó=' . ($difficultyCol + 1) . ', lời giải=' . ($explanationCol + 1) . ']';
                     }
                 }
 
