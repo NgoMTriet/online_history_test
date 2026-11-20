@@ -44,11 +44,6 @@ try {
     if ($colClassesExam && $colClassesExam->rowCount() === 0) {
         $conn->exec("ALTER TABLE `exam` ADD COLUMN `target_classes` VARCHAR(255) NULL AFTER `school_name`");
     }
-
-    $colAttemptsExam = $conn->query("SHOW COLUMNS FROM `exam` LIKE 'max_attempts'");
-    if ($colAttemptsExam && $colAttemptsExam->rowCount() === 0) {
-        $conn->exec("ALTER TABLE `exam` ADD COLUMN `max_attempts` INT NOT NULL DEFAULT 0 COMMENT '0 = Không giới hạn số lượt làm' AFTER `duration`");
-    }
 } catch (PDOException $e) {
     error_log($e->getMessage());
 }
@@ -176,7 +171,7 @@ $visibilitySql = buildExamVisibilityClause(
 );
 
 $sql = "SELECT e.exam_id, e.title, e.grade, e.exam_type, e.visibility, e.school_name, e.target_classes,
-               e.duration, e.max_attempts, e.total_questions,
+               e.duration, e.total_questions,
                u.full_name AS teacher_name,
                s.subject_name,
                GROUP_CONCAT(DISTINCT t.topic_name SEPARATOR ', ') AS topic_names
@@ -210,7 +205,7 @@ if ($exam_type !== '') {
 }
 
 $sql .= " GROUP BY e.exam_id, e.title, e.grade, e.exam_type, e.visibility, e.school_name, e.target_classes,
-                   e.duration, e.max_attempts, e.total_questions, u.full_name, s.subject_name
+                   e.duration, e.total_questions, u.full_name, s.subject_name
           ORDER BY e.exam_id DESC";
 
 $stmt_exams = $conn->prepare($sql);
