@@ -11,8 +11,7 @@ require_once __DIR__ . '/../config/exam_attempts.php';
  * Lý do KHÔNG cho bắt đầu lượt làm mới:
  *   ''                  -> được làm
  *   'exam_closed'       -> đề đã đóng
- *   'attempts_exceeded' -> đã dùng hết số lượt (max_attempts > 0)
- * Mọi lượt (kể cả làm dở / thoát giữa chừng) đều được tính, giống intro_exam.php.
+ * Không giới hạn số lượt làm của mỗi học sinh.
  */
 function exam_new_attempt_block_reason(PDO $conn, array $exam, int $user_id): string
 {
@@ -74,7 +73,7 @@ if (!empty($exam['start_time'])) {
 close_expired_attempts($conn);
 $in_progress = find_in_progress_attempt($conn, $user_id, $exam_id);
 
-// Chưa có lượt đang làm: kiểm tra đề đã đóng / đã hết số lượt chưa
+// Chưa có lượt đang làm: kiểm tra đề đã đóng chưa
 if (!$in_progress) {
     $block_reason = exam_new_attempt_block_reason($conn, $exam, $user_id);
     if ($block_reason !== '') {
@@ -126,14 +125,14 @@ if (empty($raw_questions)) {
     die('Đề thi này chưa có câu hỏi nào!');
 }
 
-// Tính lượt làm bài ngay khi bắt đầu (thoát giữa chừng vẫn mất lượt).
+// Tạo lượt làm bài ngay khi bắt đầu.
 $duration_seconds = max(1, (int) ($exam['duration'] ?? 15) * 60);
 
 if ($in_progress) {
     $attempt_id = (int) $in_progress['result_id'];
     $remaining_seconds = max(1, $duration_seconds - (int) $in_progress['elapsed']);
 } else {
-    // Khoá theo (học sinh, đề): mở 2 tab cùng lúc cũng không vượt quá số lượt cho phép
+    // Khoá theo (học sinh, đề): mở 2 tab cùng lúc cũng chỉ tạo 1 lượt đang làm
     $lock_name = 'exam_attempt_' . $user_id . '_' . $exam_id;
     $got_lock  = (int) $conn->query('SELECT GET_LOCK(' . $conn->quote($lock_name) . ', 5)')->fetchColumn() === 1;
 
