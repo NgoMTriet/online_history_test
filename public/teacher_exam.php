@@ -73,31 +73,33 @@ foreach ($allSubjects as $subj) {
             <div class="form-grid-3">
                 <!-- Hàng 1: Khối lớp | Môn học | Kỳ thi -->
                 <div class="form-group">
-                    <label for="gradeDisplay">Khối lớp</label>
-                    <input type="hidden" name="grade" id="gradeSelect" value="<?= (int)$defaultGrade ?>">
-                    <input
-                        type="text"
-                        id="gradeDisplay"
-                        value="Khối <?= (int)$defaultGrade ?> — <?= $questionCounts[(int)$defaultGrade] ?? 0 ?> câu"
-                        readonly
-                    >
+                    <label for="gradeSelect">Khối lớp</label>
+                    <select name="grade" id="gradeSelect" onchange="location.href='?grade=' + encodeURIComponent(this.value)">
+                        <?php foreach ($gradeOptions as $g): ?>
+                            <option value="<?= (int)$g ?>" <?= (int)$g === (int)$defaultGrade ? 'selected' : '' ?>>
+                                Khối <?= (int)$g ?> — <?= $questionCounts[(int)$g] ?? 0 ?> câu
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="subjectDisplay">Môn học</label>
-                    <input
-                        type="hidden"
+                    <label for="subjectSelect">Môn học</label>
+                    <select
                         name="subject_id"
                         id="subjectSelect"
-                        value="<?= (int)$defaultSubjectId ?>"
-                        data-name="<?= htmlspecialchars(mb_strtolower(trim($currentSubjectName), 'UTF-8'), ENT_QUOTES, 'UTF-8') ?>"
+                        onchange="location.href='?grade=' + encodeURIComponent(document.getElementById('gradeSelect').value) + '&subject_id=' + encodeURIComponent(this.value)"
                     >
-                    <input
-                        type="text"
-                        id="subjectDisplay"
-                        value="<?= htmlspecialchars($currentSubjectName, ENT_QUOTES, 'UTF-8') ?>"
-                        readonly
-                    >
+                        <?php foreach ($subjectOptions as $sj): ?>
+                            <option
+                                value="<?= (int)$sj['subject_id'] ?>"
+                                data-name="<?= htmlspecialchars(mb_strtolower(trim((string)$sj['subject_name']), 'UTF-8'), ENT_QUOTES, 'UTF-8') ?>"
+                                <?= (int)$sj['subject_id'] === (int)$defaultSubjectId ? 'selected' : '' ?>
+                            >
+                                <?= htmlspecialchars((string)$sj['subject_name'], ENT_QUOTES, 'UTF-8') ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                     <small style="color: #64748b; font-size: 12px; display: block; margin-top: 4px;">
                         <?php if ($hasProfileSubjects): ?>
                             Gán sẵn theo hồ sơ giảng dạy (<a href="profile.php" style="color: #2563eb; text-decoration: none; font-weight: 600;">Cập nhật hồ sơ</a>).
@@ -409,9 +411,10 @@ foreach ($allSubjects as $subj) {
     }
 
     function getSelectedSubjectInfo() {
+        const opt = subjectSelect && subjectSelect.selectedOptions ? subjectSelect.selectedOptions[0] : null;
         return {
             id: subjectSelect ? subjectSelect.value : '',
-            name: subjectSelect ? (subjectSelect.dataset.name || '').trim().toLowerCase() : ''
+            name: opt ? (opt.dataset.name || '').trim().toLowerCase() : ''
         };
     }
 
