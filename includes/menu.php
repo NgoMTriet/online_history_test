@@ -23,7 +23,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 .st-topbar-inner {
   max-width: 1280px; /* Đã kéo dài rộng ra 1280px đồng bộ toàn trang */
   margin: 0 auto;
-  padding: 12px 32px;
+  padding: 4px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -45,6 +45,21 @@ $current_page = basename($_SERVER['PHP_SELF']);
   color: var(--pf-indigo, #232f6b);
   text-decoration: none;
   letter-spacing: 0.2px;
+}
+
+.st-brand {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.st-brand img {
+  display: block;
+  height: 75px;
+  width: auto;
+  max-height: 75px;
+  max-width: 240px;
+  object-fit: contain;
 }
 
 .st-nav {
@@ -101,13 +116,21 @@ $current_page = basename($_SERVER['PHP_SELF']);
   .st-topbar-inner {
     padding: 10px 16px;
   }
+
+  .st-brand img {
+    height: 44px;
+    max-height: 44px;
+    max-width: 160px;
+  }
 }
 </style>
 
 <header class="st-topbar">
     <div class="st-topbar-inner">
         <div class="st-left">
-            <a class="st-brand" href="index.php">EXAM365</a>
+            <a class="st-brand" href="index.php" aria-label="EXAM365 - Trang chủ">
+                <img src="image/logo.png" alt="Logo EXAM365" onerror="this.onerror=null;this.src='../image/logo.png'">
+            </a>
 
             <nav class="st-nav" aria-label="Menu chính">
                 <a href="index.php" class="<?= ($current_page === 'index.php') ? 'active' : '' ?>">Trang chủ</a>
